@@ -29,13 +29,13 @@ import { Route as AppEmpresaRelatoriosRouteImport } from './routes/app/empresa/r
 import { Route as AppEmpresaRegistrosRouteImport } from './routes/app/empresa/registros'
 import { Route as AppEmpresaJornadasRouteImport } from './routes/app/empresa/jornadas'
 import { Route as AppEmpresaHoleritesRouteImport } from './routes/app/empresa/holerites'
-import { Route as AppEmpresaFuncionariosRouteImport } from './routes/app/empresa/funcionarios'
 import { Route as AppEmpresaFechamentoRouteImport } from './routes/app/empresa/fechamento'
 import { Route as AppEmpresaEmpresaRouteImport } from './routes/app/empresa/empresa'
 import { Route as AppEmpresaConfiguracoesRouteImport } from './routes/app/empresa/configuracoes'
 import { Route as AppEmpresaCartaoPontoRouteImport } from './routes/app/empresa/cartao-ponto'
 import { Route as AppEmpresaBeneficiosRouteImport } from './routes/app/empresa/beneficios'
 import { Route as AppEmpresaAvisosRouteImport } from './routes/app/empresa/avisos'
+import { Route as AppEmpresaFuncionariosIndexRouteImport } from './routes/app/empresa/funcionarios.index'
 import { Route as AppEmpresaFuncionariosIdRouteImport } from './routes/app/empresa/funcionarios.$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -141,11 +141,6 @@ const AppEmpresaHoleritesRoute = AppEmpresaHoleritesRouteImport.update({
   path: '/holerites',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
-const AppEmpresaFuncionariosRoute = AppEmpresaFuncionariosRouteImport.update({
-  id: '/funcionarios',
-  path: '/funcionarios',
-  getParentRoute: () => AppEmpresaRoute,
-} as any)
 const AppEmpresaFechamentoRoute = AppEmpresaFechamentoRouteImport.update({
   id: '/fechamento',
   path: '/fechamento',
@@ -176,11 +171,17 @@ const AppEmpresaAvisosRoute = AppEmpresaAvisosRouteImport.update({
   path: '/avisos',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
+const AppEmpresaFuncionariosIndexRoute =
+  AppEmpresaFuncionariosIndexRouteImport.update({
+    id: '/funcionarios/',
+    path: '/funcionarios/',
+    getParentRoute: () => AppEmpresaRoute,
+  } as any)
 const AppEmpresaFuncionariosIdRoute =
   AppEmpresaFuncionariosIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AppEmpresaFuncionariosRoute,
+    id: '/funcionarios/$id',
+    path: '/funcionarios/$id',
+    getParentRoute: () => AppEmpresaRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -197,7 +198,6 @@ export interface FileRoutesByFullPath {
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
-  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRouteWithChildren
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
@@ -212,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
   '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
+  '/app/empresa/funcionarios/': typeof AppEmpresaFuncionariosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -224,7 +225,6 @@ export interface FileRoutesByTo {
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
-  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRouteWithChildren
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
@@ -239,6 +239,7 @@ export interface FileRoutesByTo {
   '/app/empresa': typeof AppEmpresaIndexRoute
   '/app/funcionario': typeof AppFuncionarioIndexRoute
   '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
+  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -255,7 +256,6 @@ export interface FileRoutesById {
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
-  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRouteWithChildren
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
@@ -270,6 +270,7 @@ export interface FileRoutesById {
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
   '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
+  '/app/empresa/funcionarios/': typeof AppEmpresaFuncionariosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -287,7 +288,6 @@ export interface FileRouteTypes {
     | '/app/empresa/configuracoes'
     | '/app/empresa/empresa'
     | '/app/empresa/fechamento'
-    | '/app/empresa/funcionarios'
     | '/app/empresa/holerites'
     | '/app/empresa/jornadas'
     | '/app/empresa/registros'
@@ -302,6 +302,7 @@ export interface FileRouteTypes {
     | '/app/empresa/'
     | '/app/funcionario/'
     | '/app/empresa/funcionarios/$id'
+    | '/app/empresa/funcionarios/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -314,7 +315,6 @@ export interface FileRouteTypes {
     | '/app/empresa/configuracoes'
     | '/app/empresa/empresa'
     | '/app/empresa/fechamento'
-    | '/app/empresa/funcionarios'
     | '/app/empresa/holerites'
     | '/app/empresa/jornadas'
     | '/app/empresa/registros'
@@ -329,6 +329,7 @@ export interface FileRouteTypes {
     | '/app/empresa'
     | '/app/funcionario'
     | '/app/empresa/funcionarios/$id'
+    | '/app/empresa/funcionarios'
   id:
     | '__root__'
     | '/'
@@ -344,7 +345,6 @@ export interface FileRouteTypes {
     | '/app/empresa/configuracoes'
     | '/app/empresa/empresa'
     | '/app/empresa/fechamento'
-    | '/app/empresa/funcionarios'
     | '/app/empresa/holerites'
     | '/app/empresa/jornadas'
     | '/app/empresa/registros'
@@ -359,6 +359,7 @@ export interface FileRouteTypes {
     | '/app/empresa/'
     | '/app/funcionario/'
     | '/app/empresa/funcionarios/$id'
+    | '/app/empresa/funcionarios/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -510,13 +511,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaHoleritesRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
-    '/app/empresa/funcionarios': {
-      id: '/app/empresa/funcionarios'
-      path: '/funcionarios'
-      fullPath: '/app/empresa/funcionarios'
-      preLoaderRoute: typeof AppEmpresaFuncionariosRouteImport
-      parentRoute: typeof AppEmpresaRoute
-    }
     '/app/empresa/fechamento': {
       id: '/app/empresa/fechamento'
       path: '/fechamento'
@@ -559,29 +553,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaAvisosRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
+    '/app/empresa/funcionarios/': {
+      id: '/app/empresa/funcionarios/'
+      path: '/funcionarios'
+      fullPath: '/app/empresa/funcionarios/'
+      preLoaderRoute: typeof AppEmpresaFuncionariosIndexRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
     '/app/empresa/funcionarios/$id': {
       id: '/app/empresa/funcionarios/$id'
-      path: '/$id'
+      path: '/funcionarios/$id'
       fullPath: '/app/empresa/funcionarios/$id'
       preLoaderRoute: typeof AppEmpresaFuncionariosIdRouteImport
-      parentRoute: typeof AppEmpresaFuncionariosRoute
+      parentRoute: typeof AppEmpresaRoute
     }
   }
 }
-
-interface AppEmpresaFuncionariosRouteChildren {
-  AppEmpresaFuncionariosIdRoute: typeof AppEmpresaFuncionariosIdRoute
-}
-
-const AppEmpresaFuncionariosRouteChildren: AppEmpresaFuncionariosRouteChildren =
-  {
-    AppEmpresaFuncionariosIdRoute: AppEmpresaFuncionariosIdRoute,
-  }
-
-const AppEmpresaFuncionariosRouteWithChildren =
-  AppEmpresaFuncionariosRoute._addFileChildren(
-    AppEmpresaFuncionariosRouteChildren,
-  )
 
 interface AppEmpresaRouteChildren {
   AppEmpresaAvisosRoute: typeof AppEmpresaAvisosRoute
@@ -590,12 +577,13 @@ interface AppEmpresaRouteChildren {
   AppEmpresaConfiguracoesRoute: typeof AppEmpresaConfiguracoesRoute
   AppEmpresaEmpresaRoute: typeof AppEmpresaEmpresaRoute
   AppEmpresaFechamentoRoute: typeof AppEmpresaFechamentoRoute
-  AppEmpresaFuncionariosRoute: typeof AppEmpresaFuncionariosRouteWithChildren
   AppEmpresaHoleritesRoute: typeof AppEmpresaHoleritesRoute
   AppEmpresaJornadasRoute: typeof AppEmpresaJornadasRoute
   AppEmpresaRegistrosRoute: typeof AppEmpresaRegistrosRoute
   AppEmpresaRelatoriosRoute: typeof AppEmpresaRelatoriosRoute
   AppEmpresaIndexRoute: typeof AppEmpresaIndexRoute
+  AppEmpresaFuncionariosIdRoute: typeof AppEmpresaFuncionariosIdRoute
+  AppEmpresaFuncionariosIndexRoute: typeof AppEmpresaFuncionariosIndexRoute
 }
 
 const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
@@ -605,12 +593,13 @@ const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
   AppEmpresaConfiguracoesRoute: AppEmpresaConfiguracoesRoute,
   AppEmpresaEmpresaRoute: AppEmpresaEmpresaRoute,
   AppEmpresaFechamentoRoute: AppEmpresaFechamentoRoute,
-  AppEmpresaFuncionariosRoute: AppEmpresaFuncionariosRouteWithChildren,
   AppEmpresaHoleritesRoute: AppEmpresaHoleritesRoute,
   AppEmpresaJornadasRoute: AppEmpresaJornadasRoute,
   AppEmpresaRegistrosRoute: AppEmpresaRegistrosRoute,
   AppEmpresaRelatoriosRoute: AppEmpresaRelatoriosRoute,
   AppEmpresaIndexRoute: AppEmpresaIndexRoute,
+  AppEmpresaFuncionariosIdRoute: AppEmpresaFuncionariosIdRoute,
+  AppEmpresaFuncionariosIndexRoute: AppEmpresaFuncionariosIndexRoute,
 }
 
 const AppEmpresaRouteWithChildren = AppEmpresaRoute._addFileChildren(
@@ -666,3 +655,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
