@@ -27,7 +27,7 @@ function CartaoEmpresaPage() {
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<ResumoCartao | null>(null);
   const [cartao, setCartao] = useState<Cartao | null>(null);
-  const [empresaInfo, setEmpresaInfo] = useState<{ nome_fantasia: string; cnpj: string | null } | null>(null);
+  const [empresaInfo, setEmpresaInfo] = useState<{ nome_fantasia: string; cnpj: string | null; endereco: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const podeEditar = role === "admin";
@@ -40,7 +40,7 @@ function CartaoEmpresaPage() {
         setFuncs(list);
         if (list.length && !funcId) setFuncId(list[0].id);
       });
-    supabase.from("empresas").select("nome_fantasia,cnpj").eq("id", empresaId).maybeSingle()
+    supabase.from("empresas").select("nome_fantasia,cnpj,endereco").eq("id", empresaId).maybeSingle()
       .then(({ data }) => setEmpresaInfo(data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId]);
@@ -79,13 +79,35 @@ function CartaoEmpresaPage() {
     else { toast.success("Cartão atualizado."); carregar(); }
   };
 
-  const baixarPdf = () => {
+  const baixarPdf = async () => {
     if (!resumo || !empresaInfo) return;
     const f = funcs.find((x) => x.id === funcId);
     if (!f) return;
+    // Busca jornada ativa do funcionário (dia de seg-sex como referência)
+    const { data: vinc } = await supabase
+      .from("funcionarios_jornadas")
+      .select("jornadas(nome), jornada_id")
+      .eq("funcionario_id", f.id).eq("ativo", true).maybeSingle();
+    const v = vinc as { jornadas: { nome: string } | null; jornada_id: string } | null;
+    let jornada: { nome: string; entrada: string | null; saida: string | null; intervalo_saida: string | null; intervalo_retorno: string | null } | null = null;
+    if (v?.jornada_id) {
+      const { data: jd } = await supabase
+        .from("jornadas_dias")
+        .select("dia_semana,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno,trabalha")
+        .eq("jornada_id", v.jornada_id);
+      const refDia = (jd ?? []).find((x) => x.trabalha) as { horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null } | undefined;
+      jornada = {
+        nome: v.jornadas?.nome ?? "JORNADA",
+        entrada: refDia?.horario_entrada?.slice(0, 5) ?? null,
+        saida: refDia?.horario_saida?.slice(0, 5) ?? null,
+        intervalo_saida: refDia?.horario_intervalo_saida?.slice(0, 5) ?? null,
+        intervalo_retorno: refDia?.horario_intervalo_retorno?.slice(0, 5) ?? null,
+      };
+    }
     const doc = gerarPdfCartao({
       empresa: empresaInfo,
       funcionario: f,
+      jornada,
       ano, mes,
       resumo,
       status: cartao?.status ?? "aberto",
