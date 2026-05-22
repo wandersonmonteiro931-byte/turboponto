@@ -214,7 +214,8 @@ export function gerarPdfCartao(opts: {
 
   const rowH = 3;
   let creditos = 0,
-    debitos = 0;
+    debitos = 0,
+    horasBenef = 0;
 
   const drawRow = (vals: Record<string, string>) => {
     cols.forEach((c, i) => {
@@ -293,7 +294,12 @@ export function gerarPdfCartao(opts: {
     const irregs = irregularidadesDoDia(d, tol);
     for (const i of irregs) {
       if (i.credito) creditos += i.qtde;
-      if (i.debito) debitos += i.qtde;
+      if (i.debito) {
+        debitos += i.qtde;
+        if (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA") {
+          horasBenef += i.qtde;
+        }
+      }
     }
 
     // Linhas a renderizar: { label, qtde }
@@ -308,7 +314,19 @@ export function gerarPdfCartao(opts: {
       linhas.push({ label: "MARCAÇÃO NÃO REGISTRADA", qtde: "" });
     } else if (!falta && !semMarcacao) {
       for (const i of irregs) {
-        linhas.push({ label: i.label, qtde: fmtMinHHMM(i.qtde) });
+        const lbl =
+          i.label === "HORA EXTRA"
+            ? "HORA EXTRA / CRED BH"
+            : i.label === "ATRASO"
+              ? "ATRASO / DEB BH"
+              : i.label === "SAÍDA ANTECIPADA"
+                ? "SAIDA ANTECIPADA / DEB BH"
+                : i.label;
+        linhas.push({ label: lbl, qtde: fmtMinHHMM(i.qtde) });
+      }
+      // Se dia trabalhado normalmente sem nenhuma irregularidade, mostra TRABALHADO
+      if (irregs.length === 0 && d.trabalhadoMinutos > 0) {
+        linhas.push({ label: "TRABALHADO", qtde: fmtMinHHMM(d.trabalhadoMinutos) });
       }
     }
     if (d.bancoHorasMinutos > 0) {
@@ -370,6 +388,12 @@ export function gerarPdfCartao(opts: {
   y += 3.5;
   doc.text(
     `Saldo BH: ${creditos - debitos < 0 ? "-" : ""}${fmtMinHHMM(creditos - debitos)}   Creditos: ${fmtMinHHMM(creditos)}   Debitos: ${fmtMinHHMM(debitos)}   Tol: ${tol}min`,
+    ML,
+    y,
+  );
+  y += 3.5;
+  doc.text(
+    `QTDE HORAS BENEF: ${fmtMinHHMM(horasBenef)}   (atrasos+saidas antecipadas; >=02:00 perde cesta basica do mes)`,
     ML,
     y,
   );
