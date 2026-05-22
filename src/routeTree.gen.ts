@@ -35,6 +35,7 @@ import { Route as AppEmpresaEmpresaRouteImport } from './routes/app/empresa/empr
 import { Route as AppEmpresaConfiguracoesRouteImport } from './routes/app/empresa/configuracoes'
 import { Route as AppEmpresaCartaoPontoRouteImport } from './routes/app/empresa/cartao-ponto'
 import { Route as AppEmpresaBeneficiosRouteImport } from './routes/app/empresa/beneficios'
+import { Route as AppEmpresaBancoHorasRouteImport } from './routes/app/empresa/banco-horas'
 import { Route as AppEmpresaAvisosRouteImport } from './routes/app/empresa/avisos'
 import { Route as AppEmpresaFuncionariosIndexRouteImport } from './routes/app/empresa/funcionarios.index'
 import { Route as AppEmpresaFuncionariosIdRouteImport } from './routes/app/empresa/funcionarios.$id'
@@ -173,6 +174,11 @@ const AppEmpresaBeneficiosRoute = AppEmpresaBeneficiosRouteImport.update({
   path: '/beneficios',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
+const AppEmpresaBancoHorasRoute = AppEmpresaBancoHorasRouteImport.update({
+  id: '/banco-horas',
+  path: '/banco-horas',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
 const AppEmpresaAvisosRoute = AppEmpresaAvisosRouteImport.update({
   id: '/avisos',
   path: '/avisos',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
   '/app/empresa/avisos': typeof AppEmpresaAvisosRoute
+  '/app/empresa/banco-horas': typeof AppEmpresaBancoHorasRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app': typeof AppIndexRoute
   '/app/empresa/avisos': typeof AppEmpresaAvisosRoute
+  '/app/empresa/banco-horas': typeof AppEmpresaBancoHorasRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
   '/app/empresa/avisos': typeof AppEmpresaAvisosRoute
+  '/app/empresa/banco-horas': typeof AppEmpresaBancoHorasRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/recibo/$calcId'
     | '/app/'
     | '/app/empresa/avisos'
+    | '/app/empresa/banco-horas'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
     | '/app/empresa/configuracoes'
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/recibo/$calcId'
     | '/app'
     | '/app/empresa/avisos'
+    | '/app/empresa/banco-horas'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
     | '/app/empresa/configuracoes'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/recibo/$calcId'
     | '/app/'
     | '/app/empresa/avisos'
+    | '/app/empresa/banco-horas'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
     | '/app/empresa/configuracoes'
@@ -566,6 +578,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaBeneficiosRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
+    '/app/empresa/banco-horas': {
+      id: '/app/empresa/banco-horas'
+      path: '/banco-horas'
+      fullPath: '/app/empresa/banco-horas'
+      preLoaderRoute: typeof AppEmpresaBancoHorasRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
     '/app/empresa/avisos': {
       id: '/app/empresa/avisos'
       path: '/avisos'
@@ -592,6 +611,7 @@ declare module '@tanstack/react-router' {
 
 interface AppEmpresaRouteChildren {
   AppEmpresaAvisosRoute: typeof AppEmpresaAvisosRoute
+  AppEmpresaBancoHorasRoute: typeof AppEmpresaBancoHorasRoute
   AppEmpresaBeneficiosRoute: typeof AppEmpresaBeneficiosRoute
   AppEmpresaCartaoPontoRoute: typeof AppEmpresaCartaoPontoRoute
   AppEmpresaConfiguracoesRoute: typeof AppEmpresaConfiguracoesRoute
@@ -609,6 +629,7 @@ interface AppEmpresaRouteChildren {
 
 const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
   AppEmpresaAvisosRoute: AppEmpresaAvisosRoute,
+  AppEmpresaBancoHorasRoute: AppEmpresaBancoHorasRoute,
   AppEmpresaBeneficiosRoute: AppEmpresaBeneficiosRoute,
   AppEmpresaCartaoPontoRoute: AppEmpresaCartaoPontoRoute,
   AppEmpresaConfiguracoesRoute: AppEmpresaConfiguracoesRoute,
