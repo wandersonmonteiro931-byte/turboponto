@@ -153,17 +153,6 @@ export function gerarPdfCartao(opts: {
   doc.setFont("courier", "normal");
   y += 1;
   hr(y);
-  y += 3.2;
-  doc.setFont("courier", "italic");
-  doc.setFontSize(7);
-  doc.text(
-    "Irregularidade = detectada automaticamente pelo sistema    |    Justificativa = informada pelo supervisor",
-    ML, y,
-  );
-  doc.setFont("courier", "normal");
-  doc.setFontSize(8);
-  y += 1.2;
-  hr(y);
   y += 3.5;
 
 
