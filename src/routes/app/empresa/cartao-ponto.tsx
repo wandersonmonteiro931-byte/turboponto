@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Lock, Unlock, CheckCircle2, X } from "lucide-react";
+import { Download, Lock, Unlock, CheckCircle2, FileText } from "lucide-react";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type DiaCartao, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao } from "@/lib/cartao-pdf";
 import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
+import { AplicarJustificativaDialog } from "@/components/AplicarJustificativaDialog";
 import type { TipoPonto } from "@/lib/ponto";
 
 export const Route = createFileRoute("/app/empresa/cartao-ponto")({
@@ -36,6 +37,7 @@ function CartaoEmpresaPage() {
   const [editReg, setEditReg] = useState<RegistroEdit | null>(null);
   const [inserirOpen, setInserirOpen] = useState(false);
   const [prefill, setPrefill] = useState<{ funcionarioId?: string; data?: string; tipo?: string; hora?: string } | undefined>();
+  const [justDia, setJustDia] = useState<DiaCartao | null>(null);
 
   const abrirCelula = async (d: DiaCartao, tipo: TipoPonto) => {
     if (!podeEditar || !empresaId) return;
@@ -50,25 +52,6 @@ function CartaoEmpresaPage() {
     const horaProg = d.programado[tipo === "entrada" ? "entrada" : tipo === "saida_intervalo" ? "saida_intervalo" : tipo === "retorno_intervalo" ? "retorno_intervalo" : "saida_final"];
     setPrefill({ funcionarioId: funcId, data: d.data, tipo, hora: horaProg ?? "08:00" });
     setInserirOpen(true);
-  };
-
-  const toggleFalta = async (d: DiaCartao) => {
-    if (!podeEditar || !empresaId || !funcId) return;
-    if (d.falta) {
-      const { error } = await supabase.from("dias_falta").delete()
-        .eq("funcionario_id", funcId).eq("data", d.data);
-      if (error) { toast.error(error.message); return; }
-      toast.success("Falta removida.");
-    } else {
-      const justificativa = window.prompt("Justificativa da falta (opcional):", "") ?? "";
-      const { error } = await supabase.from("dias_falta").insert({
-        empresa_id: empresaId, funcionario_id: funcId, data: d.data,
-        justificativa: justificativa.trim() || null,
-      });
-      if (error) { toast.error(error.message); return; }
-      toast.success("Dia marcado como falta.");
-    }
-    carregar();
   };
 
   useEffect(() => {
@@ -156,11 +139,14 @@ function CartaoEmpresaPage() {
 
   const totaisStr = useMemo(() => {
     if (!resumo) return null;
+    const bh = resumo.totalBancoHoras;
+    const bhLabel = bh === 0 ? "—" : `${bh > 0 ? "+" : "-"}${formatMin(Math.abs(bh))}`;
     return {
       atraso: `${resumo.totalAtraso} min`,
       faltas: resumo.totalFaltas,
       trab: formatMin(resumo.totalTrabalhado),
       ext: formatMin(resumo.totalExtras),
+      banco: bhLabel,
     };
   }, [resumo]);
 
@@ -228,11 +214,12 @@ function CartaoEmpresaPage() {
       </Card>
 
       {totaisStr && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <Stat label="Atrasos" value={totaisStr.atraso} />
           <Stat label="Faltas" value={totaisStr.faltas} />
           <Stat label="Horas trabalhadas" value={totaisStr.trab} />
           <Stat label="Horas extras" value={totaisStr.ext} />
+          <Stat label="Banco de horas" value={totaisStr.banco} />
         </div>
       )}
 
@@ -257,14 +244,21 @@ function CartaoEmpresaPage() {
               </thead>
               <tbody className="divide-y">
                 {resumo.dias.map((d) => {
-                  const cellClass = (val: string | null) => `p-2 font-mono ${podeEditar ? "cursor-pointer hover:bg-accent/50" : ""}`;
-                  const renderEmpty = () => d.falta
-                    ? <span className="text-red-600 font-bold">FALTA</span>
-                    : d.trabalha
-                      ? <span className="text-yellow-700 text-xs">marcação não registrada</span>
-                      : "—";
+                  const cellClass = (_val: string | null) => `p-2 font-mono ${podeEditar ? "cursor-pointer hover:bg-accent/50" : ""}`;
+                  const renderEmpty = () => d.justificativa
+                    ? <span className="text-blue-700 font-semibold text-xs">{d.justificativa.tipo.nome}</span>
+                    : d.falta
+                      ? <span className="text-red-600 font-bold">FALTA</span>
+                      : d.trabalha
+                        ? <span className="text-yellow-700 text-xs">marcação não registrada</span>
+                        : "—";
+                  const rowBg = d.justificativa
+                    ? "bg-blue-500/5"
+                    : d.falta ? "bg-red-500/5"
+                    : d.pendente && d.trabalha ? "bg-yellow-500/5"
+                    : !d.trabalha ? "bg-muted/30" : "";
                   return (
-                  <tr key={d.data} className={d.falta ? "bg-red-500/5" : d.pendente && d.trabalha ? "bg-yellow-500/5" : !d.trabalha ? "bg-muted/30" : ""}>
+                  <tr key={d.data} className={rowBg}>
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
                     </td>
@@ -278,11 +272,15 @@ function CartaoEmpresaPage() {
                     <td className="p-2 text-xs text-muted-foreground">{d.observacao ?? ""}</td>
                     {podeEditar && (
                       <td className="p-2">
-                        {d.trabalha && Object.keys(d.registroIds).length === 0 && (
-                          <Button size="sm" variant={d.falta ? "outline" : "destructive"} onClick={() => toggleFalta(d)} className="h-6 px-2 text-xs">
-                            {d.falta ? <><X className="h-3 w-3 mr-1" />Remover falta</> : "Marcar falta"}
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant={d.justificativa ? "secondary" : "outline"}
+                          onClick={() => setJustDia(d)}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          {d.justificativa ? "Editar just." : "Justificar"}
+                        </Button>
                       </td>
                     )}
                   </tr>
@@ -308,6 +306,17 @@ function CartaoEmpresaPage() {
           funcionarios={funcs}
           onSaved={carregar}
           prefill={prefill}
+        />
+      )}
+      {empresaId && justDia && funcId && (
+        <AplicarJustificativaDialog
+          open={!!justDia}
+          onClose={() => setJustDia(null)}
+          empresaId={empresaId}
+          funcionarioId={funcId}
+          data={justDia.data}
+          justificativaAtualId={justDia.justificativa?.id ?? null}
+          onSaved={carregar}
         />
       )}
     </div>

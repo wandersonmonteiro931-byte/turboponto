@@ -197,7 +197,10 @@ export function gerarPdfCartao(opts: {
     let marcacaoNaoRegistrada = false;
 
     const subs: SubLinha[] = [];
-    if (!d.trabalha) {
+    if (d.justificativa) {
+      irregMain = d.justificativa.tipo.nome.slice(0, 24);
+      justMain = (d.justificativa.observacao ?? "").slice(0, 30);
+    } else if (!d.trabalha) {
       irregMain = "FOLGA";
     } else if (d.falta) {
       irregMain = "Falta";
