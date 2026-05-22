@@ -88,7 +88,7 @@ function CartaoFuncPage() {
         empresa: emp,
         funcionario,
         jornada,
-        ano, mes, resumo,
+        ano, mes, resumo: resumoAtual,
         status: cartao?.status ?? "aberto",
       });
       doc.save(`cartao-${funcionario.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
