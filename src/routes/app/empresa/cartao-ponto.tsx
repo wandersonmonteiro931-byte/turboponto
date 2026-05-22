@@ -60,8 +60,10 @@ function CartaoEmpresaPage() {
       if (error) { toast.error(error.message); return; }
       toast.success("Falta removida.");
     } else {
+      const justificativa = window.prompt("Justificativa da falta (opcional):", "") ?? "";
       const { error } = await supabase.from("dias_falta").insert({
         empresa_id: empresaId, funcionario_id: funcId, data: d.data,
+        justificativa: justificativa.trim() || null,
       });
       if (error) { toast.error(error.message); return; }
       toast.success("Dia marcado como falta.");
