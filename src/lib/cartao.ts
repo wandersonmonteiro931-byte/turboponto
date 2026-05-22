@@ -1,4 +1,26 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { JustificativaTipo } from "@/lib/justificativas";
+
+export type JustificativaAplicadaDia = {
+  id: string;
+  tipo_id: string;
+  tipo: Pick<
+    JustificativaTipo,
+    | "nome"
+    | "codigo"
+    | "categoria"
+    | "desconta_salario"
+    | "desconta_dsr"
+    | "abona_ocorrencia"
+    | "movimenta_banco_horas"
+    | "conta_dia_trabalhado"
+    | "exige_marcacao_ponto"
+    | "afeta_assiduidade"
+  >;
+  observacao: string | null;
+  anexo_url: string | null;
+  status: string;
+};
 
 export type DiaCartao = {
   data: string; // yyyy-mm-dd
@@ -23,6 +45,8 @@ export type DiaCartao = {
   falta: boolean;
   pendente: boolean;
   observacao: string | null;
+  justificativa: JustificativaAplicadaDia | null;
+  bancoHorasMinutos: number; // positivo = crédito, negativo = débito
 };
 
 export type ResumoCartao = {
@@ -31,7 +55,9 @@ export type ResumoCartao = {
   totalFaltas: number;
   totalTrabalhado: number;
   totalExtras: number;
+  totalBancoHoras: number;
 };
+
 
 function hm(t: string | null): number | null {
   if (!t) return null;
