@@ -343,7 +343,12 @@ export async function carregarCartao(
       if (t.movimenta_banco_horas === "credito") {
         bancoHorasMin = trabalhado > 0 ? trabalhado : cargaProg;
       } else if (t.movimenta_banco_horas === "debito") {
-        bancoHorasMin = -(cargaProg > 0 ? cargaProg : atraso);
+        if (just.quantidadeMinutos != null && cargaProg > 0) {
+          const restante = cargaProg - just.quantidadeMinutos;
+          bancoHorasMin = restante > 0 ? -restante : 0;
+        } else {
+          bancoHorasMin = -(cargaProg > 0 ? cargaProg : atraso);
+        }
       }
       // Falta com desconto explícita
       if (t.categoria === "falta" && t.desconta_salario) {
