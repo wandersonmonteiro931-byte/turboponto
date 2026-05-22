@@ -62,6 +62,8 @@ export type ResumoCartao = {
   totalExtras: number;
   totalBancoHoras: number;
   toleranciaMinutos: number;
+  dataAdmissao: string | null;
+  dataDesligamento: string | null;
 };
 
 function hm(t: string | null): number | null {
