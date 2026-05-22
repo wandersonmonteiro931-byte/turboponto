@@ -109,6 +109,12 @@ export function AplicarJustificativaDialog({
       const rows = datasAlvo.map((dt) => ({ ...baseRow, data: dt, observacao: obsCross }));
       const { error } = await supabase.from("justificativas_aplicadas").insert(rows);
       if (error) throw error;
+
+      // Esquecimento de registro: preenche marcações em branco com o horário previsto
+      if (tipo.codigo === "ESQUEC_REGISTRO" && status === "aprovada") {
+        await preencherMarcacoesFaltantes(empresaId, funcionarioId, data);
+      }
+
       toast.success(status === "aprovada" ? "Justificativa aplicada" : "Justificativa registrada (aguardando aprovação)");
       onSaved();
       onClose();
