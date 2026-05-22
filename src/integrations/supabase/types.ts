@@ -14,6 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
+      alteracoes_ponto: {
+        Row: {
+          campo_alterado: string
+          created_at: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          justificativa: string
+          registro_ponto_id: string | null
+          usuario_editor_id: string
+          valor_antigo: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          campo_alterado: string
+          created_at?: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          justificativa: string
+          registro_ponto_id?: string | null
+          usuario_editor_id: string
+          valor_antigo?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          campo_alterado?: string
+          created_at?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          justificativa?: string
+          registro_ponto_id?: string | null
+          usuario_editor_id?: string
+          valor_antigo?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: []
+      }
+      cartoes_ponto: {
+        Row: {
+          ano_referencia: number
+          created_at: string
+          empresa_id: string
+          fechado_em: string | null
+          funcionario_id: string
+          id: string
+          liberado_em: string | null
+          mes_referencia: number
+          pdf_url: string | null
+          status: string
+          total_atraso_minutos: number
+          total_faltas: number
+          total_horas_extras_minutos: number
+          total_horas_trabalhadas_minutos: number
+          updated_at: string
+        }
+        Insert: {
+          ano_referencia: number
+          created_at?: string
+          empresa_id: string
+          fechado_em?: string | null
+          funcionario_id: string
+          id?: string
+          liberado_em?: string | null
+          mes_referencia: number
+          pdf_url?: string | null
+          status?: string
+          total_atraso_minutos?: number
+          total_faltas?: number
+          total_horas_extras_minutos?: number
+          total_horas_trabalhadas_minutos?: number
+          updated_at?: string
+        }
+        Update: {
+          ano_referencia?: number
+          created_at?: string
+          empresa_id?: string
+          fechado_em?: string | null
+          funcionario_id?: string
+          id?: string
+          liberado_em?: string | null
+          mes_referencia?: number
+          pdf_url?: string | null
+          status?: string
+          total_atraso_minutos?: number
+          total_faltas?: number
+          total_horas_extras_minutos?: number
+          total_horas_trabalhadas_minutos?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       empresas: {
         Row: {
           afastado_pode_bater_ponto: boolean
@@ -67,6 +160,51 @@ export type Database = {
           responsavel?: string | null
           telefone?: string | null
           tolerancia_atraso_min?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fechamentos_mensais: {
+        Row: {
+          ano_referencia: number
+          created_at: string
+          empresa_id: string
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          liberado_em: string | null
+          mes_referencia: number
+          reaberto_em: string | null
+          reaberto_por: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ano_referencia: number
+          created_at?: string
+          empresa_id: string
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          liberado_em?: string | null
+          mes_referencia: number
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ano_referencia?: number
+          created_at?: string
+          empresa_id?: string
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          liberado_em?: string | null
+          mes_referencia?: number
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
