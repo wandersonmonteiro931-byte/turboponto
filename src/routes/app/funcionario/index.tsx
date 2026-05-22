@@ -1,10 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, CreditCard, Gift, FileText, CalendarClock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { DIAS_SEMANA, JornadaDia } from "@/lib/jornadas";
 
