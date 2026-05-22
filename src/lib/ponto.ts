@@ -162,20 +162,9 @@ export function statusJornadaHoje(
     return { label: "Em atraso para registrar Entrada", tone: "bad" };
   }
 
-  // Em intervalo
-  if (has("saida_intervalo") && !has("retorno_intervalo")) {
-    if (intR !== null && agoraMin > intR + toleranciaMin) {
-      return { label: "Intervalo não registrado (retorno em atraso)", tone: "bad" };
-    }
+  // Em intervalo (informativo — registros são automáticos)
+  if (has("entrada") && intS !== null && intR !== null && agoraMin >= intS && agoraMin < intR) {
     return { label: "Em intervalo", tone: "info" };
-  }
-
-  // Horário de intervalo passou sem registrar
-  if (!has("saida_intervalo") && intS !== null && agoraMin > intS + toleranciaMin && has("entrada")) {
-    if (intR !== null && agoraMin > intR + toleranciaMin) {
-      return { label: "Intervalo não registrado", tone: "warn" };
-    }
-    return { label: "Em atraso para registrar Saída p/ intervalo", tone: "bad" };
   }
 
   // Saída final em atraso
