@@ -197,13 +197,6 @@ export function gerarPdfCartao(opts: {
     const progRI = d.programado.retorno_intervalo?.slice(0, 5) ?? "";
     const progSF = d.programado.saida_final?.slice(0, 5) ?? "";
 
-    let irregMain = "";
-    let qtdeMain = "";
-    let justMain = "";
-    let realEntrMain = "";
-    let realSaidaMain = "";
-    let marcacaoNaoRegistrada = false;
-
     // Justificativa do supervisor (sempre exibida na coluna Justificativa)
     const justSupervisor = d.justificativa
       ? (d.justificativa.tipo.nome + (d.justificativa.observacao ? " · " + d.justificativa.observacao : "")).slice(0, 30)
@@ -212,61 +205,66 @@ export function gerarPdfCartao(opts: {
       ? fmtMinHHMM(d.justificativa.quantidadeMinutos)
       : "";
 
-    const subs: SubLinha[] = [];
-    if (!d.trabalha && !d.justificativa) {
-      irregMain = "FOLGA";
-    } else if (d.falta) {
-      irregMain = "FALTA";
-      justMain = justSupervisor || (d.observacao ?? "").slice(0, 30);
-    } else if (d.pendente) {
-      marcacaoNaoRegistrada = true;
-      justMain = justSupervisor;
-    } else {
-      const irregs = irregularidadesDoDia(d);
-      if (irregs.length > 0) {
-        const first = irregs.shift()!;
-        realEntrMain = first.realEntr;
-        realSaidaMain = first.realSaida;
-        irregMain = first.irreg;
-        qtdeMain = first.qtde;
-        subs.push(...irregs);
-        // computa créditos/débitos do mês
-        if (first.just.startsWith("CRED")) creditos += hm(first.qtde) ?? 0;
-        else debitos += hm(first.qtde) ?? 0;
-      } else if (d.justificativa) {
-        // Dia coberto por justificativa, sem irregularidade de marcação
-        // → mostra o tipo da justificativa na coluna Irregularidade (ex.: AFAST DOENCA)
-        irregMain = d.justificativa.tipo.nome.toUpperCase().slice(0, 19);
-        qtdeMain = justQtde;
-      }
-      justMain = justSupervisor;
+    // Eventos: lista de TUDO que deve aparecer (sem filtro, sem exceção)
+    type Evento = { realEntr: string; realSaida: string; irreg: string; qtde: string };
+    const eventos: Evento[] = [];
+
+    // 1) Folga programada
+    if (!d.trabalha) {
+      eventos.push({ realEntr: "", realSaida: "", irreg: "FOLGA", qtde: "" });
+    }
+    // 2) Falta
+    if (d.falta) {
+      eventos.push({ realEntr: "", realSaida: "", irreg: "FALTA", qtde: "" });
+    }
+    // 3) Marcação não registrada
+    if (d.pendente) {
+      eventos.push({ realEntr: "", realSaida: "", irreg: "MARCACAO NAO REGISTRADA", qtde: "" });
+    }
+    // 4) Todas as irregularidades detectadas (Hora Extra, Atraso, etc.)
+    const irregs = irregularidadesDoDia(d);
+    for (const i of irregs) {
+      eventos.push({ realEntr: i.realEntr, realSaida: i.realSaida, irreg: i.irreg, qtde: i.qtde });
+      if (i.just.startsWith("CRED")) creditos += hm(i.qtde) ?? 0;
+      else debitos += hm(i.qtde) ?? 0;
+    }
+    // 5) Tipo da justificativa (sempre listado, mesmo sem irregularidade)
+    if (d.justificativa) {
+      eventos.push({
+        realEntr: "", realSaida: "",
+        irreg: d.justificativa.tipo.nome.toUpperCase().slice(0, 19),
+        qtde: justQtde,
+      });
     }
 
-    if (marcacaoNaoRegistrada) {
-      doc.text(
-        linha([diaSem, dataStr, codeJ, escala, "", "", "", "", "", "", "", "", justMain, ""]),
-        ML, y,
-      );
-      // posicao aproximada da coluna "Marcacao do Ponto"
-      doc.text("MARCACAO NAO REGISTRADA", ML + (4 + 9 + 7 + 5) * 1.6, y);
-    } else {
-      doc.text(
-        linha([
-          diaSem, dataStr, codeJ, escala,
-          progE, progSI, progRI, progSF,
-          realEntrMain, realSaidaMain,
-          irregMain, qtdeMain, justMain, "",
-        ]),
-        ML, y,
-      );
+    // Garante pelo menos uma linha para o dia (com programado/registrado)
+    if (eventos.length === 0) {
+      eventos.push({ realEntr: "", realSaida: "", irreg: "", qtde: "" });
     }
+
+    // Linha principal (1ª): traz dia/data/programado + 1º evento + justificativa
+    const progE = d.programado.entrada?.slice(0, 5) ?? "";
+    const progSI = d.programado.saida_intervalo?.slice(0, 5) ?? "";
+    const progRI = d.programado.retorno_intervalo?.slice(0, 5) ?? "";
+    const progSF = d.programado.saida_final?.slice(0, 5) ?? "";
+
+    const e0 = eventos[0];
+    doc.text(
+      linha([
+        diaSem, dataStr, codeJ, escala,
+        progE, progSI, progRI, progSF,
+        e0.realEntr, e0.realSaida,
+        e0.irreg, e0.qtde, justSupervisor, "",
+      ]),
+      ML, y,
+    );
     y += rowH;
 
-    for (const s of subs) {
-      if (s.just.startsWith("CRED")) creditos += hm(s.qtde) ?? 0;
-      else debitos += hm(s.qtde) ?? 0;
+    // Linhas adicionais para os demais eventos
+    for (let k = 1; k < eventos.length; k++) {
+      const ev = eventos[k];
       doc.text(
-        linha(["", "", "", "", "", "", "", "", s.realEntr, s.realSaida, s.irreg, s.qtde, justSupervisor, ""]),
+        linha(["", "", "", "", "", "", "", "", ev.realEntr, ev.realSaida, ev.irreg, ev.qtde, justSupervisor, ""]),
         ML, y,
       );
       y += rowH;
