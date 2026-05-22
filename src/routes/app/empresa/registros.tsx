@@ -35,7 +35,10 @@ type Registro = {
 type Funcionario = { id: string; nome: string };
 
 function RegistrosPage() {
-  const { empresaId } = useAuth();
+  const { empresaId, role } = useAuth();
+  const podeEditar = role === "admin" || role === "gerente";
+  const [editando, setEditando] = useState<RegistroEdit | null>(null);
+  const [inserindo, setInserindo] = useState(false);
   const [funcs, setFuncs] = useState<Funcionario[]>([]);
   const [lista, setLista] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
