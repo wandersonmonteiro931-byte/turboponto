@@ -25,6 +25,7 @@ export function AplicarJustificativaDialog({
   const [tipos, setTipos] = useState<JustificativaTipo[]>([]);
   const [tipoId, setTipoId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
+  const [dataCompensada, setDataCompensada] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function AplicarJustificativaDialog({
     });
     setObservacao("");
     setTipoId("");
+    setDataCompensada("");
   }, [open, empresaId]);
 
   const tipo = tipos.find((t) => t.id === tipoId);
@@ -47,27 +49,39 @@ export function AplicarJustificativaDialog({
       toast.error("Esta justificativa exige observação");
       return;
     }
+    if (tipo.categoria === "troca" && !dataCompensada) {
+      toast.error("Informe o dia compensado");
+      return;
+    }
     setSaving(true);
     try {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sessão expirada");
-      // Remove justificativa anterior do dia (se houver)
-      await supabase.from("justificativas_aplicadas")
-        .delete()
-        .eq("funcionario_id", funcionarioId)
-        .eq("data", data);
       const status = tipo.exige_aprovacao ? "pendente" : "aprovada";
-      const { error } = await supabase.from("justificativas_aplicadas").insert({
+      const baseRow = {
         empresa_id: empresaId,
         funcionario_id: funcionarioId,
         tipo_id: tipo.id,
-        data,
-        observacao: observacao.trim() || null,
         status,
         aplicado_por: u.user.id,
         aprovado_por: status === "aprovada" ? u.user.id : null,
         aprovado_em: status === "aprovada" ? new Date().toISOString() : null,
-      });
+      };
+
+      const datasAlvo = tipo.categoria === "troca" ? [data, dataCompensada] : [data];
+      const obsTrim = observacao.trim();
+      const obsCross = tipo.categoria === "troca"
+        ? `Troca: ${data.split("-").reverse().join("/")} ↔ ${dataCompensada.split("-").reverse().join("/")}${obsTrim ? ` · ${obsTrim}` : ""}`
+        : (obsTrim || null);
+
+      // remove justificativas anteriores nos dias afetados
+      await supabase.from("justificativas_aplicadas")
+        .delete()
+        .eq("funcionario_id", funcionarioId)
+        .in("data", datasAlvo);
+
+      const rows = datasAlvo.map((dt) => ({ ...baseRow, data: dt, observacao: obsCross }));
+      const { error } = await supabase.from("justificativas_aplicadas").insert(rows);
       if (error) throw error;
       toast.success(status === "aprovada" ? "Justificativa aplicada" : "Justificativa registrada (aguardando aprovação)");
       onSaved();
