@@ -50,6 +50,9 @@ const fmtMinHHMM = (min: number): string => {
 
 type SubLinha = { realEntr: string; realSaida: string; irreg: string; qtde: string; just: string };
 
+const horarioPar = (d: DiaCartao, tipo: "entrada" | "saida_intervalo" | "retorno_intervalo" | "saida_final") =>
+  d.registrado[tipo] || d.programado[tipo] || "";
+
 function irregularidadesDoDia(d: DiaCartao, tolMin = 0): SubLinha[] {
   const out: SubLinha[] = [];
   const checks: Array<{ tipo: "entrada" | "saida_intervalo" | "retorno_intervalo" | "saida_final"; isSaida: boolean }> = [
@@ -67,9 +70,11 @@ function irregularidadesDoDia(d: DiaCartao, tolMin = 0): SubLinha[] {
     let label = "";
     if (c.isSaida) label = diff < 0 ? "Saida Antecipada" : "Hora Extra";
     else label = diff < 0 ? "Entrada Antecipada" : "Entrada em Atraso";
+    const realEntr = c.tipo === "saida_final" ? horarioPar(d, "entrada") : c.tipo === "retorno_intervalo" ? horarioPar(d, "saida_intervalo") : horarioPar(d, c.tipo);
+    const realSaida = c.tipo === "entrada" ? horarioPar(d, "saida_final") : c.tipo === "saida_intervalo" ? horarioPar(d, "retorno_intervalo") : horarioPar(d, c.tipo);
     out.push({
-      realEntr: c.isSaida ? prog : real,
-      realSaida: c.isSaida ? real : prog,
+      realEntr,
+      realSaida,
       irreg: label,
       qtde: fmtMinHHMM(diff),
       just: diff > 0 && c.isSaida ? "CREDITO BCO DE HORAS"
