@@ -232,6 +232,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      criar_empresa_inicial: {
+        Args: {
+          _cnpj: string
+          _email: string
+          _endereco: string
+          _nome_fantasia: string
+          _razao_social: string
+          _responsavel: string
+          _telefone: string
+        }
+        Returns: string
+      }
       get_user_empresa: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
