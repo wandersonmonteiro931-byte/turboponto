@@ -77,13 +77,47 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
 
   const { data: registros, error: e2 } = await supabase
     .from("registros_ponto")
-    .select("funcionario_id,data_referencia,atraso_minutos,status")
+    .select("funcionario_id,data_referencia,tipo_ponto,atraso_minutos,status")
     .eq("empresa_id", empresaId)
     .gte("data_referencia", inicio)
     .lte("data_referencia", fim);
   if (e2) throw e2;
 
-  // Verifica se mês está fechado
+  const funcIds = (funcs ?? []).map((f) => f.id);
+  const { data: vincs } = funcIds.length
+    ? await supabase
+        .from("funcionarios_jornadas")
+        .select("funcionario_id,jornada_id")
+        .in("funcionario_id", funcIds)
+        .eq("ativo", true)
+    : { data: [] as Array<{ funcionario_id: string; jornada_id: string }> };
+
+  const jornadaIds = Array.from(new Set((vincs ?? []).map((v) => v.jornada_id)));
+  const { data: dias } = jornadaIds.length
+    ? await supabase
+        .from("jornadas_dias")
+        .select("jornada_id,dia_semana,trabalha")
+        .in("jornada_id", jornadaIds)
+    : { data: [] as Array<{ jornada_id: string; dia_semana: number; trabalha: boolean }> };
+
+  const jornadaPorFunc = new Map((vincs ?? []).map((v) => [v.funcionario_id, v.jornada_id]));
+  const diasPorJornada = new Map<string, Set<number>>();
+  for (const d of dias ?? []) {
+    if (!d.trabalha) continue;
+    const set = diasPorJornada.get(d.jornada_id) ?? new Set<number>();
+    set.add(d.dia_semana);
+    diasPorJornada.set(d.jornada_id, set);
+  }
+
+  const hoje = new Date();
+  const ehMesCorrente = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
+  const ultimoDia = ehMesCorrente ? hoje.getDate() : new Date(ano, mes, 0).getDate();
+  const todasDatas: { iso: string; dow: number }[] = [];
+  for (let d = 1; d <= ultimoDia; d++) {
+    const dt = new Date(ano, mes - 1, d);
+    todasDatas.push({ iso: dt.toISOString().slice(0, 10), dow: dt.getDay() });
+  }
+
   const { data: fechamento } = await supabase
     .from("fechamentos_mensais")
     .select("status")
@@ -97,12 +131,26 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     const regs = (registros ?? []).filter((r) => r.funcionario_id === f.id);
     const totalAtraso = regs.reduce((s, r) => s + (r.atraso_minutos || 0), 0);
     const diasComAtraso = new Set(regs.filter((r) => (r.atraso_minutos || 0) > 0).map((r) => r.data_referencia)).size;
-    const aval = avaliarDireito(beneficio, totalAtraso, 0);
+
+    const jornadaId = jornadaPorFunc.get(f.id);
+    const diasUteis = jornadaId ? diasPorJornada.get(jornadaId) ?? new Set<number>() : new Set<number>();
+    const datasComEntrada = new Set(
+      regs.filter((r) => r.tipo_ponto === "entrada").map((r) => r.data_referencia),
+    );
+    let faltas = 0;
+    if (jornadaId) {
+      for (const { iso, dow } of todasDatas) {
+        if (!diasUteis.has(dow)) continue;
+        if (!datasComEntrada.has(iso)) faltas++;
+      }
+    }
+
+    const aval = avaliarDireito(beneficio, totalAtraso, faltas);
     return {
       funcionario_id: f.id,
       total_atraso_minutos: totalAtraso,
       dias_com_atraso: diasComAtraso,
-      faltas_injustificadas: 0,
+      faltas_injustificadas: faltas,
       horas_extras_minutos: 0,
       tem_direito: aval.tem_direito,
       status: fechado ? "bloqueado" : aval.status,
@@ -113,7 +161,6 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
 
   if (calculos.length === 0) return { atualizados: 0 };
 
-  // Upsert manual para preservar status liberado/entregue
   const { data: existentes } = await supabase
     .from("beneficios_calculos")
     .select("id,funcionario_id,status")
