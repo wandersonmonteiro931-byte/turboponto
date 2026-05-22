@@ -220,18 +220,20 @@ export function gerarPdfCartao(opts: {
       const ev = eventos[k] ?? { realEntr: "", realSaida: "", irreg: "", qtde: "", just: "" };
       const just = justificativas[k] ?? { just: "", qtde: "" };
       const marcacaoCols = ev.marcacao
-        ? ["MARCA", "CAO", "NAO", "REGIS", "TRADA", ""]
+        ? ["", "", "", "", "", ""]
         : k === 0 && !ev.realEntr && !ev.realSaida
           ? marcacoesRegistradas
           : ["", "", "", "", ev.realEntr, ev.realSaida];
-      doc.text(
-        linha([
-          k === 0 ? diaSem : "", k === 0 ? dataStr : "", k === 0 ? codeJ : "", k === 0 ? escala : "",
-          ...marcacaoCols,
-          ev.irreg, just.qtde || ev.qtde, just.just, "",
-        ]),
-        ML, y,
-      );
+      const cols = [
+        k === 0 ? diaSem : "", k === 0 ? dataStr : "", k === 0 ? codeJ : "", k === 0 ? escala : "",
+        ...marcacaoCols,
+        ev.irreg, just.qtde || ev.qtde, just.just, "",
+      ];
+      doc.text(linha(cols), ML, y);
+      if (ev.marcacao) {
+        const prefix = pad(cols[0], 4) + pad(cols[1], 9) + pad(cols[2], 7) + pad(cols[3], 5);
+        doc.text(ev.marcacao, ML + doc.getTextWidth(prefix), y);
+      }
       y += rowH;
     }
   }
