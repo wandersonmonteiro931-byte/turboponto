@@ -262,7 +262,7 @@ function CartaoEmpresaPage() {
                       ? <span className="text-red-600 font-bold">FALTA</span>
                       : d.trabalha
                         ? <span className="text-yellow-700 text-xs">marcação não registrada</span>
-                        : "—";
+                        : <span className="text-muted-foreground text-xs">{podeEditar ? "folga · clique p/ inserir" : "folga"}</span>;
                   const rowBg = d.justificativa
                     ? "bg-blue-500/5"
                     : d.falta ? "bg-red-500/5"
