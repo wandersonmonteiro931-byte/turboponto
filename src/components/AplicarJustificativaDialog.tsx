@@ -116,10 +116,7 @@ export function AplicarJustificativaDialog({
       const { error } = await supabase.from("justificativas_aplicadas").insert(rows);
       if (error) throw error;
 
-      // Esquecimento de registro: preenche marcações em branco com o horário previsto
-      if (tipo.codigo === "ESQUEC_REGISTRO" && status === "aprovada") {
-        await preencherMarcacoesFaltantes(empresaId, funcionarioId, data);
-      }
+      // Esquecimento de registro: o trigger no banco preenche as marcações em branco.
 
       toast.success(status === "aprovada" ? "Justificativa aplicada" : "Justificativa registrada (aguardando aprovação)");
       onSaved();
