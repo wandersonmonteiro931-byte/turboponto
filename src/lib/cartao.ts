@@ -138,6 +138,29 @@ export async function carregarCartao(
   const setFaltas = new Set((faltasManual ?? []).map((x) => x.data as string));
   const justFaltas = new Map((faltasManual ?? []).map((x) => [x.data as string, (x.justificativa as string | null) ?? null]));
 
+  // Justificativas aplicadas no período (aprovadas)
+  const { data: justApls } = await supabase
+    .from("justificativas_aplicadas")
+    .select(`id,tipo_id,data,observacao,anexo_url,status,
+      justificativas_tipos!inner (
+        nome,codigo,categoria,desconta_salario,desconta_dsr,abona_ocorrencia,
+        movimenta_banco_horas,conta_dia_trabalhado,exige_marcacao_ponto,afeta_assiduidade
+      )`)
+    .eq("funcionario_id", funcionarioId)
+    .eq("status", "aprovada")
+    .gte("data", ini)
+    .lte("data", fim);
+  const justPorDia = new Map<string, JustificativaAplicadaDia>();
+  for (const j of (justApls ?? []) as Array<{
+    id: string; tipo_id: string; data: string; observacao: string | null; anexo_url: string | null; status: string;
+    justificativas_tipos: JustificativaAplicadaDia["tipo"];
+  }>) {
+    justPorDia.set(j.data, {
+      id: j.id, tipo_id: j.tipo_id, observacao: j.observacao, anexo_url: j.anexo_url, status: j.status,
+      tipo: j.justificativas_tipos,
+    });
+  }
+
   const porDia = new Map<string, typeof registros>();
   for (const r of registros ?? []) {
     const arr = porDia.get(r.data_referencia) ?? [];
@@ -150,6 +173,7 @@ export async function carregarCartao(
   let totalFaltas = 0;
   let totalTrabalhado = 0;
   let totalExtras = 0;
+  let totalBancoHoras = 0;
 
   for (const data of datas) {
     const d = new Date(data + "T00:00");
@@ -211,15 +235,51 @@ export async function carregarCartao(
       const pri = hm(prog.retorno_intervalo);
       if (psi != null && pri != null) cargaProg -= pri - psi;
     }
-    const extras = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
+    let extras = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
 
     const semRegistro = trabalha && regs.length === 0;
-    const falta = semRegistro && setFaltas.has(data);
-    const pendente = semRegistro && !falta;
+    let falta = semRegistro && setFaltas.has(data);
+    let pendente = semRegistro && !falta;
+    let bancoHorasMin = 0;
+
+    // Aplica regras da justificativa
+    const just = justPorDia.get(data) ?? null;
+    if (just) {
+      const t = just.tipo;
+      // Abona ocorrência: anula falta/pendente e zera atraso, salvo se tipo desconta
+      if (t.abona_ocorrencia) {
+        falta = false;
+        pendente = false;
+        if (!t.desconta_salario) atraso = 0;
+      }
+      // Não exige marcação: substitui "marcação não registrada" pelo rótulo
+      if (!t.exige_marcacao_ponto) {
+        pendente = false;
+      }
+      // Conta como dia trabalhado: soma carga prevista
+      if (t.conta_dia_trabalhado && trabalhado === 0 && cargaProg > 0) {
+        trabalhado = cargaProg;
+      }
+      // Banco de horas
+      if (t.movimenta_banco_horas === "credito") {
+        bancoHorasMin = trabalhado > 0 ? trabalhado : cargaProg;
+      } else if (t.movimenta_banco_horas === "debito") {
+        bancoHorasMin = -(cargaProg > 0 ? cargaProg : atraso);
+      }
+      // Falta com desconto explícita
+      if (t.categoria === "falta" && t.desconta_salario) {
+        falta = true;
+      }
+    }
+
     if (falta) totalFaltas += 1;
     totalAtraso += atraso;
     totalTrabalhado += trabalhado;
     totalExtras += extras;
+    totalBancoHoras += bancoHorasMin;
+
+    const obsFinal = just?.observacao
+      ?? (falta ? (justFaltas.get(data) ?? obs) : obs);
 
     result.push({
       data,
@@ -233,7 +293,9 @@ export async function carregarCartao(
       extrasMinutos: extras,
       falta,
       pendente,
-      observacao: falta ? (justFaltas.get(data) ?? obs) : obs,
+      observacao: obsFinal,
+      justificativa: just,
+      bancoHorasMinutos: bancoHorasMin,
     });
   }
 
@@ -243,6 +305,7 @@ export async function carregarCartao(
     totalFaltas,
     totalTrabalhado,
     totalExtras,
+    totalBancoHoras,
   };
 }
 
