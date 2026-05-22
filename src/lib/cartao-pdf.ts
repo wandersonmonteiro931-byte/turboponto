@@ -359,7 +359,7 @@ export function gerarPdfCartao(opts: {
   hr(y);
   y += 3.5;
   doc.text(
-    `Saldo BH: ${fmtMinHHMM(creditos - debitos)}   Creditos: ${fmtMinHHMM(creditos)}   Debitos: ${fmtMinHHMM(debitos)}   Tol: ${tol}min`,
+    `Saldo BH: ${creditos - debitos < 0 ? "-" : ""}${fmtMinHHMM(creditos - debitos)}   Creditos: ${fmtMinHHMM(creditos)}   Debitos: ${fmtMinHHMM(debitos)}   Tol: ${tol}min`,
     ML,
     y,
   );
