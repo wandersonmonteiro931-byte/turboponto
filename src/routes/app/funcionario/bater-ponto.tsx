@@ -110,9 +110,16 @@ function BaterPontoPage() {
       .maybeSingle();
     if (ultSaida) {
       const u = ultSaida as { data_referencia: string; horario_programado: string | null; horario_registrado: string };
-      const base = u.horario_programado
+      const registrado = new Date(u.horario_registrado);
+      let base = u.horario_programado
         ? new Date(`${u.data_referencia}T${u.horario_programado}`)
-        : new Date(u.horario_registrado);
+        : registrado;
+      // Se o horário programado parece estar no futuro em relação ao registro,
+      // a saída pertence ao dia comercial anterior (ex.: registrou 01:08 de 22/05,
+      // programado 23:50 → na verdade 21/05 23:50).
+      if (base.getTime() > registrado.getTime() + 60 * 1000) {
+        base = new Date(base.getTime() - 24 * 60 * 60 * 1000);
+      }
       const ate = new Date(base.getTime() + 10 * 60 * 60 * 1000);
       setBloqueioAte(ate > new Date() ? ate : null);
     } else {
