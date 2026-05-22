@@ -59,36 +59,16 @@ function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
   const entDiff = minDiff(d.programado.entrada, d.registrado.entrada);
   if (entDiff != null && Math.abs(entDiff) > tolMin) {
     if (entDiff > 0)
-      out.push({
-        label: `ATRASO ${fmtMinHHMM(entDiff)}`,
-        qtde: entDiff,
-        credito: false,
-        debito: true,
-      });
+      out.push({ label: "ATRASO", qtde: entDiff, credito: false, debito: true });
     else
-      out.push({
-        label: `ENTRADA ANTECIPADA ${fmtMinHHMM(entDiff)}`,
-        qtde: -entDiff,
-        credito: false,
-        debito: false,
-      });
+      out.push({ label: "ENTRADA ANTECIPADA", qtde: -entDiff, credito: false, debito: false });
   }
   const saiDiff = minDiff(d.programado.saida_final, d.registrado.saida_final);
   if (saiDiff != null && Math.abs(saiDiff) > tolMin) {
     if (saiDiff > 0)
-      out.push({
-        label: `HORA EXTRA ${fmtMinHHMM(saiDiff)}`,
-        qtde: saiDiff,
-        credito: true,
-        debito: false,
-      });
+      out.push({ label: "HORA EXTRA", qtde: saiDiff, credito: true, debito: false });
     else
-      out.push({
-        label: `SAÍDA ANTECIPADA ${fmtMinHHMM(saiDiff)}`,
-        qtde: -saiDiff,
-        credito: false,
-        debito: true,
-      });
+      out.push({ label: "SAÍDA ANTECIPADA", qtde: -saiDiff, credito: false, debito: true });
   }
   // Marcação incompleta: tem alguma marcação mas falta entrada ou saída final
   const temAlguma =
@@ -279,31 +259,43 @@ export function gerarPdfCartao(opts: {
     const falta = d.faltaRegistrada || d.falta;
 
     const irregs = irregularidadesDoDia(d, tol);
-    const irregLabels = irregs.map((i) => i.label);
     for (const i of irregs) {
       if (i.credito) creditos += i.qtde;
       if (i.debito) debitos += i.qtde;
     }
+
+    // Linhas a renderizar: { label, qtde }
+    type LinhaIrreg = { label: string; qtde: string };
+    const linhas: LinhaIrreg[] = [];
+    if (semJornada) {
+      linhas.push({ label: "DIA SEM JORNADA CADASTRADA", qtde: "" });
+    } else if (falta) {
+      linhas.push({ label: "FALTA", qtde: "" });
+    } else if (semMarcacao) {
+      linhas.push({ label: "MARCAÇÃO NÃO REGISTRADA", qtde: "" });
+    } else {
+      for (const i of irregs) {
+        linhas.push({ label: i.label, qtde: fmtMinHHMM(i.qtde) });
+      }
+    }
     if (d.bancoHorasMinutos > 0) {
       creditos += d.bancoHorasMinutos;
-      irregLabels.push(`CRÉDITO BCO DE HORAS ${fmtMinHHMM(d.bancoHorasMinutos)}`);
+      linhas.push({
+        label: "CRÉDITO BCO DE HORAS",
+        qtde: fmtMinHHMM(d.bancoHorasMinutos),
+      });
     }
     if (d.bancoHorasMinutos < 0) {
       debitos += -d.bancoHorasMinutos;
-      irregLabels.push(`DÉBITO BCO DE HORAS ${fmtMinHHMM(-d.bancoHorasMinutos)}`);
+      linhas.push({
+        label: "DÉBITO BCO DE HORAS",
+        qtde: fmtMinHHMM(-d.bancoHorasMinutos),
+      });
     }
-
-    const irregTexto = semJornada
-      ? "DIA SEM JORNADA CADASTRADA"
-      : falta
-        ? "FALTA"
-        : semMarcacao
-          ? "MARCAÇÃO NÃO REGISTRADA"
-          : irregLabels.join(" / ");
-
+    if (linhas.length === 0) linhas.push({ label: "", qtde: "" });
 
     const justificativas = d.justificativas ?? [];
-    const justPrincipal = justificativas[0];
+    const primeira = linhas[0];
 
     drawRow({
       dia: diaSem,
@@ -314,24 +306,24 @@ export function gerarPdfCartao(opts: {
       saiPrev: d.programado.saida_final ?? "",
       entReal: semMarcacao || falta ? "" : (d.registrado.entrada ?? ""),
       saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
-      irreg: irregTexto,
-      qtde:
-        d.bancoHorasMinutos !== 0
-          ? `${d.bancoHorasMinutos > 0 ? "+" : "-"}${fmtMinHHMM(d.bancoHorasMinutos)}`
-          : justPrincipal?.quantidadeMinutos != null
-            ? fmtMinHHMM(justPrincipal.quantidadeMinutos)
-            : "",
-      just: justPrincipal
-        ? `${justPrincipal.tipo.nome}${justPrincipal.observacao ? " - " + justPrincipal.observacao : ""}`
+      irreg: primeira.label,
+      qtde: primeira.qtde,
+      just: justificativas[0]
+        ? `${justificativas[0].tipo.nome}${justificativas[0].observacao ? " - " + justificativas[0].observacao : ""}`
         : "",
       adic: "",
     });
 
+    // Linhas adicionais de irregularidade
+    for (let i = 1; i < linhas.length; i++) {
+      drawRow({ irreg: linhas[i].label, qtde: linhas[i].qtde });
+    }
+
+    // Justificativas adicionais
     for (let i = 1; i < justificativas.length; i++) {
       const j = justificativas[i];
       drawRow({
         just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
-        qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
       });
     }
   }
