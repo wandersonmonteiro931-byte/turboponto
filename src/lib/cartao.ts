@@ -20,6 +20,7 @@ export type JustificativaAplicadaDia = {
   observacao: string | null;
   anexo_url: string | null;
   status: string;
+  quantidadeMinutos: number | null;
 };
 
 export type DiaCartao = {
