@@ -59,7 +59,7 @@ export function EditarPontoDialog({
     if (!justificativa.trim()) { toast.error("Justificativa é obrigatória."); return; }
     setSaving(true);
 
-    const dataRef = registro.data_referencia;
+    const dataRef = data || registro.data_referencia;
     const [h, m] = hora.split(":").map(Number);
     const novoTs = new Date(`${dataRef}T00:00:00`);
     novoTs.setHours(h, m, 0, 0);
@@ -70,13 +70,14 @@ export function EditarPontoDialog({
 
     const alteracoes: Array<{ campo: string; antigo: string | null; novo: string | null }> = [];
     if (tipo !== registro.tipo_ponto) alteracoes.push({ campo: "tipo_ponto", antigo: registro.tipo_ponto, novo: tipo });
+    if (dataRef !== registro.data_referencia) alteracoes.push({ campo: "data_referencia", antigo: registro.data_referencia, novo: dataRef });
     if (hora !== horaAntigaStr) alteracoes.push({ campo: "horario_registrado", antigo: horaAntigaStr, novo: hora });
     if ((observacao || "") !== (registro.observacao ?? "")) alteracoes.push({ campo: "observacao", antigo: registro.observacao, novo: observacao });
 
     if (alteracoes.length === 0) { toast.error("Nenhuma alteração detectada."); setSaving(false); return; }
 
     const { error } = await supabase.from("registros_ponto")
-      .update({ tipo_ponto: tipo, horario_registrado: novoIso, observacao: observacao || null, status: "corrigido" })
+      .update({ tipo_ponto: tipo, data_referencia: dataRef, horario_registrado: novoIso, observacao: observacao || null, status: "corrigido" })
       .eq("id", registro.id);
     if (error) { toast.error(error.message); setSaving(false); return; }
 
