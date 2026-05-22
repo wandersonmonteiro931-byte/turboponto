@@ -53,17 +53,45 @@ function CartaoFuncPage() {
   }, [funcionario, ano, mes]);
 
   const liberado = cartao?.status === "liberado";
-  const podeBaixar = liberado;
 
-  const baixarPdf = () => {
-    if (!resumo || !empresa || !funcionario) return;
-    const doc = gerarPdfCartao({
-      empresa,
-      funcionario,
-      ano, mes, resumo,
-      status: cartao?.status ?? "aberto",
-    });
-    doc.save(`cartao-${funcionario.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+  const baixarPdf = async () => {
+    try {
+      if (!resumo || !funcionario) {
+        console.warn("PDF: dados não carregados", { resumo: !!resumo, funcionario: !!funcionario });
+        return;
+      }
+      const emp = empresa ?? { nome_fantasia: "-", cnpj: null, endereco: null };
+      const { data: vinc } = await supabase
+        .from("funcionarios_jornadas")
+        .select("jornadas(nome), jornada_id")
+        .eq("funcionario_id", funcionario.id).eq("ativo", true).maybeSingle();
+      const v = vinc as { jornadas: { nome: string } | null; jornada_id: string } | null;
+      let jornada: { nome: string; entrada: string | null; saida: string | null; intervalo_saida: string | null; intervalo_retorno: string | null } | null = null;
+      if (v?.jornada_id) {
+        const { data: jd } = await supabase
+          .from("jornadas_dias")
+          .select("dia_semana,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno,trabalha")
+          .eq("jornada_id", v.jornada_id);
+        const ref = (jd ?? []).find((x) => x.trabalha) as { horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null } | undefined;
+        jornada = {
+          nome: v.jornadas?.nome ?? "JORNADA",
+          entrada: ref?.horario_entrada?.slice(0, 5) ?? null,
+          saida: ref?.horario_saida?.slice(0, 5) ?? null,
+          intervalo_saida: ref?.horario_intervalo_saida?.slice(0, 5) ?? null,
+          intervalo_retorno: ref?.horario_intervalo_retorno?.slice(0, 5) ?? null,
+        };
+      }
+      const doc = gerarPdfCartao({
+        empresa: emp,
+        funcionario,
+        jornada,
+        ano, mes, resumo,
+        status: cartao?.status ?? "aberto",
+      });
+      doc.save(`cartao-${funcionario.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+    } catch (e) {
+      console.error("Erro ao gerar PDF", e);
+    }
   };
 
   if (!funcionario) return <p className="text-sm text-muted-foreground">Carregando seus dados...</p>;
