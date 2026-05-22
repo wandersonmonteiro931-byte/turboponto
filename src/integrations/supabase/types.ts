@@ -154,6 +154,140 @@ export type Database = {
           },
         ]
       }
+      funcionarios_jornadas: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          funcionario_id: string
+          id: string
+          jornada_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          funcionario_id: string
+          id?: string
+          jornada_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          funcionario_id?: string
+          id?: string
+          jornada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funcionarios_jornadas_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funcionarios_jornadas_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jornadas: {
+        Row: {
+          carga_horaria_minutos: number
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          horario_entrada: string | null
+          horario_intervalo_retorno: string | null
+          horario_intervalo_saida: string | null
+          horario_saida: string | null
+          id: string
+          nome: string
+          status: string
+          tolerancia_atraso_minutos: number
+          updated_at: string
+        }
+        Insert: {
+          carga_horaria_minutos?: number
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          horario_entrada?: string | null
+          horario_intervalo_retorno?: string | null
+          horario_intervalo_saida?: string | null
+          horario_saida?: string | null
+          id?: string
+          nome: string
+          status?: string
+          tolerancia_atraso_minutos?: number
+          updated_at?: string
+        }
+        Update: {
+          carga_horaria_minutos?: number
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          horario_entrada?: string | null
+          horario_intervalo_retorno?: string | null
+          horario_intervalo_saida?: string | null
+          horario_saida?: string | null
+          id?: string
+          nome?: string
+          status?: string
+          tolerancia_atraso_minutos?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      jornadas_dias: {
+        Row: {
+          dia_semana: number
+          horario_entrada: string | null
+          horario_intervalo_retorno: string | null
+          horario_intervalo_saida: string | null
+          horario_saida: string | null
+          id: string
+          jornada_id: string
+          trabalha: boolean
+        }
+        Insert: {
+          dia_semana: number
+          horario_entrada?: string | null
+          horario_intervalo_retorno?: string | null
+          horario_intervalo_saida?: string | null
+          horario_saida?: string | null
+          id?: string
+          jornada_id: string
+          trabalha?: boolean
+        }
+        Update: {
+          dia_semana?: number
+          horario_entrada?: string | null
+          horario_intervalo_retorno?: string | null
+          horario_intervalo_saida?: string | null
+          horario_saida?: string | null
+          id?: string
+          jornada_id?: string
+          trabalha?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jornadas_dias_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           cpf: string | null
