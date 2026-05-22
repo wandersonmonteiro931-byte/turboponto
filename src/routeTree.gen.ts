@@ -17,6 +17,23 @@ import { Route as AppFuncionarioRouteImport } from './routes/app/funcionario'
 import { Route as AppEmpresaRouteImport } from './routes/app/empresa'
 import { Route as AppFuncionarioIndexRouteImport } from './routes/app/funcionario/index'
 import { Route as AppEmpresaIndexRouteImport } from './routes/app/empresa/index'
+import { Route as AppFuncionarioRegistrosRouteImport } from './routes/app/funcionario/registros'
+import { Route as AppFuncionarioPerfilRouteImport } from './routes/app/funcionario/perfil'
+import { Route as AppFuncionarioHoleritesRouteImport } from './routes/app/funcionario/holerites'
+import { Route as AppFuncionarioCartaoPontoRouteImport } from './routes/app/funcionario/cartao-ponto'
+import { Route as AppFuncionarioBeneficiosRouteImport } from './routes/app/funcionario/beneficios'
+import { Route as AppFuncionarioBaterPontoRouteImport } from './routes/app/funcionario/bater-ponto'
+import { Route as AppFuncionarioAvisosRouteImport } from './routes/app/funcionario/avisos'
+import { Route as AppEmpresaRelatoriosRouteImport } from './routes/app/empresa/relatorios'
+import { Route as AppEmpresaRegistrosRouteImport } from './routes/app/empresa/registros'
+import { Route as AppEmpresaJornadasRouteImport } from './routes/app/empresa/jornadas'
+import { Route as AppEmpresaHoleritesRouteImport } from './routes/app/empresa/holerites'
+import { Route as AppEmpresaFuncionariosRouteImport } from './routes/app/empresa/funcionarios'
+import { Route as AppEmpresaFechamentoRouteImport } from './routes/app/empresa/fechamento'
+import { Route as AppEmpresaEmpresaRouteImport } from './routes/app/empresa/empresa'
+import { Route as AppEmpresaConfiguracoesRouteImport } from './routes/app/empresa/configuracoes'
+import { Route as AppEmpresaCartaoPontoRouteImport } from './routes/app/empresa/cartao-ponto'
+import { Route as AppEmpresaBeneficiosRouteImport } from './routes/app/empresa/beneficios'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -58,6 +75,94 @@ const AppEmpresaIndexRoute = AppEmpresaIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
+const AppFuncionarioRegistrosRoute = AppFuncionarioRegistrosRouteImport.update({
+  id: '/registros',
+  path: '/registros',
+  getParentRoute: () => AppFuncionarioRoute,
+} as any)
+const AppFuncionarioPerfilRoute = AppFuncionarioPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => AppFuncionarioRoute,
+} as any)
+const AppFuncionarioHoleritesRoute = AppFuncionarioHoleritesRouteImport.update({
+  id: '/holerites',
+  path: '/holerites',
+  getParentRoute: () => AppFuncionarioRoute,
+} as any)
+const AppFuncionarioCartaoPontoRoute =
+  AppFuncionarioCartaoPontoRouteImport.update({
+    id: '/cartao-ponto',
+    path: '/cartao-ponto',
+    getParentRoute: () => AppFuncionarioRoute,
+  } as any)
+const AppFuncionarioBeneficiosRoute =
+  AppFuncionarioBeneficiosRouteImport.update({
+    id: '/beneficios',
+    path: '/beneficios',
+    getParentRoute: () => AppFuncionarioRoute,
+  } as any)
+const AppFuncionarioBaterPontoRoute =
+  AppFuncionarioBaterPontoRouteImport.update({
+    id: '/bater-ponto',
+    path: '/bater-ponto',
+    getParentRoute: () => AppFuncionarioRoute,
+  } as any)
+const AppFuncionarioAvisosRoute = AppFuncionarioAvisosRouteImport.update({
+  id: '/avisos',
+  path: '/avisos',
+  getParentRoute: () => AppFuncionarioRoute,
+} as any)
+const AppEmpresaRelatoriosRoute = AppEmpresaRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaRegistrosRoute = AppEmpresaRegistrosRouteImport.update({
+  id: '/registros',
+  path: '/registros',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaJornadasRoute = AppEmpresaJornadasRouteImport.update({
+  id: '/jornadas',
+  path: '/jornadas',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaHoleritesRoute = AppEmpresaHoleritesRouteImport.update({
+  id: '/holerites',
+  path: '/holerites',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaFuncionariosRoute = AppEmpresaFuncionariosRouteImport.update({
+  id: '/funcionarios',
+  path: '/funcionarios',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaFechamentoRoute = AppEmpresaFechamentoRouteImport.update({
+  id: '/fechamento',
+  path: '/fechamento',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaEmpresaRoute = AppEmpresaEmpresaRouteImport.update({
+  id: '/empresa',
+  path: '/empresa',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaConfiguracoesRoute = AppEmpresaConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaCartaoPontoRoute = AppEmpresaCartaoPontoRouteImport.update({
+  id: '/cartao-ponto',
+  path: '/cartao-ponto',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaBeneficiosRoute = AppEmpresaBeneficiosRouteImport.update({
+  id: '/beneficios',
+  path: '/beneficios',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +171,23 @@ export interface FileRoutesByFullPath {
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
+  '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
+  '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
+  '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
+  '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
+  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRoute
+  '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
+  '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
+  '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
+  '/app/empresa/relatorios': typeof AppEmpresaRelatoriosRoute
+  '/app/funcionario/avisos': typeof AppFuncionarioAvisosRoute
+  '/app/funcionario/bater-ponto': typeof AppFuncionarioBaterPontoRoute
+  '/app/funcionario/beneficios': typeof AppFuncionarioBeneficiosRoute
+  '/app/funcionario/cartao-ponto': typeof AppFuncionarioCartaoPontoRoute
+  '/app/funcionario/holerites': typeof AppFuncionarioHoleritesRoute
+  '/app/funcionario/perfil': typeof AppFuncionarioPerfilRoute
+  '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
 }
@@ -73,6 +195,23 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app': typeof AppIndexRoute
+  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
+  '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
+  '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
+  '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
+  '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
+  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRoute
+  '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
+  '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
+  '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
+  '/app/empresa/relatorios': typeof AppEmpresaRelatoriosRoute
+  '/app/funcionario/avisos': typeof AppFuncionarioAvisosRoute
+  '/app/funcionario/bater-ponto': typeof AppFuncionarioBaterPontoRoute
+  '/app/funcionario/beneficios': typeof AppFuncionarioBeneficiosRoute
+  '/app/funcionario/cartao-ponto': typeof AppFuncionarioCartaoPontoRoute
+  '/app/funcionario/holerites': typeof AppFuncionarioHoleritesRoute
+  '/app/funcionario/perfil': typeof AppFuncionarioPerfilRoute
+  '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa': typeof AppEmpresaIndexRoute
   '/app/funcionario': typeof AppFuncionarioIndexRoute
 }
@@ -84,6 +223,23 @@ export interface FileRoutesById {
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
+  '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
+  '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
+  '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
+  '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
+  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRoute
+  '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
+  '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
+  '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
+  '/app/empresa/relatorios': typeof AppEmpresaRelatoriosRoute
+  '/app/funcionario/avisos': typeof AppFuncionarioAvisosRoute
+  '/app/funcionario/bater-ponto': typeof AppFuncionarioBaterPontoRoute
+  '/app/funcionario/beneficios': typeof AppFuncionarioBeneficiosRoute
+  '/app/funcionario/cartao-ponto': typeof AppFuncionarioCartaoPontoRoute
+  '/app/funcionario/holerites': typeof AppFuncionarioHoleritesRoute
+  '/app/funcionario/perfil': typeof AppFuncionarioPerfilRoute
+  '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
 }
@@ -96,10 +252,49 @@ export interface FileRouteTypes {
     | '/app/empresa'
     | '/app/funcionario'
     | '/app/'
+    | '/app/empresa/beneficios'
+    | '/app/empresa/cartao-ponto'
+    | '/app/empresa/configuracoes'
+    | '/app/empresa/empresa'
+    | '/app/empresa/fechamento'
+    | '/app/empresa/funcionarios'
+    | '/app/empresa/holerites'
+    | '/app/empresa/jornadas'
+    | '/app/empresa/registros'
+    | '/app/empresa/relatorios'
+    | '/app/funcionario/avisos'
+    | '/app/funcionario/bater-ponto'
+    | '/app/funcionario/beneficios'
+    | '/app/funcionario/cartao-ponto'
+    | '/app/funcionario/holerites'
+    | '/app/funcionario/perfil'
+    | '/app/funcionario/registros'
     | '/app/empresa/'
     | '/app/funcionario/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/app' | '/app/empresa' | '/app/funcionario'
+  to:
+    | '/'
+    | '/login'
+    | '/app'
+    | '/app/empresa/beneficios'
+    | '/app/empresa/cartao-ponto'
+    | '/app/empresa/configuracoes'
+    | '/app/empresa/empresa'
+    | '/app/empresa/fechamento'
+    | '/app/empresa/funcionarios'
+    | '/app/empresa/holerites'
+    | '/app/empresa/jornadas'
+    | '/app/empresa/registros'
+    | '/app/empresa/relatorios'
+    | '/app/funcionario/avisos'
+    | '/app/funcionario/bater-ponto'
+    | '/app/funcionario/beneficios'
+    | '/app/funcionario/cartao-ponto'
+    | '/app/funcionario/holerites'
+    | '/app/funcionario/perfil'
+    | '/app/funcionario/registros'
+    | '/app/empresa'
+    | '/app/funcionario'
   id:
     | '__root__'
     | '/'
@@ -108,6 +303,23 @@ export interface FileRouteTypes {
     | '/app/empresa'
     | '/app/funcionario'
     | '/app/'
+    | '/app/empresa/beneficios'
+    | '/app/empresa/cartao-ponto'
+    | '/app/empresa/configuracoes'
+    | '/app/empresa/empresa'
+    | '/app/empresa/fechamento'
+    | '/app/empresa/funcionarios'
+    | '/app/empresa/holerites'
+    | '/app/empresa/jornadas'
+    | '/app/empresa/registros'
+    | '/app/empresa/relatorios'
+    | '/app/funcionario/avisos'
+    | '/app/funcionario/bater-ponto'
+    | '/app/funcionario/beneficios'
+    | '/app/funcionario/cartao-ponto'
+    | '/app/funcionario/holerites'
+    | '/app/funcionario/perfil'
+    | '/app/funcionario/registros'
     | '/app/empresa/'
     | '/app/funcionario/'
   fileRoutesById: FileRoutesById
@@ -176,14 +388,153 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaIndexRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
+    '/app/funcionario/registros': {
+      id: '/app/funcionario/registros'
+      path: '/registros'
+      fullPath: '/app/funcionario/registros'
+      preLoaderRoute: typeof AppFuncionarioRegistrosRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/funcionario/perfil': {
+      id: '/app/funcionario/perfil'
+      path: '/perfil'
+      fullPath: '/app/funcionario/perfil'
+      preLoaderRoute: typeof AppFuncionarioPerfilRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/funcionario/holerites': {
+      id: '/app/funcionario/holerites'
+      path: '/holerites'
+      fullPath: '/app/funcionario/holerites'
+      preLoaderRoute: typeof AppFuncionarioHoleritesRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/funcionario/cartao-ponto': {
+      id: '/app/funcionario/cartao-ponto'
+      path: '/cartao-ponto'
+      fullPath: '/app/funcionario/cartao-ponto'
+      preLoaderRoute: typeof AppFuncionarioCartaoPontoRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/funcionario/beneficios': {
+      id: '/app/funcionario/beneficios'
+      path: '/beneficios'
+      fullPath: '/app/funcionario/beneficios'
+      preLoaderRoute: typeof AppFuncionarioBeneficiosRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/funcionario/bater-ponto': {
+      id: '/app/funcionario/bater-ponto'
+      path: '/bater-ponto'
+      fullPath: '/app/funcionario/bater-ponto'
+      preLoaderRoute: typeof AppFuncionarioBaterPontoRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/funcionario/avisos': {
+      id: '/app/funcionario/avisos'
+      path: '/avisos'
+      fullPath: '/app/funcionario/avisos'
+      preLoaderRoute: typeof AppFuncionarioAvisosRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/empresa/relatorios': {
+      id: '/app/empresa/relatorios'
+      path: '/relatorios'
+      fullPath: '/app/empresa/relatorios'
+      preLoaderRoute: typeof AppEmpresaRelatoriosRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/registros': {
+      id: '/app/empresa/registros'
+      path: '/registros'
+      fullPath: '/app/empresa/registros'
+      preLoaderRoute: typeof AppEmpresaRegistrosRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/jornadas': {
+      id: '/app/empresa/jornadas'
+      path: '/jornadas'
+      fullPath: '/app/empresa/jornadas'
+      preLoaderRoute: typeof AppEmpresaJornadasRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/holerites': {
+      id: '/app/empresa/holerites'
+      path: '/holerites'
+      fullPath: '/app/empresa/holerites'
+      preLoaderRoute: typeof AppEmpresaHoleritesRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/funcionarios': {
+      id: '/app/empresa/funcionarios'
+      path: '/funcionarios'
+      fullPath: '/app/empresa/funcionarios'
+      preLoaderRoute: typeof AppEmpresaFuncionariosRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/fechamento': {
+      id: '/app/empresa/fechamento'
+      path: '/fechamento'
+      fullPath: '/app/empresa/fechamento'
+      preLoaderRoute: typeof AppEmpresaFechamentoRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/empresa': {
+      id: '/app/empresa/empresa'
+      path: '/empresa'
+      fullPath: '/app/empresa/empresa'
+      preLoaderRoute: typeof AppEmpresaEmpresaRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/configuracoes': {
+      id: '/app/empresa/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/app/empresa/configuracoes'
+      preLoaderRoute: typeof AppEmpresaConfiguracoesRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/cartao-ponto': {
+      id: '/app/empresa/cartao-ponto'
+      path: '/cartao-ponto'
+      fullPath: '/app/empresa/cartao-ponto'
+      preLoaderRoute: typeof AppEmpresaCartaoPontoRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/beneficios': {
+      id: '/app/empresa/beneficios'
+      path: '/beneficios'
+      fullPath: '/app/empresa/beneficios'
+      preLoaderRoute: typeof AppEmpresaBeneficiosRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
   }
 }
 
 interface AppEmpresaRouteChildren {
+  AppEmpresaBeneficiosRoute: typeof AppEmpresaBeneficiosRoute
+  AppEmpresaCartaoPontoRoute: typeof AppEmpresaCartaoPontoRoute
+  AppEmpresaConfiguracoesRoute: typeof AppEmpresaConfiguracoesRoute
+  AppEmpresaEmpresaRoute: typeof AppEmpresaEmpresaRoute
+  AppEmpresaFechamentoRoute: typeof AppEmpresaFechamentoRoute
+  AppEmpresaFuncionariosRoute: typeof AppEmpresaFuncionariosRoute
+  AppEmpresaHoleritesRoute: typeof AppEmpresaHoleritesRoute
+  AppEmpresaJornadasRoute: typeof AppEmpresaJornadasRoute
+  AppEmpresaRegistrosRoute: typeof AppEmpresaRegistrosRoute
+  AppEmpresaRelatoriosRoute: typeof AppEmpresaRelatoriosRoute
   AppEmpresaIndexRoute: typeof AppEmpresaIndexRoute
 }
 
 const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
+  AppEmpresaBeneficiosRoute: AppEmpresaBeneficiosRoute,
+  AppEmpresaCartaoPontoRoute: AppEmpresaCartaoPontoRoute,
+  AppEmpresaConfiguracoesRoute: AppEmpresaConfiguracoesRoute,
+  AppEmpresaEmpresaRoute: AppEmpresaEmpresaRoute,
+  AppEmpresaFechamentoRoute: AppEmpresaFechamentoRoute,
+  AppEmpresaFuncionariosRoute: AppEmpresaFuncionariosRoute,
+  AppEmpresaHoleritesRoute: AppEmpresaHoleritesRoute,
+  AppEmpresaJornadasRoute: AppEmpresaJornadasRoute,
+  AppEmpresaRegistrosRoute: AppEmpresaRegistrosRoute,
+  AppEmpresaRelatoriosRoute: AppEmpresaRelatoriosRoute,
   AppEmpresaIndexRoute: AppEmpresaIndexRoute,
 }
 
@@ -192,10 +543,24 @@ const AppEmpresaRouteWithChildren = AppEmpresaRoute._addFileChildren(
 )
 
 interface AppFuncionarioRouteChildren {
+  AppFuncionarioAvisosRoute: typeof AppFuncionarioAvisosRoute
+  AppFuncionarioBaterPontoRoute: typeof AppFuncionarioBaterPontoRoute
+  AppFuncionarioBeneficiosRoute: typeof AppFuncionarioBeneficiosRoute
+  AppFuncionarioCartaoPontoRoute: typeof AppFuncionarioCartaoPontoRoute
+  AppFuncionarioHoleritesRoute: typeof AppFuncionarioHoleritesRoute
+  AppFuncionarioPerfilRoute: typeof AppFuncionarioPerfilRoute
+  AppFuncionarioRegistrosRoute: typeof AppFuncionarioRegistrosRoute
   AppFuncionarioIndexRoute: typeof AppFuncionarioIndexRoute
 }
 
 const AppFuncionarioRouteChildren: AppFuncionarioRouteChildren = {
+  AppFuncionarioAvisosRoute: AppFuncionarioAvisosRoute,
+  AppFuncionarioBaterPontoRoute: AppFuncionarioBaterPontoRoute,
+  AppFuncionarioBeneficiosRoute: AppFuncionarioBeneficiosRoute,
+  AppFuncionarioCartaoPontoRoute: AppFuncionarioCartaoPontoRoute,
+  AppFuncionarioHoleritesRoute: AppFuncionarioHoleritesRoute,
+  AppFuncionarioPerfilRoute: AppFuncionarioPerfilRoute,
+  AppFuncionarioRegistrosRoute: AppFuncionarioRegistrosRoute,
   AppFuncionarioIndexRoute: AppFuncionarioIndexRoute,
 }
 
