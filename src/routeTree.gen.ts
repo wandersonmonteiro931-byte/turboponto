@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as ReciboCalcIdRouteImport } from './routes/recibo.$calcId'
 import { Route as AppFuncionarioRouteImport } from './routes/app/funcionario'
 import { Route as AppEmpresaRouteImport } from './routes/app/empresa'
 import { Route as AppFuncionarioIndexRouteImport } from './routes/app/funcionario/index'
@@ -55,6 +56,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const ReciboCalcIdRoute = ReciboCalcIdRouteImport.update({
+  id: '/recibo/$calcId',
+  path: '/recibo/$calcId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppFuncionarioRoute = AppFuncionarioRouteImport.update({
   id: '/funcionario',
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
+  '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app': typeof AppIndexRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
+  '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/empresa'
     | '/app/funcionario'
+    | '/recibo/$calcId'
     | '/app/'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/recibo/$calcId'
     | '/app'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/empresa'
     | '/app/funcionario'
+    | '/recibo/$calcId'
     | '/app/'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
@@ -341,6 +353,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ReciboCalcIdRoute: typeof ReciboCalcIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -372,6 +385,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/recibo/$calcId': {
+      id: '/recibo/$calcId'
+      path: '/recibo/$calcId'
+      fullPath: '/recibo/$calcId'
+      preLoaderRoute: typeof ReciboCalcIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/funcionario': {
       id: '/app/funcionario'
@@ -620,7 +640,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ReciboCalcIdRoute: ReciboCalcIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
