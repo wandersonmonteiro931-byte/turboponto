@@ -224,11 +224,14 @@ export function gerarPdfCartao(opts: {
     for (let k = 0; k < totalLinhas; k++) {
       const ev = eventos[k] ?? { realEntr: "", realSaida: "", irreg: "", qtde: "", just: "" };
       const just = justificativas[k] ?? { just: "", qtde: "" };
+      const marcacaoIrregular = ev.realEntr || ev.realSaida
+        ? [ev.realEntr, "", "", "", "", ev.realSaida]
+        : ["", "", "", "", "", ""];
       const marcacaoCols = ev.marcacao
         ? ["", "", "", "", "", ""]
         : k === 0 && !ev.realEntr && !ev.realSaida
           ? marcacoesRegistradas
-          : ["", "", "", "", ev.realEntr, ev.realSaida];
+          : marcacaoIrregular;
       const cols = [
         k === 0 ? diaSem : "", k === 0 ? dataStr : "", k === 0 ? codeJ : "", k === 0 ? escala : "",
         ...marcacaoCols,
