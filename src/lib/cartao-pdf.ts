@@ -208,6 +208,9 @@ export function gerarPdfCartao(opts: {
     const justSupervisor = d.justificativa
       ? (d.justificativa.tipo.nome + (d.justificativa.observacao ? " · " + d.justificativa.observacao : "")).slice(0, 30)
       : "";
+    const justQtde = d.justificativa?.quantidadeMinutos != null
+      ? fmtMinHHMM(d.justificativa.quantidadeMinutos)
+      : "";
 
     const subs: SubLinha[] = [];
     if (!d.trabalha && !d.justificativa) {
@@ -230,6 +233,11 @@ export function gerarPdfCartao(opts: {
         // computa créditos/débitos do mês
         if (first.just.startsWith("CRED")) creditos += hm(first.qtde) ?? 0;
         else debitos += hm(first.qtde) ?? 0;
+      } else if (d.justificativa) {
+        // Dia coberto por justificativa, sem irregularidade de marcação
+        // → mostra o tipo da justificativa na coluna Irregularidade (ex.: AFAST DOENCA)
+        irregMain = d.justificativa.tipo.nome.toUpperCase().slice(0, 19);
+        qtdeMain = justQtde;
       }
       justMain = justSupervisor;
     }

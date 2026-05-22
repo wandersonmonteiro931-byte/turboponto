@@ -20,6 +20,7 @@ export type JustificativaAplicadaDia = {
   observacao: string | null;
   anexo_url: string | null;
   status: string;
+  quantidadeMinutos: number | null;
 };
 
 export type DiaCartao = {
@@ -151,7 +152,7 @@ export async function carregarCartao(
   // Justificativas aplicadas no período (aprovadas)
   const { data: justApls } = await supabase
     .from("justificativas_aplicadas")
-    .select(`id,tipo_id,data,observacao,anexo_url,status,
+    .select(`id,tipo_id,data,observacao,anexo_url,status,quantidade_minutos,
       justificativas_tipos!inner (
         nome,codigo,categoria,desconta_salario,desconta_dsr,abona_ocorrencia,
         movimenta_banco_horas,conta_dia_trabalhado,exige_marcacao_ponto,afeta_assiduidade
@@ -163,10 +164,12 @@ export async function carregarCartao(
   const justPorDia = new Map<string, JustificativaAplicadaDia>();
   for (const j of (justApls ?? []) as Array<{
     id: string; tipo_id: string; data: string; observacao: string | null; anexo_url: string | null; status: string;
+    quantidade_minutos: number | null;
     justificativas_tipos: JustificativaAplicadaDia["tipo"];
   }>) {
     justPorDia.set(j.data, {
       id: j.id, tipo_id: j.tipo_id, observacao: j.observacao, anexo_url: j.anexo_url, status: j.status,
+      quantidadeMinutos: j.quantidade_minutos,
       tipo: j.justificativas_tipos,
     });
   }
