@@ -106,7 +106,7 @@ function FuncionarioHome() {
             size="lg"
             className="px-10 py-6 text-lg font-bold"
             disabled={!jornada}
-            onClick={() => toast.info("Funcionalidade chegará em breve")}
+            onClick={() => navigate({ to: "/app/funcionario/bater-ponto" })}
           >
             Bater Ponto
           </Button>
