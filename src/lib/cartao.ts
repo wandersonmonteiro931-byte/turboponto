@@ -325,13 +325,18 @@ export async function carregarCartao(
     const just = justificativas[0] ?? null;
     const temHoraExtraPagar = justificativas.some((j) => j.tipo.codigo === "HE_PAGAR");
     const justHoraExtraCredito = justificativas.find((j) => j.tipo.codigo === "HE_CREDITO");
+    const temDebitoManualBH = justificativas.some((j) => j.tipo.movimenta_banco_horas === "debito");
+    let abonoSemDesconto = false;
     for (const just of justificativas) {
       const t = just.tipo;
       // Abona ocorrência: anula falta/pendente e zera atraso, salvo se tipo desconta
       if (t.abona_ocorrencia) {
         falta = false;
         pendente = false;
-        if (!t.desconta_salario) atraso = 0;
+        if (!t.desconta_salario) {
+          atraso = 0;
+          abonoSemDesconto = true;
+        }
       }
       // Não exige marcação: substitui "marcação não registrada" pelo rótulo
       if (!t.exige_marcacao_ponto) {
@@ -360,6 +365,20 @@ export async function carregarCartao(
     if (!temHoraExtraPagar) {
       const minutosCreditoHE = justHoraExtraCredito?.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
       bancoHorasMin += Math.max(0, minutosCreditoHE);
+    }
+
+    // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
+    if (trabalha && !abonoSemDesconto && !temDebitoManualBH) {
+      if (falta && cargaProg > 0) {
+        bancoHorasMin -= cargaProg;
+      } else {
+        let debitoAutomatico = atraso;
+        if (psf != null && sf != null) {
+          const saidaAntecipada = psf - sf;
+          if (saidaAntecipada > toleranciaMin) debitoAutomatico += saidaAntecipada;
+        }
+        bancoHorasMin -= Math.max(0, debitoAutomatico);
+      }
     }
 
     // Fora do vínculo zera ocorrências e adiciona observação informativa

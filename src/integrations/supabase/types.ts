@@ -1266,6 +1266,10 @@ export type Database = {
         }
         Returns: string
       }
+      diff_minutos_relogio: {
+        Args: { _a: string; _b: string }
+        Returns: number
+      }
       get_user_empresa: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
