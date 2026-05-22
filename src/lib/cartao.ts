@@ -339,16 +339,13 @@ export async function carregarCartao(
       if (t.conta_dia_trabalhado && trabalhado === 0 && cargaProg > 0) {
         trabalhado = cargaProg;
       }
-      // Banco de horas
+      // Banco de horas: crédito usa horas trabalhadas na folga e somente extra em dia normal.
       if (t.movimenta_banco_horas === "credito") {
-        bancoHorasMin = trabalhado > 0 ? trabalhado : cargaProg;
+        const minutosCredito = just.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
+        bancoHorasMin += Math.max(0, minutosCredito);
       } else if (t.movimenta_banco_horas === "debito") {
-        if (just.quantidadeMinutos != null && cargaProg > 0) {
-          const restante = cargaProg - just.quantidadeMinutos;
-          bancoHorasMin = restante > 0 ? -restante : 0;
-        } else {
-          bancoHorasMin = -(cargaProg > 0 ? cargaProg : atraso);
-        }
+        const minutosDebito = just.quantidadeMinutos ?? (cargaProg > 0 ? cargaProg : atraso);
+        bancoHorasMin -= Math.max(0, minutosDebito);
       }
       // Falta com desconto explícita
       if (t.categoria === "falta" && t.desconta_salario) {
