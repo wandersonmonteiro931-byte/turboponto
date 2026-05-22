@@ -186,13 +186,9 @@ export async function carregarCartao(
     }
     const extras = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
 
-    const hojeStr = (() => {
-      const x = new Date(); x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
-      return x.toISOString().slice(0, 10);
-    })();
     const semRegistro = trabalha && regs.length === 0;
-    const falta = semRegistro && data <= hojeStr;
-    const pendente = semRegistro && data > hojeStr;
+    const falta = semRegistro && setFaltas.has(data);
+    const pendente = semRegistro && !falta;
     if (falta) totalFaltas += 1;
     totalAtraso += atraso;
     totalTrabalhado += trabalhado;
