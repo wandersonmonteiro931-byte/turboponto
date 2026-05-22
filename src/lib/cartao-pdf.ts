@@ -308,9 +308,7 @@ export function gerarPdfCartao(opts: {
       saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
       irreg: primeira.label,
       qtde: primeira.qtde,
-      just: justificativas[0]
-        ? `${justificativas[0].tipo.nome}${justificativas[0].observacao ? " - " + justificativas[0].observacao : ""}`
-        : "",
+      just: justificativas[0] ? justificativas[0].tipo.nome : "",
       adic: "",
     });
 
