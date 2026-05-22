@@ -72,6 +72,19 @@ function hm(t: string | null): number | null {
   return h * 60 + m;
 }
 
+function diffRelogio(inicio: number, fim: number): number {
+  let diff = fim - inicio;
+  if (diff < 0) diff += 1440;
+  return diff;
+}
+
+function diffRelogioAssinado(previsto: number, real: number): number {
+  let diff = real - previsto;
+  if (diff < -720) diff += 1440;
+  if (diff > 720) diff -= 1440;
+  return diff;
+}
+
 function tsHm(ts: string): number {
   const d = new Date(ts);
   return d.getHours() * 60 + d.getMinutes();
@@ -271,7 +284,7 @@ export async function carregarCartao(
       const p = hm(prog[k]);
       const r = hm(reg[k]);
       if (p != null && r != null) {
-        const diff = r - p;
+        const diff = diffRelogioAssinado(p, r);
         if (diff > toleranciaMin) atraso += diff;
       }
     }
@@ -281,10 +294,10 @@ export async function carregarCartao(
     const e = hm(reg.entrada);
     const sf = hm(reg.saida_final);
     if (e != null && sf != null) {
-      trabalhado = sf - e;
+      trabalhado = diffRelogio(e, sf);
       const si = hm(reg.saida_intervalo);
       const ri = hm(reg.retorno_intervalo);
-      if (si != null && ri != null) trabalhado -= ri - si;
+      if (si != null && ri != null) trabalhado -= diffRelogio(si, ri);
     }
     if (trabalhado < 0) trabalhado = 0;
 
@@ -293,10 +306,10 @@ export async function carregarCartao(
     const pe = hm(prog.entrada);
     const psf = hm(prog.saida_final);
     if (pe != null && psf != null) {
-      cargaProg = psf - pe;
+      cargaProg = diffRelogio(pe, psf);
       const psi = hm(prog.saida_intervalo);
       const pri = hm(prog.retorno_intervalo);
-      if (psi != null && pri != null) cargaProg -= pri - psi;
+      if (psi != null && pri != null) cargaProg -= diffRelogio(psi, pri);
     }
     const extrasBruto = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
     let extras = extrasBruto > toleranciaMin ? extrasBruto : 0;
@@ -374,8 +387,8 @@ export async function carregarCartao(
       } else {
         let debitoAutomatico = atraso;
         if (psf != null && sf != null) {
-          const saidaAntecipada = psf - sf;
-          if (saidaAntecipada > toleranciaMin) debitoAutomatico += saidaAntecipada;
+          const saidaDiff = diffRelogioAssinado(psf, sf);
+          if (saidaDiff < -toleranciaMin) debitoAutomatico += -saidaDiff;
         }
         bancoHorasMin -= Math.max(0, debitoAutomatico);
       }

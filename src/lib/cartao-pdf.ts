@@ -66,6 +66,12 @@ const minDiff = (prog: string | null, real: string | null): number | null => {
   return d;
 };
 
+const diffRelogio = (inicio: number, fim: number): number => {
+  let diff = fim - inicio;
+  if (diff < 0) diff += 1440;
+  return diff;
+};
+
 const fmtMinHHMM = (min: number): string => {
   const a = Math.abs(min);
   return `${String(Math.floor(a / 60)).padStart(2, "0")}:${String(a % 60).padStart(2, "0")}`;
@@ -329,10 +335,10 @@ export function gerarPdfCartao(opts: {
       const pe = hm(d.programado.entrada);
       const psf = hm(d.programado.saida_final);
       if (pe == null || psf == null) return 0;
-      let c = psf - pe;
+      let c = diffRelogio(pe, psf);
       const psi = hm(d.programado.saida_intervalo);
       const pri = hm(d.programado.retorno_intervalo);
-      if (psi != null && pri != null) c -= pri - psi;
+      if (psi != null && pri != null) c -= diffRelogio(psi, pri);
       return Math.max(0, c);
     })();
 
