@@ -103,6 +103,14 @@ export async function carregarCartao(
     .gte("data_referencia", ini)
     .lte("data_referencia", fim);
 
+  const { data: faltasManual } = await supabase
+    .from("dias_falta")
+    .select("data")
+    .eq("funcionario_id", funcionarioId)
+    .gte("data", ini)
+    .lte("data", fim);
+  const setFaltas = new Set((faltasManual ?? []).map((x) => x.data as string));
+
   const porDia = new Map<string, typeof registros>();
   for (const r of registros ?? []) {
     const arr = porDia.get(r.data_referencia) ?? [];
@@ -178,13 +186,9 @@ export async function carregarCartao(
     }
     const extras = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
 
-    const hojeStr = (() => {
-      const x = new Date(); x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
-      return x.toISOString().slice(0, 10);
-    })();
     const semRegistro = trabalha && regs.length === 0;
-    const falta = semRegistro && data <= hojeStr;
-    const pendente = semRegistro && data > hojeStr;
+    const falta = semRegistro && setFaltas.has(data);
+    const pendente = semRegistro && !falta;
     if (falta) totalFaltas += 1;
     totalAtraso += atraso;
     totalTrabalhado += trabalhado;

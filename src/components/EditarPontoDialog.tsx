@@ -170,13 +170,14 @@ export function EditarPontoDialog({
 }
 
 export function InserirPontoDialog({
-  open, onClose, empresaId, funcionarios, onSaved,
+  open, onClose, empresaId, funcionarios, onSaved, prefill,
 }: {
   open: boolean;
   onClose: () => void;
   empresaId: string;
   funcionarios: Array<{ id: string; nome: string }>;
   onSaved: () => void;
+  prefill?: { funcionarioId?: string; data?: string; tipo?: string; hora?: string };
 }) {
   const { user } = useAuth();
   const [funcId, setFuncId] = useState("");
@@ -189,10 +190,13 @@ export function InserirPontoDialog({
 
   useEffect(() => {
     if (open) {
-      setFuncId(""); setData(new Date().toISOString().slice(0, 10));
-      setTipo("entrada"); setHora("08:00"); setObservacao(""); setJustificativa("");
+      setFuncId(prefill?.funcionarioId ?? "");
+      setData(prefill?.data ?? new Date().toISOString().slice(0, 10));
+      setTipo(prefill?.tipo ?? "entrada");
+      setHora(prefill?.hora ?? "08:00");
+      setObservacao(""); setJustificativa("");
     }
-  }, [open]);
+  }, [open, prefill]);
 
   const salvar = async () => {
     if (!funcId) { toast.error("Selecione um funcionário."); return; }

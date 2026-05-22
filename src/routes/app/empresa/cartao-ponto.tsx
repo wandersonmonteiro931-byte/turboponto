@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Lock, Unlock, CheckCircle2 } from "lucide-react";
-import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type ResumoCartao } from "@/lib/cartao";
+import { Download, Lock, Unlock, CheckCircle2, X } from "lucide-react";
+import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type DiaCartao, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao } from "@/lib/cartao-pdf";
+import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
+import type { TipoPonto } from "@/lib/ponto";
 
 export const Route = createFileRoute("/app/empresa/cartao-ponto")({
   component: CartaoEmpresaPage,
@@ -31,6 +33,41 @@ function CartaoEmpresaPage() {
   const [loading, setLoading] = useState(false);
 
   const podeEditar = role === "admin";
+  const [editReg, setEditReg] = useState<RegistroEdit | null>(null);
+  const [inserirOpen, setInserirOpen] = useState(false);
+  const [prefill, setPrefill] = useState<{ funcionarioId?: string; data?: string; tipo?: string; hora?: string } | undefined>();
+
+  const abrirCelula = async (d: DiaCartao, tipo: TipoPonto) => {
+    if (!podeEditar || !empresaId) return;
+    const regId = d.registroIds[tipo];
+    if (regId) {
+      const { data: r } = await supabase.from("registros_ponto")
+        .select("id,empresa_id,funcionario_id,data_referencia,tipo_ponto,horario_registrado,observacao")
+        .eq("id", regId).maybeSingle();
+      if (r) setEditReg(r as RegistroEdit);
+      return;
+    }
+    const horaProg = d.programado[tipo === "entrada" ? "entrada" : tipo === "saida_intervalo" ? "saida_intervalo" : tipo === "retorno_intervalo" ? "retorno_intervalo" : "saida_final"];
+    setPrefill({ funcionarioId: funcId, data: d.data, tipo, hora: horaProg ?? "08:00" });
+    setInserirOpen(true);
+  };
+
+  const toggleFalta = async (d: DiaCartao) => {
+    if (!podeEditar || !empresaId || !funcId) return;
+    if (d.falta) {
+      const { error } = await supabase.from("dias_falta").delete()
+        .eq("funcionario_id", funcId).eq("data", d.data);
+      if (error) { toast.error(error.message); return; }
+      toast.success("Falta removida.");
+    } else {
+      const { error } = await supabase.from("dias_falta").insert({
+        empresa_id: empresaId, funcionario_id: funcId, data: d.data,
+      });
+      if (error) { toast.error(error.message); return; }
+      toast.success("Dia marcado como falta.");
+    }
+    carregar();
+  };
 
   useEffect(() => {
     if (!empresaId) return;
@@ -213,29 +250,64 @@ function CartaoEmpresaPage() {
                   <th className="p-2 text-left">Trab.</th>
                   <th className="p-2 text-left">Extras</th>
                   <th className="p-2 text-left">Obs</th>
+                  {podeEditar && <th className="p-2 text-left">Ação</th>}
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {resumo.dias.map((d) => (
+                {resumo.dias.map((d) => {
+                  const cellClass = (val: string | null) => `p-2 font-mono ${podeEditar ? "cursor-pointer hover:bg-accent/50" : ""}`;
+                  const renderEmpty = () => d.falta
+                    ? <span className="text-red-600 font-bold">FALTA</span>
+                    : d.trabalha
+                      ? <span className="text-yellow-700 text-xs">marcação não registrada</span>
+                      : "—";
+                  return (
                   <tr key={d.data} className={d.falta ? "bg-red-500/5" : d.pendente && d.trabalha ? "bg-yellow-500/5" : !d.trabalha ? "bg-muted/30" : ""}>
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
                     </td>
-                    <td className="p-2 font-mono">{d.registrado.entrada ?? (d.falta ? <span className="text-red-600 font-bold">FALTA</span> : d.pendente && d.trabalha ? <span className="text-yellow-700 text-xs">marcação não registrada</span> : "—")}</td>
-                    <td className="p-2 font-mono">{d.registrado.saida_intervalo ?? "—"}</td>
-                    <td className="p-2 font-mono">{d.registrado.retorno_intervalo ?? "—"}</td>
-                    <td className="p-2 font-mono">{d.registrado.saida_final ?? "—"}</td>
+                    <td className={cellClass(d.registrado.entrada)} onClick={() => abrirCelula(d, "entrada")}>{d.registrado.entrada ?? renderEmpty()}</td>
+                    <td className={cellClass(d.registrado.saida_intervalo)} onClick={() => abrirCelula(d, "saida_intervalo")}>{d.registrado.saida_intervalo ?? "—"}</td>
+                    <td className={cellClass(d.registrado.retorno_intervalo)} onClick={() => abrirCelula(d, "retorno_intervalo")}>{d.registrado.retorno_intervalo ?? "—"}</td>
+                    <td className={cellClass(d.registrado.saida_final)} onClick={() => abrirCelula(d, "saida_final")}>{d.registrado.saida_final ?? "—"}</td>
                     <td className="p-2">{d.atrasoMinutos ? `${d.atrasoMinutos}m` : "—"}</td>
                     <td className="p-2">{d.trabalhadoMinutos ? formatMin(d.trabalhadoMinutos) : "—"}</td>
                     <td className="p-2 text-orange-600">{d.extrasMinutos ? formatMin(d.extrasMinutos) : "—"}</td>
                     <td className="p-2 text-xs text-muted-foreground">{d.observacao ?? ""}</td>
+                    {podeEditar && (
+                      <td className="p-2">
+                        {d.trabalha && Object.keys(d.registroIds).length === 0 && (
+                          <Button size="sm" variant={d.falta ? "outline" : "destructive"} onClick={() => toggleFalta(d)} className="h-6 px-2 text-xs">
+                            {d.falta ? <><X className="h-3 w-3 mr-1" />Remover falta</> : "Marcar falta"}
+                          </Button>
+                        )}
+                      </td>
+                    )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           }
         </CardContent>
       </Card>
+
+      <EditarPontoDialog
+        open={!!editReg}
+        onClose={() => setEditReg(null)}
+        registro={editReg}
+        onSaved={carregar}
+      />
+      {empresaId && (
+        <InserirPontoDialog
+          open={inserirOpen}
+          onClose={() => setInserirOpen(false)}
+          empresaId={empresaId}
+          funcionarios={funcs}
+          onSaved={carregar}
+          prefill={prefill}
+        />
+      )}
     </div>
   );
 }
