@@ -296,7 +296,8 @@ export async function carregarCartao(
       const pri = hm(prog.retorno_intervalo);
       if (psi != null && pri != null) cargaProg -= pri - psi;
     }
-    let extras = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
+    const extrasBruto = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
+    let extras = extrasBruto > toleranciaMin ? extrasBruto : 0;
 
     // Hoje (yyyy-mm-dd local)
     const hoje = new Date();
