@@ -36,13 +36,14 @@ function FuncionarioDetail() {
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("funcionarios").update({
+    const payload: Record<string, unknown> = {
       nome: f.nome, cpf: f.cpf, rg: f.rg, data_nascimento: f.data_nascimento || null,
       telefone: f.telefone, email: f.email, endereco: f.endereco, cargo: f.cargo,
       salario: f.salario, data_admissao: f.data_admissao || null, status: f.status,
       observacoes: f.observacoes, permite_bater_ponto: f.permite_bater_ponto,
       data_desligamento: f.data_desligamento || null, motivo_desligamento: f.motivo_desligamento,
-    }).eq("id", id);
+    };
+    const { error } = await supabase.from("funcionarios").update(payload as never).eq("id", id);
     setSaving(false);
     if (error) toast.error(error.message); else toast.success("Salvo");
   };
