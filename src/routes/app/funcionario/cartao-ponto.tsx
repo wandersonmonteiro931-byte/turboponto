@@ -33,7 +33,7 @@ function CartaoFuncPage() {
       .then(async ({ data }) => {
         if (!data) return;
         setFuncionario(data);
-        const { data: emp } = await supabase.from("empresas").select("nome_fantasia,cnpj").eq("id", data.empresa_id).maybeSingle();
+        const { data: emp } = await supabase.from("empresas").select("nome_fantasia,cnpj,endereco").eq("id", data.empresa_id).maybeSingle();
         setEmpresa(emp);
       });
   }, [user]);
