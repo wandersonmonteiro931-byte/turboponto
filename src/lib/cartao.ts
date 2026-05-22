@@ -259,8 +259,8 @@ export async function carregarCartao(
     // Hoje (yyyy-mm-dd local)
     const hoje = new Date();
     const todayStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;
-    const isFuturo = data > todayStr;
-    // Para o dia atual, só considera pendente após o horário de saída final + 60min de margem
+    // Para o dia atual, só considera pendente após o horário de saída final + 60min de margem.
+    // Dias futuros: tratados como pendente (marcação não registrada).
     let aindaDentroDoExpediente = false;
     if (data === todayStr && prog.saida_final) {
       const agoraMin = hoje.getHours() * 60 + hoje.getMinutes();
@@ -270,7 +270,7 @@ export async function carregarCartao(
 
     const semRegistro = trabalha && regs.length === 0;
     let falta = semRegistro && setFaltas.has(data);
-    let pendente = semRegistro && !falta && !isFuturo && !aindaDentroDoExpediente;
+    let pendente = semRegistro && !falta && !aindaDentroDoExpediente;
     let bancoHorasMin = 0;
 
     // Aplica regras da justificativa
