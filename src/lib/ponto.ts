@@ -105,12 +105,16 @@ export function avaliar(
   if (!programado) return { atraso: 0, status: "fora_do_horario" };
   const progMin = hhmmToMin(programado);
   const agoraMin = minutosDoDia(agora);
-  const diff = agoraMin - progMin;
+  let diff = agoraMin - progMin;
+  // Dia comercial: considera até 06:00 do dia seguinte como mesma jornada.
+  // Se o horário programado é noturno (>= 18:00) e estamos de madrugada (< 06:00),
+  // tratamos como continuação do mesmo dia (somamos 24h).
+  if (diff < -12 * 60) diff += 1440;
   if (Math.abs(diff) <= toleranciaMin) return { atraso: Math.max(0, diff), status: "no_horario" };
   // Saídas: cedo = antecipada, tarde = hora extra
   if (tipo === "saida_final" || tipo === "saida_intervalo") {
     if (diff < 0) return { atraso: 0, status: "saida_antecipada" };
-    return { atraso: 0, status: "hora_extra" };
+    return { atraso: diff, status: "hora_extra" };
   }
   // Entradas / retorno: cedo = antecipada, tarde = atrasado
   if (diff < 0) return { atraso: 0, status: "entrada_antecipada" };
