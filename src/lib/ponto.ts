@@ -63,9 +63,9 @@ const hhmmToMin = (s: string) => {
 };
 
 /**
- * Infere o tipo de ponto pelo horário mais próximo do programado,
- * mesmo que pontos anteriores não tenham sido registrados.
- * Considera diferença circular (00:55 para saída das 23:50 → ~65min).
+ * Infere o tipo de ponto pelo horário mais próximo do programado.
+ * Apenas Entrada e Saída final são registrados manualmente —
+ * os intervalos são gerados automaticamente pelo sistema.
  */
 export function inferirTipo(
   dia: JornadaDia | null | undefined,
@@ -75,8 +75,6 @@ export function inferirTipo(
   if (!dia || !dia.trabalha) return null;
   const candidatos: Array<{ tipo: TipoPonto; prog: string }> = [];
   if (dia.horario_entrada) candidatos.push({ tipo: "entrada", prog: dia.horario_entrada });
-  if (dia.horario_intervalo_saida) candidatos.push({ tipo: "saida_intervalo", prog: dia.horario_intervalo_saida });
-  if (dia.horario_intervalo_retorno) candidatos.push({ tipo: "retorno_intervalo", prog: dia.horario_intervalo_retorno });
   if (dia.horario_saida) candidatos.push({ tipo: "saida_final", prog: dia.horario_saida });
   const disponiveis = candidatos.filter((c) => !jaRegistrados.includes(c.tipo));
   if (disponiveis.length === 0) return null;
