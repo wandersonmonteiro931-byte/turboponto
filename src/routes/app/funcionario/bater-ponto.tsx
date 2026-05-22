@@ -180,6 +180,36 @@ function BaterPontoPage() {
         }
         return;
       }
+
+      // Após saída final, gera automaticamente os registros de intervalo do dia
+      if (inferido.tipo === "saida_final" && dia) {
+        const dataRef = hojeISO();
+        const jaTipos = registros.map((r) => r.tipo_ponto);
+        const autos: Array<{ tipo: TipoPonto; hora: string }> = [];
+        if (dia.horario_intervalo_saida && !jaTipos.includes("saida_intervalo")) {
+          autos.push({ tipo: "saida_intervalo", hora: dia.horario_intervalo_saida });
+        }
+        if (dia.horario_intervalo_retorno && !jaTipos.includes("retorno_intervalo")) {
+          autos.push({ tipo: "retorno_intervalo", hora: dia.horario_intervalo_retorno });
+        }
+        if (autos.length > 0) {
+          await supabase.from("registros_ponto").insert(
+            autos.map((a) => ({
+              empresa_id: empresaId,
+              funcionario_id: funcId,
+              jornada_id: jornada?.id ?? null,
+              data_referencia: dataRef,
+              tipo_ponto: a.tipo,
+              horario_programado: a.hora,
+              horario_registrado: new Date(`${dataRef}T${a.hora}`).toISOString(),
+              atraso_minutos: 0,
+              status: "no_horario",
+              origem: "automatico",
+            })) as never,
+          );
+        }
+      }
+
       const label = tipoLabel(inferido.tipo);
       if (status === "atrasado") toast.warning(`${label} registrada com atraso de ${atraso} min`);
       else if (status === "hora_extra") toast.success(`${label} registrada — hora extra`);
