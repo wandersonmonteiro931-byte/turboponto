@@ -2,10 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, CreditCard, Gift, FileText, CalendarClock } from "lucide-react";
+import { Clock, CreditCard, Gift, FileText, CalendarClock, Bell, TrendingDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { DIAS_SEMANA, JornadaDia } from "@/lib/jornadas";
+import { formatMinutos, mesNome } from "@/lib/format";
 
 export const Route = createFileRoute("/app/funcionario/")({
   component: FuncionarioHome,
@@ -30,6 +31,12 @@ function FuncionarioHome() {
   const [jornada, setJornada] = useState<JornadaAtual | null>(null);
   const [dias, setDias] = useState<JornadaDia[]>([]);
   const [carregou, setCarregou] = useState(false);
+  const [resumo, setResumo] = useState<{
+    atrasoMes: number;
+    cestaStatus: string;
+    ultimoHolerite: { mes: number; ano: number } | null;
+    avisosNaoLidos: number;
+  }>({ atrasoMes: 0, cestaStatus: "—", ultimoHolerite: null, avisosNaoLidos: 0 });
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -56,8 +63,43 @@ function FuncionarioHome() {
         setDias((ds ?? []) as JornadaDia[]);
       }
       setCarregou(true);
+
+      const funcId = (func as { id: string }).id;
+      const hoje = new Date();
+      const mes = hoje.getMonth() + 1;
+      const ano = hoje.getFullYear();
+      const inicioMes = `${ano}-${String(mes).padStart(2, "0")}-01`;
+      const [{ data: pontos }, { data: calc }, { data: hol }, { data: avisos }, { data: leituras }] = await Promise.all([
+        supabase.from("registros_ponto").select("atraso_minutos")
+          .eq("funcionario_id", funcId).gte("data_referencia", inicioMes),
+        supabase.from("beneficios_calculos").select("status,tem_direito,total_atraso_minutos")
+          .eq("funcionario_id", funcId).eq("mes_referencia", mes).eq("ano_referencia", ano).maybeSingle(),
+        supabase.from("holerites").select("mes_referencia,ano_referencia")
+          .eq("funcionario_id", funcId).eq("liberado", true)
+          .order("ano_referencia", { ascending: false })
+          .order("mes_referencia", { ascending: false }).limit(1),
+        supabase.from("avisos").select("id").eq("status", "ativo"),
+        supabase.from("avisos_leituras").select("aviso_id").eq("funcionario_id", funcId),
+      ]);
+      const atrasoMes = (pontos ?? []).reduce((s, p) => s + ((p as { atraso_minutos: number }).atraso_minutos || 0), 0);
+      const c = calc as { status: string; tem_direito: boolean; total_atraso_minutos: number } | null;
+      const cestaStatus = !c ? "Em cálculo"
+        : !c.tem_direito ? "Perdida"
+        : c.status === "entregue" ? "Entregue"
+        : c.status === "liberada" ? "Liberada"
+        : c.total_atraso_minutos >= 90 ? "Em risco" : "OK";
+      const lidos = new Set((leituras ?? []).map((l) => (l as { aviso_id: string }).aviso_id));
+      const naoLidos = (avisos ?? []).filter((a) => !lidos.has((a as { id: string }).id)).length;
+      const uh = (hol ?? [])[0] as { mes_referencia: number; ano_referencia: number } | undefined;
+      setResumo({
+        atrasoMes,
+        cestaStatus,
+        ultimoHolerite: uh ? { mes: uh.mes_referencia, ano: uh.ano_referencia } : null,
+        avisosNaoLidos: naoLidos,
+      });
     })();
   }, [userId]);
+
 
   const dataStr = now.toLocaleDateString("pt-BR", {
     weekday: "long", day: "2-digit", month: "long", year: "numeric",
@@ -163,11 +205,22 @@ function FuncionarioHome() {
         </CardContent>
       </Card>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <InfoCard icon={TrendingDown} label="Atraso no mês" value={formatMinutos(resumo.atrasoMes)} accent="text-orange-600" />
+        <InfoCard icon={Gift} label="Cesta básica" value={resumo.cestaStatus}
+          accent={resumo.cestaStatus === "Perdida" ? "text-red-600" : resumo.cestaStatus === "Em risco" ? "text-orange-600" : "text-green-600"} />
+        <InfoCard icon={FileText} label="Último holerite"
+          value={resumo.ultimoHolerite ? `${mesNome(resumo.ultimoHolerite.mes)}/${resumo.ultimoHolerite.ano}` : "—"}
+          accent="text-foreground" />
+        <InfoCard icon={Bell} label="Avisos novos" value={resumo.avisosNaoLidos} accent="text-primary" />
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Shortcut to="/app/funcionario/cartao-ponto" icon={CreditCard} label="Cartão de Ponto" />
         <Shortcut to="/app/funcionario/beneficios" icon={Gift} label="Benefícios" />
         <Shortcut to="/app/funcionario/holerites" icon={FileText} label="Holerites" />
       </div>
+
     </div>
   );
 }
@@ -180,6 +233,21 @@ function Bloc({ label, v }: { label: string; v: string }) {
     </div>
   );
 }
+
+function InfoCard({ icon: Icon, label, value, accent }: { icon: typeof Clock; label: string; value: string | number; accent: string }) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+        <CardTitle className="text-xs font-medium text-muted-foreground leading-tight">{label}</CardTitle>
+        <Icon className={`h-4 w-4 shrink-0 ${accent}`} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-xl font-bold tabular-nums">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function Shortcut({ to, icon: Icon, label }: { to: string; icon: typeof Clock; label: string }) {
   return (
