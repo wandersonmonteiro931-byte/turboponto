@@ -278,15 +278,13 @@ export async function carregarCartao(
         reg.retorno_intervalo = prog.retorno_intervalo;
     }
 
-    // Atraso = soma das entradas (entrada + retorno) após tolerância
+    // Entrada em atraso = débito pelo tempo exato após o horário previsto.
     let atraso = 0;
-    for (const k of ["entrada", "retorno_intervalo"] as const) {
-      const p = hm(prog[k]);
-      const r = hm(reg[k]);
-      if (p != null && r != null) {
-        const diff = diffRelogioAssinado(p, r);
-        if (diff > toleranciaMin) atraso += diff;
-      }
+    const entradaPrevistaMin = hm(prog.entrada);
+    const entradaRealMin = hm(reg.entrada);
+    if (entradaPrevistaMin != null && entradaRealMin != null) {
+      const diff = diffRelogioAssinado(entradaPrevistaMin, entradaRealMin);
+      if (diff > 0) atraso = diff;
     }
 
     // Trabalhado = (saida_final - entrada) - (retorno - saida_intervalo)
@@ -314,21 +312,23 @@ export async function carregarCartao(
 
     // Créditos/débitos por categoria (regra solicitada):
     // - Entrada antecipada → CRÉDITO
+    // - Entrada em atraso  → DÉBITO
     // - Saída antecipada   → DÉBITO
-    // - Entrada em atraso  → DÉBITO (já contabilizado em "atraso")
-    // - Hora extra: somente após o horário previsto de saída + 10 minutos → CRÉDITO
+    // - Hora extra somente após +10min do horário previsto de saída → CRÉDITO
     const LIMITE_EXTRA_MIN = 10;
     let creditoEntradaAntec = 0;
+    let debitoEntradaAtraso = 0;
     let debitoSaidaAntec = 0;
     let creditoHoraExtra = 0;
     if (pe != null && e != null) {
       const diffE = diffRelogioAssinado(pe, e);
-      if (diffE < -toleranciaMin) creditoEntradaAntec = -diffE;
+      if (diffE < 0) creditoEntradaAntec = -diffE;
+      else if (diffE > 0) debitoEntradaAtraso = diffE;
     }
     if (psf != null && sf != null) {
       const diffS = diffRelogioAssinado(psf, sf);
       if (diffS > LIMITE_EXTRA_MIN) creditoHoraExtra = diffS;
-      else if (diffS < -toleranciaMin) debitoSaidaAntec = -diffS;
+      else if (diffS < 0) debitoSaidaAntec = -diffS;
     }
     let extras = creditoHoraExtra;
 
