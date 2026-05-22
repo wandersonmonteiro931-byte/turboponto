@@ -419,6 +419,15 @@ export async function carregarCartao(
     if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
         bancoHorasMin -= cargaProg;
+      } else if (
+        semRegistro &&
+        !isFuturo &&
+        !aindaDentroDoExpediente &&
+        justificativas.length === 0 &&
+        cargaProg > 0
+      ) {
+        // Dia passado sem nenhuma marcação e sem justificativa → débito da carga prevista.
+        bancoHorasMin -= cargaProg;
       } else {
         const debitoAutomatico = atraso + debitoSaidaAntec;
         bancoHorasMin -= Math.max(0, debitoAutomatico);
