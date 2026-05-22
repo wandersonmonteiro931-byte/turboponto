@@ -33,6 +33,41 @@ function CartaoEmpresaPage() {
   const [loading, setLoading] = useState(false);
 
   const podeEditar = role === "admin";
+  const [editReg, setEditReg] = useState<RegistroEdit | null>(null);
+  const [inserirOpen, setInserirOpen] = useState(false);
+  const [prefill, setPrefill] = useState<{ funcionarioId?: string; data?: string; tipo?: string; hora?: string } | undefined>();
+
+  const abrirCelula = async (d: DiaCartao, tipo: TipoPonto) => {
+    if (!podeEditar || !empresaId) return;
+    const regId = d.registroIds[tipo];
+    if (regId) {
+      const { data: r } = await supabase.from("registros_ponto")
+        .select("id,empresa_id,funcionario_id,data_referencia,tipo_ponto,horario_registrado,observacao")
+        .eq("id", regId).maybeSingle();
+      if (r) setEditReg(r as RegistroEdit);
+      return;
+    }
+    const horaProg = d.programado[tipo === "entrada" ? "entrada" : tipo === "saida_intervalo" ? "saida_intervalo" : tipo === "retorno_intervalo" ? "retorno_intervalo" : "saida_final"];
+    setPrefill({ funcionarioId: funcId, data: d.data, tipo, hora: horaProg ?? "08:00" });
+    setInserirOpen(true);
+  };
+
+  const toggleFalta = async (d: DiaCartao) => {
+    if (!podeEditar || !empresaId || !funcId) return;
+    if (d.falta) {
+      const { error } = await supabase.from("dias_falta").delete()
+        .eq("funcionario_id", funcId).eq("data", d.data);
+      if (error) { toast.error(error.message); return; }
+      toast.success("Falta removida.");
+    } else {
+      const { error } = await supabase.from("dias_falta").insert({
+        empresa_id: empresaId, funcionario_id: funcId, data: d.data,
+      });
+      if (error) { toast.error(error.message); return; }
+      toast.success("Dia marcado como falta.");
+    }
+    carregar();
+  };
 
   useEffect(() => {
     if (!empresaId) return;
