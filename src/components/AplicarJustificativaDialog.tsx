@@ -78,6 +78,15 @@ export function AplicarJustificativaDialog({
         anexoUrl = path;
       }
 
+      // Parse quantidade HH:MM -> minutos
+      let qtdMin: number | null = null;
+      const q = quantidade.trim();
+      if (q) {
+        const m = q.match(/^(\d{1,3}):([0-5]\d)$/);
+        if (!m) { toast.error("Quantidade inválida (use HH:MM)"); setSaving(false); return; }
+        qtdMin = Number(m[1]) * 60 + Number(m[2]);
+      }
+
       const baseRow = {
         empresa_id: empresaId,
         funcionario_id: funcionarioId,
@@ -87,6 +96,7 @@ export function AplicarJustificativaDialog({
         aprovado_por: status === "aprovada" ? u.user.id : null,
         aprovado_em: status === "aprovada" ? new Date().toISOString() : null,
         anexo_url: anexoUrl,
+        quantidade_minutos: qtdMin,
       };
 
 
