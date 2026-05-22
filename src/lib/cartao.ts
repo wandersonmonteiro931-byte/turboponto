@@ -45,9 +45,12 @@ export type DiaCartao = {
   extrasMinutos: number;
   falta: boolean;
   pendente: boolean;
+  faltaRegistrada: boolean;
+  marcacaoNaoRegistrada: boolean;
   foraVinculo: boolean;
   observacao: string | null;
   justificativa: JustificativaAplicadaDia | null;
+  justificativas: JustificativaAplicadaDia[];
   bancoHorasMinutos: number; // positivo = crédito, negativo = débito
 };
 
@@ -149,29 +152,37 @@ export async function carregarCartao(
   const setFaltas = new Set((faltasManual ?? []).map((x) => x.data as string));
   const justFaltas = new Map((faltasManual ?? []).map((x) => [x.data as string, (x.justificativa as string | null) ?? null]));
 
-  // Justificativas aplicadas no período (aprovadas)
+  // Justificativas aplicadas no período
   const { data: justApls } = await supabase
     .from("justificativas_aplicadas")
-    .select(`id,tipo_id,data,observacao,anexo_url,status,quantidade_minutos,
-      justificativas_tipos!inner (
-        nome,codigo,categoria,desconta_salario,desconta_dsr,abona_ocorrencia,
-        movimenta_banco_horas,conta_dia_trabalhado,exige_marcacao_ponto,afeta_assiduidade
-      )`)
+    .select("id,tipo_id,data,data_inicio,data_fim,observacao,anexo_url,status,quantidade_minutos")
     .eq("funcionario_id", funcionarioId)
     .in("status", ["aprovada", "pendente"])
     .gte("data", ini)
     .lte("data", fim);
-  const justPorDia = new Map<string, JustificativaAplicadaDia>();
+  const tipoIds = Array.from(new Set((justApls ?? []).map((j) => j.tipo_id).filter(Boolean)));
+  const { data: tiposJust } = tipoIds.length
+    ? await supabase
+      .from("justificativas_tipos")
+      .select("id,nome,codigo,categoria,desconta_salario,desconta_dsr,abona_ocorrencia,movimenta_banco_horas,conta_dia_trabalhado,exige_marcacao_ponto,afeta_assiduidade")
+      .in("id", tipoIds)
+    : { data: [] };
+  const tiposPorId = new Map((tiposJust ?? []).map((t) => [t.id, t as JustificativaAplicadaDia["tipo"] & { id: string }]));
+  const justPorDia = new Map<string, JustificativaAplicadaDia[]>();
   for (const j of (justApls ?? []) as Array<{
-    id: string; tipo_id: string; data: string; observacao: string | null; anexo_url: string | null; status: string;
-    quantidade_minutos: number | null;
-    justificativas_tipos: JustificativaAplicadaDia["tipo"];
+    id: string; tipo_id: string; data: string; data_inicio: string | null; data_fim: string | null;
+    observacao: string | null; anexo_url: string | null; status: string; quantidade_minutos: number | null;
   }>) {
-    justPorDia.set(j.data, {
+    const tipo = tiposPorId.get(j.tipo_id);
+    if (!tipo) continue;
+    const item: JustificativaAplicadaDia = {
       id: j.id, tipo_id: j.tipo_id, observacao: j.observacao, anexo_url: j.anexo_url, status: j.status,
       quantidadeMinutos: j.quantidade_minutos,
-      tipo: j.justificativas_tipos,
-    });
+      tipo,
+    };
+    const arr = justPorDia.get(j.data) ?? [];
+    arr.push(item);
+    justPorDia.set(j.data, arr);
   }
 
   const porDia = new Map<string, typeof registros>();
