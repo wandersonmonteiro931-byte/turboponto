@@ -27,6 +27,7 @@ import { Route as AppFuncionarioBaterPontoRouteImport } from './routes/app/funci
 import { Route as AppFuncionarioAvisosRouteImport } from './routes/app/funcionario/avisos'
 import { Route as AppEmpresaRelatoriosRouteImport } from './routes/app/empresa/relatorios'
 import { Route as AppEmpresaRegistrosRouteImport } from './routes/app/empresa/registros'
+import { Route as AppEmpresaJustificativasRouteImport } from './routes/app/empresa/justificativas'
 import { Route as AppEmpresaJornadasRouteImport } from './routes/app/empresa/jornadas'
 import { Route as AppEmpresaHoleritesRouteImport } from './routes/app/empresa/holerites'
 import { Route as AppEmpresaFechamentoRouteImport } from './routes/app/empresa/fechamento'
@@ -131,6 +132,12 @@ const AppEmpresaRegistrosRoute = AppEmpresaRegistrosRouteImport.update({
   path: '/registros',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
+const AppEmpresaJustificativasRoute =
+  AppEmpresaJustificativasRouteImport.update({
+    id: '/justificativas',
+    path: '/justificativas',
+    getParentRoute: () => AppEmpresaRoute,
+  } as any)
 const AppEmpresaJornadasRoute = AppEmpresaJornadasRouteImport.update({
   id: '/jornadas',
   path: '/jornadas',
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
+  '/app/empresa/justificativas': typeof AppEmpresaJustificativasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
   '/app/empresa/relatorios': typeof AppEmpresaRelatoriosRoute
   '/app/funcionario/avisos': typeof AppFuncionarioAvisosRoute
@@ -227,6 +235,7 @@ export interface FileRoutesByTo {
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
+  '/app/empresa/justificativas': typeof AppEmpresaJustificativasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
   '/app/empresa/relatorios': typeof AppEmpresaRelatoriosRoute
   '/app/funcionario/avisos': typeof AppFuncionarioAvisosRoute
@@ -258,6 +267,7 @@ export interface FileRoutesById {
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
+  '/app/empresa/justificativas': typeof AppEmpresaJustificativasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
   '/app/empresa/relatorios': typeof AppEmpresaRelatoriosRoute
   '/app/funcionario/avisos': typeof AppFuncionarioAvisosRoute
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/app/empresa/fechamento'
     | '/app/empresa/holerites'
     | '/app/empresa/jornadas'
+    | '/app/empresa/justificativas'
     | '/app/empresa/registros'
     | '/app/empresa/relatorios'
     | '/app/funcionario/avisos'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/app/empresa/fechamento'
     | '/app/empresa/holerites'
     | '/app/empresa/jornadas'
+    | '/app/empresa/justificativas'
     | '/app/empresa/registros'
     | '/app/empresa/relatorios'
     | '/app/funcionario/avisos'
@@ -347,6 +359,7 @@ export interface FileRouteTypes {
     | '/app/empresa/fechamento'
     | '/app/empresa/holerites'
     | '/app/empresa/jornadas'
+    | '/app/empresa/justificativas'
     | '/app/empresa/registros'
     | '/app/empresa/relatorios'
     | '/app/funcionario/avisos'
@@ -497,6 +510,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaRegistrosRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
+    '/app/empresa/justificativas': {
+      id: '/app/empresa/justificativas'
+      path: '/justificativas'
+      fullPath: '/app/empresa/justificativas'
+      preLoaderRoute: typeof AppEmpresaJustificativasRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
     '/app/empresa/jornadas': {
       id: '/app/empresa/jornadas'
       path: '/jornadas'
@@ -579,6 +599,7 @@ interface AppEmpresaRouteChildren {
   AppEmpresaFechamentoRoute: typeof AppEmpresaFechamentoRoute
   AppEmpresaHoleritesRoute: typeof AppEmpresaHoleritesRoute
   AppEmpresaJornadasRoute: typeof AppEmpresaJornadasRoute
+  AppEmpresaJustificativasRoute: typeof AppEmpresaJustificativasRoute
   AppEmpresaRegistrosRoute: typeof AppEmpresaRegistrosRoute
   AppEmpresaRelatoriosRoute: typeof AppEmpresaRelatoriosRoute
   AppEmpresaIndexRoute: typeof AppEmpresaIndexRoute
@@ -595,6 +616,7 @@ const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
   AppEmpresaFechamentoRoute: AppEmpresaFechamentoRoute,
   AppEmpresaHoleritesRoute: AppEmpresaHoleritesRoute,
   AppEmpresaJornadasRoute: AppEmpresaJornadasRoute,
+  AppEmpresaJustificativasRoute: AppEmpresaJustificativasRoute,
   AppEmpresaRegistrosRoute: AppEmpresaRegistrosRoute,
   AppEmpresaRelatoriosRoute: AppEmpresaRelatoriosRoute,
   AppEmpresaIndexRoute: AppEmpresaIndexRoute,
