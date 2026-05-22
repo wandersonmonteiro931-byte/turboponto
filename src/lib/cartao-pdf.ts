@@ -252,7 +252,18 @@ export function gerarPdfCartao(opts: {
     }
 
     if (!d.trabalha) {
-      drawRow({ dia: diaSem, data: dataStr, irreg: "FOLGA / DSR" });
+      const temReg =
+        !!d.registrado.entrada ||
+        !!d.registrado.saida_intervalo ||
+        !!d.registrado.retorno_intervalo ||
+        !!d.registrado.saida_final;
+      drawRow({
+        dia: diaSem,
+        data: dataStr,
+        entReal: temReg ? (d.registrado.entrada ?? "") : "",
+        saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
+        irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA / DSR",
+      });
       for (const j of d.justificativas ?? []) {
         drawRow({
           just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
@@ -262,22 +273,34 @@ export function gerarPdfCartao(opts: {
       continue;
     }
 
+    const semJornada =
+      !d.programado.entrada && !d.programado.saida_final;
     const semMarcacao = d.marcacaoNaoRegistrada || d.pendente;
     const falta = d.faltaRegistrada || d.falta;
 
     const irregs = irregularidadesDoDia(d, tol);
+    const irregLabels = irregs.map((i) => i.label);
     for (const i of irregs) {
       if (i.credito) creditos += i.qtde;
       if (i.debito) debitos += i.qtde;
     }
-    if (d.bancoHorasMinutos > 0) creditos += d.bancoHorasMinutos;
-    if (d.bancoHorasMinutos < 0) debitos += -d.bancoHorasMinutos;
+    if (d.bancoHorasMinutos > 0) {
+      creditos += d.bancoHorasMinutos;
+      irregLabels.push(`CRÉDITO BCO DE HORAS ${fmtMinHHMM(d.bancoHorasMinutos)}`);
+    }
+    if (d.bancoHorasMinutos < 0) {
+      debitos += -d.bancoHorasMinutos;
+      irregLabels.push(`DÉBITO BCO DE HORAS ${fmtMinHHMM(-d.bancoHorasMinutos)}`);
+    }
 
-    const irregTexto = falta
-      ? "FALTA"
-      : semMarcacao
-        ? "MARCACAO NAO REGISTRADA"
-        : irregs.map((i) => i.label).join(" / ");
+    const irregTexto = semJornada
+      ? "DIA SEM JORNADA CADASTRADA"
+      : falta
+        ? "FALTA"
+        : semMarcacao
+          ? "MARCAÇÃO NÃO REGISTRADA"
+          : irregLabels.join(" / ");
+
 
     const justificativas = d.justificativas ?? [];
     const justPrincipal = justificativas[0];
