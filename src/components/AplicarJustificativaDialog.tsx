@@ -141,6 +141,20 @@ export function AplicarJustificativaDialog({
               </div>
             )}
           </div>
+          {tipo?.categoria === "troca" && (
+            <div>
+              <Label>Dia compensado <span className="text-destructive">*</span></Label>
+              <input
+                type="date"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={dataCompensada}
+                onChange={(e) => setDataCompensada(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Dia em que o funcionário trabalhou para compensar a ausência de {data.split("-").reverse().join("/")}.
+              </p>
+            </div>
+          )}
           <div>
             <Label>
               Observação{tipo?.exige_observacao && <span className="text-destructive"> *</span>}
