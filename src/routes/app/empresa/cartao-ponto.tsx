@@ -27,7 +27,7 @@ function CartaoEmpresaPage() {
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<ResumoCartao | null>(null);
   const [cartao, setCartao] = useState<Cartao | null>(null);
-  const [empresaInfo, setEmpresaInfo] = useState<{ nome_fantasia: string; cnpj: string | null } | null>(null);
+  const [empresaInfo, setEmpresaInfo] = useState<{ nome_fantasia: string; cnpj: string | null; endereco: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const podeEditar = role === "admin";
