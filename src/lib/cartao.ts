@@ -412,12 +412,12 @@ export async function carregarCartao(
     // Crédito automático por entrada antecipada (sempre crédito, independe de HE_PAGAR).
     bancoHorasMin += creditoEntradaAntec;
 
-    // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
+    // Débitos automáticos: falta injustificada, entrada em atraso e saída antecipada viram débito de BH.
     if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
         bancoHorasMin -= cargaProg;
       } else {
-        const debitoAutomatico = atraso + debitoSaidaAntec;
+        const debitoAutomatico = debitoEntradaAtraso + debitoSaidaAntec;
         bancoHorasMin -= Math.max(0, debitoAutomatico);
       }
     }
