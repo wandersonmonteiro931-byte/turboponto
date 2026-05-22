@@ -417,11 +417,7 @@ export function gerarPdfCartao(opts: {
     y,
   );
   y += 3.5;
-  doc.text(
-    `QTDE HORAS BENEF: ${fmtMinHHMM(horasBenef)}   (atrasos+saidas antecipadas; >=02:00 perde cesta basica do mes)`,
-    ML,
-    y,
-  );
+  doc.text(`QTDE HORAS BENEF: ${fmtMinHHMM(horasBenef)}`, ML, y);
   y += 1.5;
   hr(y);
 
