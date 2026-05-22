@@ -63,7 +63,6 @@ export type ResumoCartao = {
   totalBancoHoras: number;
 };
 
-
 function hm(t: string | null): number | null {
   if (!t) return null;
   const [h, m] = t.slice(0, 5).split(":").map(Number);
@@ -87,7 +86,7 @@ function diasNoMes(ano: number, mes: number): string[] {
 export async function carregarCartao(
   funcionarioId: string,
   ano: number,
-  mes: number
+  mes: number,
 ): Promise<ResumoCartao> {
   const datas = diasNoMes(ano, mes);
   const ini = datas[0];
@@ -125,7 +124,9 @@ export async function carregarCartao(
   if (vinc?.jornada_id) {
     const { data: jd } = await supabase
       .from("jornadas_dias")
-      .select("dia_semana,trabalha,horario_entrada,horario_intervalo_saida,horario_intervalo_retorno,horario_saida")
+      .select(
+        "dia_semana,trabalha,horario_entrada,horario_intervalo_saida,horario_intervalo_retorno,horario_saida",
+      )
       .eq("jornada_id", vinc.jornada_id);
     dias = jd ?? [];
     const { data: j } = await supabase
@@ -138,7 +139,9 @@ export async function carregarCartao(
 
   const { data: registros } = await supabase
     .from("registros_ponto")
-    .select("id,data_referencia,tipo_ponto,horario_registrado,horario_programado,atraso_minutos,observacao")
+    .select(
+      "id,data_referencia,tipo_ponto,horario_registrado,horario_programado,atraso_minutos,observacao",
+    )
     .eq("funcionario_id", funcionarioId)
     .gte("data_referencia", ini)
     .lte("data_referencia", fim);
@@ -150,7 +153,9 @@ export async function carregarCartao(
     .gte("data", ini)
     .lte("data", fim);
   const setFaltas = new Set((faltasManual ?? []).map((x) => x.data as string));
-  const justFaltas = new Map((faltasManual ?? []).map((x) => [x.data as string, (x.justificativa as string | null) ?? null]));
+  const justFaltas = new Map(
+    (faltasManual ?? []).map((x) => [x.data as string, (x.justificativa as string | null) ?? null]),
+  );
 
   // Justificativas aplicadas no período
   const { data: justApls } = await supabase
@@ -162,20 +167,35 @@ export async function carregarCartao(
   const tipoIds = Array.from(new Set((justApls ?? []).map((j) => j.tipo_id).filter(Boolean)));
   const { data: tiposJust } = tipoIds.length
     ? await supabase
-      .from("justificativas_tipos")
-      .select("id,nome,codigo,categoria,desconta_salario,desconta_dsr,abona_ocorrencia,movimenta_banco_horas,conta_dia_trabalhado,exige_marcacao_ponto,afeta_assiduidade")
-      .in("id", tipoIds)
+        .from("justificativas_tipos")
+        .select(
+          "id,nome,codigo,categoria,desconta_salario,desconta_dsr,abona_ocorrencia,movimenta_banco_horas,conta_dia_trabalhado,exige_marcacao_ponto,afeta_assiduidade",
+        )
+        .in("id", tipoIds)
     : { data: [] };
-  const tiposPorId = new Map((tiposJust ?? []).map((t) => [t.id, t as JustificativaAplicadaDia["tipo"] & { id: string }]));
+  const tiposPorId = new Map(
+    (tiposJust ?? []).map((t) => [t.id, t as JustificativaAplicadaDia["tipo"] & { id: string }]),
+  );
   const justPorDia = new Map<string, JustificativaAplicadaDia[]>();
   for (const j of (justApls ?? []) as Array<{
-    id: string; tipo_id: string; data: string; data_inicio: string | null; data_fim: string | null;
-    observacao: string | null; anexo_url: string | null; status: string; quantidade_minutos: number | null;
+    id: string;
+    tipo_id: string;
+    data: string;
+    data_inicio: string | null;
+    data_fim: string | null;
+    observacao: string | null;
+    anexo_url: string | null;
+    status: string;
+    quantidade_minutos: number | null;
   }>) {
     const tipo = tiposPorId.get(j.tipo_id);
     if (!tipo) continue;
     const item: JustificativaAplicadaDia = {
-      id: j.id, tipo_id: j.tipo_id, observacao: j.observacao, anexo_url: j.anexo_url, status: j.status,
+      id: j.id,
+      tipo_id: j.tipo_id,
+      observacao: j.observacao,
+      anexo_url: j.anexo_url,
+      status: j.status,
       quantidadeMinutos: j.quantidade_minutos,
       tipo,
     };
@@ -206,13 +226,15 @@ export async function carregarCartao(
 
     // Fora do vínculo: antes da admissão ou após desligamento
     const foraVinculo =
-      (dataAdmissao != null && data < dataAdmissao) ||
-      (dataDeslig != null && data > dataDeslig);
+      (dataAdmissao != null && data < dataAdmissao) || (dataDeslig != null && data > dataDeslig);
     if (foraVinculo) trabalha = false;
 
     const regs = porDia.get(data) ?? [];
     const reg: DiaCartao["registrado"] = {
-      entrada: null, saida_intervalo: null, retorno_intervalo: null, saida_final: null,
+      entrada: null,
+      saida_intervalo: null,
+      retorno_intervalo: null,
+      saida_final: null,
     };
     const ids: Record<string, string> = {};
     let obs: string | null = null;
@@ -236,7 +258,8 @@ export async function carregarCartao(
     const temMarcacaoDoDia = Object.values(reg).some(Boolean);
     if (trabalha && temMarcacaoDoDia) {
       if (!reg.saida_intervalo && prog.saida_intervalo) reg.saida_intervalo = prog.saida_intervalo;
-      if (!reg.retorno_intervalo && prog.retorno_intervalo) reg.retorno_intervalo = prog.retorno_intervalo;
+      if (!reg.retorno_intervalo && prog.retorno_intervalo)
+        reg.retorno_intervalo = prog.retorno_intervalo;
     }
 
     // Atraso = soma das entradas (entrada + retorno) após tolerância
@@ -276,7 +299,7 @@ export async function carregarCartao(
 
     // Hoje (yyyy-mm-dd local)
     const hoje = new Date();
-    const todayStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;
+    const todayStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
     // Para o dia atual, só considera pendente após o horário de saída final + 60min de margem.
     // Dias futuros: tratados como pendente (marcação não registrada).
     let aindaDentroDoExpediente = false;
@@ -340,10 +363,13 @@ export async function carregarCartao(
     totalExtras += extras;
     totalBancoHoras += bancoHorasMin;
 
-    const obsJustificativas = justificativas.map((j) => j.observacao).filter(Boolean).join(" · ");
+    const obsJustificativas = justificativas
+      .map((j) => j.observacao)
+      .filter(Boolean)
+      .join(" · ");
     const obsFinal = foraVinculo
       ? null
-      : (obsJustificativas || (falta ? (justFaltas.get(data) ?? obs) : obs));
+      : obsJustificativas || (falta ? (justFaltas.get(data) ?? obs) : obs);
 
     result.push({
       data,
@@ -384,8 +410,18 @@ export function formatMin(min: number): string {
 }
 
 export const NOMES_MES = [
-  "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-  "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
-export const DIAS_SEMANA_CURTO = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+export const DIAS_SEMANA_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
