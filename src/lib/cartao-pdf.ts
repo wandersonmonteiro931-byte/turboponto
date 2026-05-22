@@ -49,7 +49,14 @@ export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string, janela?: Windo
   link.click();
   link.remove();
   if (janela && !janela.closed) {
-    janela.location.href = url;
+    janela.document.body.innerHTML = "";
+    const download = janela.document.createElement("a");
+    download.href = url;
+    download.download = link.download;
+    download.textContent = "Baixar PDF";
+    download.style.cssText = "display:inline-flex;margin:24px;padding:12px 16px;border-radius:8px;background:#111;color:#fff;font:16px sans-serif;text-decoration:none";
+    janela.document.body.appendChild(download);
+    download.click();
   }
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
