@@ -262,7 +262,7 @@ export function gerarPdfCartao(opts: {
         data: dataStr,
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA / DSR",
+        irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
       });
       for (const j of d.justificativas ?? []) {
         drawRow({
@@ -316,9 +316,11 @@ export function gerarPdfCartao(opts: {
       saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
       irreg: irregTexto,
       qtde:
-        justPrincipal?.quantidadeMinutos != null
-          ? fmtMinHHMM(justPrincipal.quantidadeMinutos)
-          : "",
+        d.bancoHorasMinutos !== 0
+          ? `${d.bancoHorasMinutos > 0 ? "+" : "-"}${fmtMinHHMM(d.bancoHorasMinutos)}`
+          : justPrincipal?.quantidadeMinutos != null
+            ? fmtMinHHMM(justPrincipal.quantidadeMinutos)
+            : "",
       just: justPrincipal
         ? `${justPrincipal.tipo.nome}${justPrincipal.observacao ? " - " + justPrincipal.observacao : ""}`
         : "",

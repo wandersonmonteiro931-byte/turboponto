@@ -26,7 +26,7 @@ export function AplicarJustificativaDialog({
   const [tipoId, setTipoId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [dataCompensada, setDataCompensada] = useState("");
-  const [quantidade, setQuantidade] = useState(""); // HH:MM
+  
   const [anexo, setAnexo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +38,7 @@ export function AplicarJustificativaDialog({
     setObservacao("");
     setTipoId("");
     setDataCompensada("");
-    setQuantidade("");
+    
     setAnexo(null);
   }, [open, empresaId]);
 
@@ -78,14 +78,8 @@ export function AplicarJustificativaDialog({
         anexoUrl = path;
       }
 
-      // Parse quantidade HH:MM -> minutos
-      let qtdMin: number | null = null;
-      const q = quantidade.trim();
-      if (q) {
-        const m = q.match(/^(\d{1,3}):([0-5]\d)$/);
-        if (!m) { toast.error("Quantidade inválida (use HH:MM)"); setSaving(false); return; }
-        qtdMin = Number(m[1]) * 60 + Number(m[2]);
-      }
+      // Quantidade é calculada automaticamente conforme a jornada do funcionário
+      const qtdMin: number | null = null;
 
       const baseRow = {
         empresa_id: empresaId,
@@ -197,19 +191,6 @@ export function AplicarJustificativaDialog({
               rows={2}
               maxLength={500}
             />
-          </div>
-          <div>
-            <Label>Quantidade (HH:MM)</Label>
-            <input
-              type="text"
-              placeholder="Ex: 08:00"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
-              value={quantidade}
-              onChange={(e) => setQuantidade(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Quantidade de horas justificadas (deve corresponder à irregularidade detectada).
-            </p>
           </div>
           <div>
             <Label>
