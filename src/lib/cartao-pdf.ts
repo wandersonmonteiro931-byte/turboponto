@@ -219,7 +219,7 @@ export function gerarPdfCartao(opts: {
   y += 3.5;
 
   const rowH = 3.2;
-  let totalNoturno = 0;
+  const totalNoturno = 0;
   let creditos = 0,
     debitos = 0;
 
