@@ -86,22 +86,37 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
   // justificativas aprovadas no período (com tipo)
   const { data: justAplic } = await supabase
     .from("justificativas_aplicadas")
-    .select("funcionario_id,data,tipo_id,justificativas_tipos(afeta_assiduidade,abona_ocorrencia,categoria)")
+    .select("funcionario_id,data,tipo_id,justificativas_tipos(afeta_assiduidade,abona_ocorrencia,categoria,desconta_salario)")
     .eq("empresa_id", empresaId)
     .eq("status", "aprovada")
+    .gte("data", inicio)
+    .lte("data", fim);
+
+  const { data: faltasManual } = await supabase
+    .from("dias_falta")
+    .select("funcionario_id,data")
+    .eq("empresa_id", empresaId)
     .gte("data", inicio)
     .lte("data", fim);
 
   type JA = {
     funcionario_id: string;
     data: string;
-    justificativas_tipos: { afeta_assiduidade: string; abona_ocorrencia: boolean; categoria: string } | null;
+    justificativas_tipos: { afeta_assiduidade: string; abona_ocorrencia: boolean; categoria: string; desconta_salario: boolean } | null;
   };
-  const justPorFunc = new Map<string, Map<string, JA>>();
+  const justPorFunc = new Map<string, Map<string, JA[]>>();
   for (const j of (justAplic ?? []) as unknown as JA[]) {
     const m = justPorFunc.get(j.funcionario_id) ?? new Map();
-    m.set(j.data, j);
+    const arr = m.get(j.data) ?? [];
+    arr.push(j);
+    m.set(j.data, arr);
     justPorFunc.set(j.funcionario_id, m);
+  }
+  const faltasManualPorFunc = new Map<string, Set<string>>();
+  for (const f of (faltasManual ?? []) as Array<{ funcionario_id: string; data: string }>) {
+    const set = faltasManualPorFunc.get(f.funcionario_id) ?? new Set<string>();
+    set.add(f.data);
+    faltasManualPorFunc.set(f.funcionario_id, set);
   }
 
   const funcIds = (funcs ?? []).map((f) => f.id);
@@ -117,17 +132,17 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
   const { data: dias } = jornadaIds.length
     ? await supabase
         .from("jornadas_dias")
-        .select("jornada_id,dia_semana,trabalha")
+        .select("jornada_id,dia_semana,trabalha,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno")
         .in("jornada_id", jornadaIds)
-    : { data: [] as Array<{ jornada_id: string; dia_semana: number; trabalha: boolean }> };
+    : { data: [] as Array<{ jornada_id: string; dia_semana: number; trabalha: boolean; horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null }> };
 
   const jornadaPorFunc = new Map((vincs ?? []).map((v) => [v.funcionario_id, v.jornada_id]));
-  const diasPorJornada = new Map<string, Set<number>>();
+  type JornadaDiaBenef = { dia_semana: number; trabalha: boolean; horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null };
+  const diasPorJornada = new Map<string, Map<number, JornadaDiaBenef>>();
   for (const d of dias ?? []) {
-    if (!d.trabalha) continue;
-    const set = diasPorJornada.get(d.jornada_id) ?? new Set<number>();
-    set.add(d.dia_semana);
-    diasPorJornada.set(d.jornada_id, set);
+    const map = diasPorJornada.get(d.jornada_id) ?? new Map<number, JornadaDiaBenef>();
+    map.set(d.dia_semana, d as JornadaDiaBenef);
+    diasPorJornada.set(d.jornada_id, map);
   }
 
   const hoje = new Date();
