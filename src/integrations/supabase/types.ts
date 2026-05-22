@@ -53,6 +53,69 @@ export type Database = {
         }
         Relationships: []
       }
+      avisos: {
+        Row: {
+          cargo_destino: string | null
+          created_at: string
+          criado_por: string
+          empresa_id: string
+          funcionario_id: string | null
+          id: string
+          mensagem: string
+          status: string
+          tipo_destino: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          cargo_destino?: string | null
+          created_at?: string
+          criado_por: string
+          empresa_id: string
+          funcionario_id?: string | null
+          id?: string
+          mensagem: string
+          status?: string
+          tipo_destino?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          cargo_destino?: string | null
+          created_at?: string
+          criado_por?: string
+          empresa_id?: string
+          funcionario_id?: string | null
+          id?: string
+          mensagem?: string
+          status?: string
+          tipo_destino?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      avisos_leituras: {
+        Row: {
+          aviso_id: string
+          funcionario_id: string
+          id: string
+          lido_em: string
+        }
+        Insert: {
+          aviso_id: string
+          funcionario_id: string
+          id?: string
+          lido_em?: string
+        }
+        Update: {
+          aviso_id?: string
+          funcionario_id?: string
+          id?: string
+          lido_em?: string
+        }
+        Relationships: []
+      }
       beneficios: {
         Row: {
           created_at: string
@@ -531,6 +594,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      holerites: {
+        Row: {
+          acessado_em: string | null
+          ano_referencia: number
+          created_at: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          liberado: boolean
+          liberado_em: string | null
+          liberado_por: string | null
+          mes_referencia: number
+          pdf_url: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acessado_em?: string | null
+          ano_referencia: number
+          created_at?: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          liberado?: boolean
+          liberado_em?: string | null
+          liberado_por?: string | null
+          mes_referencia: number
+          pdf_url: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acessado_em?: string | null
+          ano_referencia?: number
+          created_at?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          liberado?: boolean
+          liberado_em?: string | null
+          liberado_por?: string | null
+          mes_referencia?: number
+          pdf_url?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       jornadas: {
         Row: {
