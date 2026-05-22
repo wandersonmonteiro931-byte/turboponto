@@ -321,7 +321,7 @@ export function gerarPdfCartao(opts: {
     for (let i = 1; i < justificativas.length; i++) {
       const j = justificativas[i];
       drawRow({
-        just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
+        just: j.tipo.nome,
       });
     }
   }
