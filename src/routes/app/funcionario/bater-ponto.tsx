@@ -187,7 +187,7 @@ function BaterPontoPage() {
 
       // Após saída final, gera automaticamente os registros de intervalo do dia
       if (inferido.tipo === "saida_final" && dia) {
-        const dataRef = hojeISO();
+        const dataRef = diaComercialISO(new Date());
         const jaTipos = registros.map((r) => r.tipo_ponto);
         const autos: Array<{ tipo: TipoPonto; hora: string }> = [];
         if (dia.horario_intervalo_saida && !jaTipos.includes("saida_intervalo")) {
