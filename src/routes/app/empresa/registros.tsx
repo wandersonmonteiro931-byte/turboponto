@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { TIPOS_PONTO, tipoLabel, statusLabel, statusColor } from "@/lib/ponto";
+import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
+import { Pencil, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/app/empresa/registros")({
   component: RegistrosPage,
