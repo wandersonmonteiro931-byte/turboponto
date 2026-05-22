@@ -258,7 +258,7 @@ export function gerarPdfCartao(opts: {
       if (s.just.startsWith("CRED")) creditos += hm(s.qtde) ?? 0;
       else debitos += hm(s.qtde) ?? 0;
       doc.text(
-        linha(["", "", "", "", "", "", "", "", s.realEntr, s.realSaida, s.irreg, s.qtde, "", ""]),
+        linha(["", "", "", "", "", "", "", "", s.realEntr, s.realSaida, s.irreg, s.qtde, justSupervisor, ""]),
         ML, y,
       );
       y += rowH;
