@@ -41,7 +41,7 @@ export function gerarPdfCartao(opts: {
     body: resumo.dias.map((d) => [
       d.data.slice(8, 10),
       DIAS_SEMANA_CURTO[d.diaSemana],
-      d.registrado.entrada ?? (d.falta ? "FALTA" : "—"),
+      d.registrado.entrada ?? (d.falta ? "FALTA" : d.pendente && d.trabalha ? "—" : "—"),
       d.registrado.saida_intervalo ?? "—",
       d.registrado.retorno_intervalo ?? "—",
       d.registrado.saida_final ?? "—",

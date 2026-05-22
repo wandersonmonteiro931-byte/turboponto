@@ -195,11 +195,11 @@ function CartaoEmpresaPage() {
               </thead>
               <tbody className="divide-y">
                 {resumo.dias.map((d) => (
-                  <tr key={d.data} className={d.falta ? "bg-red-500/5" : !d.trabalha ? "bg-muted/30" : ""}>
+                  <tr key={d.data} className={d.falta ? "bg-red-500/5" : d.pendente && d.trabalha ? "bg-yellow-500/5" : !d.trabalha ? "bg-muted/30" : ""}>
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
                     </td>
-                    <td className="p-2 font-mono">{d.registrado.entrada ?? (d.falta ? <span className="text-red-600 font-bold">FALTA</span> : "—")}</td>
+                    <td className="p-2 font-mono">{d.registrado.entrada ?? (d.falta ? <span className="text-red-600 font-bold">FALTA</span> : d.pendente && d.trabalha ? <span className="text-yellow-700 text-xs">marcação não registrada</span> : "—")}</td>
                     <td className="p-2 font-mono">{d.registrado.saida_intervalo ?? "—"}</td>
                     <td className="p-2 font-mono">{d.registrado.retorno_intervalo ?? "—"}</td>
                     <td className="p-2 font-mono">{d.registrado.saida_final ?? "—"}</td>
