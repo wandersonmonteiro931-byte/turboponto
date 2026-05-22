@@ -374,6 +374,10 @@ export function gerarPdfCartao(opts: {
       }
     }
     const debitoJaRepresentadoPelaFalta = faltaInjustificada && d.bancoHorasMinutos < 0;
+    // Débitos já representados por linhas de ATRASO / SAÍDA ANTECIPADA (que já dizem "DEB BH")
+    const debitoJaRepresentadoPorIrreg = irregs
+      .filter((i) => i.debito && (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA"))
+      .reduce((s, i) => s + i.qtde, 0);
     if (d.bancoHorasMinutos > 0) {
       creditos += d.bancoHorasMinutos;
       linhas.push({
@@ -383,11 +387,12 @@ export function gerarPdfCartao(opts: {
     }
     if (d.bancoHorasMinutos < 0) {
       debitos += -d.bancoHorasMinutos;
-      if (!debitoJaRepresentadoPelaFalta) {
-        horasBenef += -d.bancoHorasMinutos;
+      const restante = -d.bancoHorasMinutos - debitoJaRepresentadoPorIrreg;
+      if (!debitoJaRepresentadoPelaFalta && restante > 0) {
+        horasBenef += restante;
         linhas.push({
           label: "DÉBITO BCO DE HORAS",
-          qtde: fmtMinHHMM(-d.bancoHorasMinutos),
+          qtde: fmtMinHHMM(restante),
         });
       }
     }
