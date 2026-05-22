@@ -323,6 +323,8 @@ export async function carregarCartao(
     // Aplica regras das justificativas, mas mantém todas registradas para exibição no PDF
     const justificativas = justPorDia.get(data) ?? [];
     const just = justificativas[0] ?? null;
+    const temHoraExtraPagar = justificativas.some((j) => j.tipo.codigo === "HE_PAGAR");
+    const justHoraExtraCredito = justificativas.find((j) => j.tipo.codigo === "HE_CREDITO");
     for (const just of justificativas) {
       const t = just.tipo;
       // Abona ocorrência: anula falta/pendente e zera atraso, salvo se tipo desconta
@@ -341,6 +343,7 @@ export async function carregarCartao(
       }
       // Banco de horas: crédito usa horas trabalhadas na folga e somente extra em dia normal.
       if (t.movimenta_banco_horas === "credito") {
+        if (t.codigo === "HE_CREDITO") continue;
         const minutosCredito = just.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
         bancoHorasMin += Math.max(0, minutosCredito);
       } else if (t.movimenta_banco_horas === "debito") {
@@ -351,6 +354,12 @@ export async function carregarCartao(
       if (t.categoria === "falta" && t.desconta_salario) {
         falta = true;
       }
+    }
+
+    // Toda hora extra vira crédito automaticamente, exceto quando o admin marca HORA EXTRA - PAGAR.
+    if (!temHoraExtraPagar) {
+      const minutosCreditoHE = justHoraExtraCredito?.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
+      bancoHorasMin += Math.max(0, minutosCreditoHE);
     }
 
     // Fora do vínculo zera ocorrências e adiciona observação informativa

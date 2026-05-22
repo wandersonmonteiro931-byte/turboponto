@@ -302,8 +302,20 @@ export function gerarPdfCartao(opts: {
     const falta = d.faltaRegistrada || d.falta;
 
     const irregs = irregularidadesDoDia(d, tol);
+    const justificativas = d.justificativas ?? [];
+    const temHoraExtraPagar = justificativas.some((j) => j.tipo.codigo === "HE_PAGAR");
+    const faltaInjustificada =
+      falta &&
+      (!justificativas.length ||
+        justificativas.some(
+          (j) =>
+            j.tipo.categoria === "falta" &&
+            j.tipo.desconta_salario &&
+            j.tipo.afeta_assiduidade !== "nao",
+        ));
     for (const i of irregs) {
-      if (i.credito) creditos += i.qtde;
+      // Créditos de hora extra são somados pelo bancoHorasMinutos do dia,
+      // para não duplicar o crédito automático no rodapé do PDF.
       if (i.debito) {
         debitos += i.qtde;
         if (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA") {
@@ -330,7 +342,7 @@ export function gerarPdfCartao(opts: {
     const temJustificativa = (d.justificativas ?? []).length > 0;
     if (semJornada) {
       linhas.push({ label: "DIA SEM JORNADA CADASTRADA", qtde: "" });
-    } else if (falta && !temJustificativa) {
+    } else if (faltaInjustificada) {
       linhas.push({ label: "FALTA", qtde: cargaProgDia > 0 ? fmtMinHHMM(cargaProgDia) : "" });
       // Falta injustificada conta como hora benef
       horasBenef += cargaProgDia;
@@ -340,7 +352,9 @@ export function gerarPdfCartao(opts: {
       for (const i of irregs) {
         const lbl =
           i.label === "HORA EXTRA"
-            ? "HORA EXTRA / CRED BH"
+            ? temHoraExtraPagar
+              ? "HORA EXTRA / PAGAR"
+              : "HORA EXTRA / CRED BH"
             : i.label === "ATRASO"
               ? "ATRASO / DEB BH"
               : i.label === "SAÍDA ANTECIPADA"
@@ -370,7 +384,6 @@ export function gerarPdfCartao(opts: {
     }
     if (linhas.length === 0) linhas.push({ label: "", qtde: "" });
 
-    const justificativas = d.justificativas ?? [];
     const primeira = linhas[0];
 
     drawRow({
