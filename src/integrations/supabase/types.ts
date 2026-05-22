@@ -329,6 +329,69 @@ export type Database = {
           },
         ]
       }
+      registros_ponto: {
+        Row: {
+          atraso_minutos: number
+          created_at: string
+          data_referencia: string
+          empresa_id: string
+          funcionario_id: string
+          horario_programado: string | null
+          horario_registrado: string
+          id: string
+          jornada_id: string | null
+          observacao: string | null
+          origem: string
+          status: string
+          tipo_ponto: string
+        }
+        Insert: {
+          atraso_minutos?: number
+          created_at?: string
+          data_referencia: string
+          empresa_id: string
+          funcionario_id: string
+          horario_programado?: string | null
+          horario_registrado?: string
+          id?: string
+          jornada_id?: string | null
+          observacao?: string | null
+          origem?: string
+          status?: string
+          tipo_ponto: string
+        }
+        Update: {
+          atraso_minutos?: number
+          created_at?: string
+          data_referencia?: string
+          empresa_id?: string
+          funcionario_id?: string
+          horario_programado?: string | null
+          horario_registrado?: string
+          id?: string
+          jornada_id?: string | null
+          observacao?: string | null
+          origem?: string
+          status?: string
+          tipo_ponto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_ponto_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_ponto_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
