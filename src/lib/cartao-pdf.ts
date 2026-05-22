@@ -194,14 +194,16 @@ export function gerarPdfCartao(opts: {
     let justMain = "";
     let realEntrMain = "";
     let realSaidaMain = "";
+    let marcacaoNaoRegistrada = false;
 
     const subs: SubLinha[] = [];
     if (!d.trabalha) {
       irregMain = "FOLGA";
     } else if (d.falta) {
       irregMain = "Falta";
+      justMain = d.observacao ?? "";
     } else if (d.pendente) {
-      irregMain = "Pendente";
+      marcacaoNaoRegistrada = true;
     } else {
       const irregs = irregularidadesDoDia(d);
       if (irregs.length > 0) {
