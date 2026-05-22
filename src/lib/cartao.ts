@@ -333,17 +333,31 @@ export async function carregarCartao(
     let extras = creditoHoraExtra;
 
 
-    // Hoje (yyyy-mm-dd local)
-    const hoje = new Date();
-    const todayStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
-    // Para o dia atual, só considera pendente após o horário de saída final + 60min de margem.
-    // Dias futuros: tratados como pendente (marcação não registrada).
+    // Hoje em horário de Brasília (America/Sao_Paulo)
+    const fmtBR = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const partsBR = fmtBR.formatToParts(new Date());
+    const getP = (t: string) => partsBR.find((p) => p.type === t)?.value ?? "00";
+    const todayStr = `${getP("year")}-${getP("month")}-${getP("day")}`;
+    const agoraMinBR = parseInt(getP("hour"), 10) * 60 + parseInt(getP("minute"), 10);
+
+    // Para o dia atual, só considera "ainda dentro do expediente" antes de saída + 60min.
     let aindaDentroDoExpediente = false;
     if (data === todayStr && prog.saida_final) {
-      const agoraMin = hoje.getHours() * 60 + hoje.getMinutes();
       const fimMin = (hm(prog.saida_final) ?? 0) + 60;
-      if (agoraMin < fimMin) aindaDentroDoExpediente = true;
+      if (agoraMinBR < fimMin) aindaDentroDoExpediente = true;
     }
+
+    // Hoje, sem marcação de entrada, e já passou do horário previsto de entrada → débito até registrar/justificar.
+    const hojePassouEntradaSemRegistro =
+      data === todayStr && trabalha && !reg.entrada && pe != null && agoraMinBR > pe;
 
     const isFuturo = data > todayStr;
     const semRegistro = trabalha && regs.length === 0;
@@ -427,6 +441,13 @@ export async function carregarCartao(
         cargaProg > 0
       ) {
         // Dia passado sem nenhuma marcação e sem justificativa → débito da carga prevista.
+        bancoHorasMin -= cargaProg;
+      } else if (
+        hojePassouEntradaSemRegistro &&
+        justificativas.length === 0 &&
+        cargaProg > 0
+      ) {
+        // Hoje: passou da entrada prevista e ainda sem marcação/justificativa → débito.
         bancoHorasMin -= cargaProg;
       } else {
         const debitoAutomatico = atraso + debitoSaidaAntec;
