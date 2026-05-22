@@ -942,6 +942,45 @@ export type Database = {
           },
         ]
       }
+      justificativas_historico: {
+        Row: {
+          acao: string
+          alterado_por: string | null
+          created_at: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          justificativa_id: string
+          observacao: string | null
+          status_anterior: string | null
+          status_novo: string | null
+        }
+        Insert: {
+          acao: string
+          alterado_por?: string | null
+          created_at?: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          justificativa_id: string
+          observacao?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+        }
+        Update: {
+          acao?: string
+          alterado_por?: string | null
+          created_at?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          justificativa_id?: string
+          observacao?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+        }
+        Relationships: []
+      }
       justificativas_tipos: {
         Row: {
           abona_ocorrencia: boolean
@@ -1014,6 +1053,45 @@ export type Database = {
           pode_aplicar_individual?: boolean
           pode_aplicar_massa?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      notificacoes: {
+        Row: {
+          categoria: string
+          created_at: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          lida: boolean
+          lida_em: string | null
+          link: string | null
+          mensagem: string
+          titulo: string
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          lida?: boolean
+          lida_em?: string | null
+          link?: string | null
+          mensagem: string
+          titulo: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          lida?: boolean
+          lida_em?: string | null
+          link?: string | null
+          mensagem?: string
+          titulo?: string
         }
         Relationships: []
       }
@@ -1158,6 +1236,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calcular_desconto_folha: {
+        Args: { _ano: number; _funcionario_id: string; _mes: number }
+        Returns: {
+          dias_desc: number
+          dias_dsr: number
+          valor_desconto: number
+        }[]
+      }
       criar_empresa_inicial: {
         Args: {
           _cnpj: string
