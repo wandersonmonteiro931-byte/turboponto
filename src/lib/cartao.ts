@@ -158,7 +158,7 @@ export async function carregarCartao(
         movimenta_banco_horas,conta_dia_trabalhado,exige_marcacao_ponto,afeta_assiduidade
       )`)
     .eq("funcionario_id", funcionarioId)
-    .eq("status", "aprovada")
+    .in("status", ["aprovada", "pendente"])
     .gte("data", ini)
     .lte("data", fim);
   const justPorDia = new Map<string, JustificativaAplicadaDia>();
