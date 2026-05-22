@@ -128,9 +128,13 @@ function BaterPontoPage() {
   const tolerancia = jornada?.tolerancia_atraso_minutos ?? 0;
   const statusDia = statusJornadaHoje(dia, tiposJaRegistrados, now, tolerancia);
 
-  const podeBater = funcStatus === "ativo" && permitePonto && !!jornada && !!dia?.trabalha && !!inferido;
+  const emBloqueio = !!bloqueioAte && bloqueioAte > now;
+  const podeBater = funcStatus === "ativo" && permitePonto && !!jornada && !!dia?.trabalha && !!inferido && !emBloqueio;
 
-  const motivoBloqueio = !jornada
+  const fmtBloqueio = bloqueioAte?.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const motivoBloqueio = emBloqueio
+    ? `Aguarde 10h após a saída final. Próximo ponto liberado às ${fmtBloqueio}.`
+    : !jornada
     ? "Você não possui jornada cadastrada. Procure o administrador."
     : funcStatus !== "ativo"
     ? `Funcionário ${funcStatus}. Procure o administrador.`
