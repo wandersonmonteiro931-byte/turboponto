@@ -320,7 +320,7 @@ export function gerarPdfCartao(opts: {
             j.tipo.afeta_assiduidade !== "nao",
         ));
     for (const i of irregs) {
-      // Créditos de hora extra são somados pelo bancoHorasMinutos do dia,
+      // Créditos são somados pelo bancoHorasMinutos do dia,
       // para não duplicar o crédito automático no rodapé do PDF.
       if (i.debito) {
         debitos += i.qtde;
@@ -363,6 +363,8 @@ export function gerarPdfCartao(opts: {
               : "HORA EXTRA / CRED BH"
             : i.label === "ATRASO"
               ? "ATRASO / DEB BH"
+              : i.label === "ENTRADA ANTECIPADA"
+                ? "ENTRADA ANTECIPADA / CRED BH"
               : i.label === "SAÍDA ANTECIPADA"
                 ? "SAIDA ANTECIPADA / DEB BH"
                 : i.label;
