@@ -838,6 +838,68 @@ export type Database = {
           },
         ]
       }
+      justificativas_aplicadas: {
+        Row: {
+          anexo_url: string | null
+          aplicado_por: string
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string
+          data: string
+          data_fim: string | null
+          data_inicio: string | null
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          observacao: string | null
+          status: string
+          tipo_id: string
+          updated_at: string
+        }
+        Insert: {
+          anexo_url?: string | null
+          aplicado_por: string
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          data: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          observacao?: string | null
+          status?: string
+          tipo_id: string
+          updated_at?: string
+        }
+        Update: {
+          anexo_url?: string | null
+          aplicado_por?: string
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          data?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          observacao?: string | null
+          status?: string
+          tipo_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "justificativas_aplicadas_tipo_id_fkey"
+            columns: ["tipo_id"]
+            isOneToOne: false
+            referencedRelation: "justificativas_tipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       justificativas_tipos: {
         Row: {
           abona_ocorrencia: boolean
