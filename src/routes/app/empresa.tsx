@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import {
   LayoutDashboard, Building2, Users, Clock, ClipboardList,
-  CreditCard, CalendarCheck, Gift, FileText, BarChart3, Settings,
+  CreditCard, CalendarCheck, Gift, FileText, BarChart3, Settings, ShieldCheck,
 } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
