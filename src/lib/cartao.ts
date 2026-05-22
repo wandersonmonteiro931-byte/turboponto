@@ -345,11 +345,14 @@ export async function carregarCartao(
       if (agoraMin < fimMin) aindaDentroDoExpediente = true;
     }
 
+    const isFuturo = data > todayStr;
     const semRegistro = trabalha && regs.length === 0;
     let falta = semRegistro && setFaltas.has(data);
-    let pendente = semRegistro && !falta && !aindaDentroDoExpediente;
+    let pendente = semRegistro && !falta && !aindaDentroDoExpediente && !isFuturo;
     const faltaRegistrada = falta;
-    const marcacaoNaoRegistrada = semRegistro && !aindaDentroDoExpediente;
+    // "Marcação não registrada" agora é exclusivo de dias futuros.
+    // Dias passados sem registro viram débito automático de banco de horas.
+    const marcacaoNaoRegistrada = semRegistro && isFuturo;
     let bancoHorasMin = 0;
 
     // Aplica regras das justificativas, mas mantém todas registradas para exibição no PDF
