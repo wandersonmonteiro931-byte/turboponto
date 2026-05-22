@@ -63,9 +63,9 @@ const hhmmToMin = (s: string) => {
 };
 
 /**
- * Infere o tipo de ponto pelo horário mais próximo do programado,
- * mesmo que pontos anteriores não tenham sido registrados.
- * Considera diferença circular (00:55 para saída das 23:50 → ~65min).
+ * Infere o tipo de ponto pelo horário mais próximo do programado.
+ * Apenas Entrada e Saída final são registrados manualmente —
+ * os intervalos são gerados automaticamente pelo sistema.
  */
 export function inferirTipo(
   dia: JornadaDia | null | undefined,
@@ -75,8 +75,6 @@ export function inferirTipo(
   if (!dia || !dia.trabalha) return null;
   const candidatos: Array<{ tipo: TipoPonto; prog: string }> = [];
   if (dia.horario_entrada) candidatos.push({ tipo: "entrada", prog: dia.horario_entrada });
-  if (dia.horario_intervalo_saida) candidatos.push({ tipo: "saida_intervalo", prog: dia.horario_intervalo_saida });
-  if (dia.horario_intervalo_retorno) candidatos.push({ tipo: "retorno_intervalo", prog: dia.horario_intervalo_retorno });
   if (dia.horario_saida) candidatos.push({ tipo: "saida_final", prog: dia.horario_saida });
   const disponiveis = candidatos.filter((c) => !jaRegistrados.includes(c.tipo));
   if (disponiveis.length === 0) return null;
@@ -164,20 +162,9 @@ export function statusJornadaHoje(
     return { label: "Em atraso para registrar Entrada", tone: "bad" };
   }
 
-  // Em intervalo
-  if (has("saida_intervalo") && !has("retorno_intervalo")) {
-    if (intR !== null && agoraMin > intR + toleranciaMin) {
-      return { label: "Intervalo não registrado (retorno em atraso)", tone: "bad" };
-    }
+  // Em intervalo (informativo — registros são automáticos)
+  if (has("entrada") && intS !== null && intR !== null && agoraMin >= intS && agoraMin < intR) {
     return { label: "Em intervalo", tone: "info" };
-  }
-
-  // Horário de intervalo passou sem registrar
-  if (!has("saida_intervalo") && intS !== null && agoraMin > intS + toleranciaMin && has("entrada")) {
-    if (intR !== null && agoraMin > intR + toleranciaMin) {
-      return { label: "Intervalo não registrado", tone: "warn" };
-    }
-    return { label: "Em atraso para registrar Saída p/ intervalo", tone: "bad" };
   }
 
   // Saída final em atraso
