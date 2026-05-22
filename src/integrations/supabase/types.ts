@@ -1278,6 +1278,10 @@ export type Database = {
         Args: { _empresa_id: string }
         Returns: undefined
       }
+      sync_banco_horas_automatico_dia: {
+        Args: { _data: string; _funcionario_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "gerente" | "funcionario"
