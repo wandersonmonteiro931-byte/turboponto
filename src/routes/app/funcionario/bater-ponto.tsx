@@ -97,6 +97,27 @@ function BaterPontoPage() {
       .neq("status", "corrigido")
       .order("horario_registrado");
     setRegistros((regs ?? []) as RegistroHoje[]);
+
+    // Bloqueio pós saída final: 10h após o horário programado de saída
+    const { data: ultSaida } = await supabase
+      .from("registros_ponto")
+      .select("data_referencia,horario_programado,horario_registrado")
+      .eq("funcionario_id", f.id)
+      .eq("tipo_ponto", "saida_final")
+      .neq("status", "corrigido")
+      .order("data_referencia", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (ultSaida) {
+      const u = ultSaida as { data_referencia: string; horario_programado: string | null; horario_registrado: string };
+      const base = u.horario_programado
+        ? new Date(`${u.data_referencia}T${u.horario_programado}`)
+        : new Date(u.horario_registrado);
+      const ate = new Date(base.getTime() + 10 * 60 * 60 * 1000);
+      setBloqueioAte(ate > new Date() ? ate : null);
+    } else {
+      setBloqueioAte(null);
+    }
     setLoading(false);
   }, [user]);
 
