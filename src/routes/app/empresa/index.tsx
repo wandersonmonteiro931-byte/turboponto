@@ -1,7 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, Clock, UserX, AlertTriangle, CalendarRange } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/app/empresa/")({
   component: EmpresaDashboard,
@@ -17,13 +20,50 @@ const cards = [
 ];
 
 function EmpresaDashboard() {
-  const { nome } = useAuth();
+  const { nome, empresaId } = useAuth();
+  const [semJornada, setSemJornada] = useState<Array<{ id: string; nome: string }>>([]);
+
+  useEffect(() => {
+    if (!empresaId) return;
+    (async () => {
+      const { data: ativos } = await supabase
+        .from("funcionarios").select("id,nome").eq("empresa_id", empresaId).eq("status", "ativo");
+      if (!ativos?.length) { setSemJornada([]); return; }
+      const ids = (ativos as Array<{ id: string; nome: string }>).map((a) => a.id);
+      const { data: vinc } = await supabase
+        .from("funcionarios_jornadas").select("funcionario_id").in("funcionario_id", ids).eq("ativo", true);
+      const comJornada = new Set((vinc ?? []).map((v) => (v as { funcionario_id: string }).funcionario_id));
+      setSemJornada((ativos as Array<{ id: string; nome: string }>).filter((a) => !comJornada.has(a.id)));
+    })();
+  }, [empresaId]);
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Olá, {nome || "Administrador"}</h2>
         <p className="text-sm text-muted-foreground">Resumo da operação Turbo Lanches</p>
       </div>
+
+      {semJornada.length > 0 && (
+        <Card className="border-orange-500/50 bg-orange-500/5">
+          <CardContent className="p-4 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+            <div className="flex gap-3 items-start">
+              <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5 shrink-0" />
+              <div>
+                <div className="font-semibold">
+                  {semJornada.length} funcionário{semJornada.length > 1 ? "s" : ""} ativo{semJornada.length > 1 ? "s" : ""} sem jornada cadastrada
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Eles não poderão bater ponto até receberem uma jornada: {semJornada.slice(0, 3).map((f) => f.nome).join(", ")}
+                  {semJornada.length > 3 && ` e mais ${semJornada.length - 3}`}
+                </div>
+              </div>
+            </div>
+            <Link to="/app/empresa/jornadas"><Button size="sm" variant="outline">Ir para Jornadas</Button></Link>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((c) => (
           <Card key={c.label}>
@@ -45,7 +85,6 @@ function EmpresaDashboard() {
           <p>Esta é a estrutura base. Em breve serão implementados:</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Cálculo automático de horas trabalhadas</li>
-            <li>Gestão de jornadas e escalas</li>
             <li>Benefícios (vale-transporte, vale-refeição)</li>
             <li>Geração e liberação de holerites</li>
             <li>Relatórios completos</li>

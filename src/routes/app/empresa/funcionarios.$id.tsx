@@ -36,13 +36,14 @@ function FuncionarioDetail() {
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("funcionarios").update({
+    const payload: Record<string, unknown> = {
       nome: f.nome, cpf: f.cpf, rg: f.rg, data_nascimento: f.data_nascimento || null,
       telefone: f.telefone, email: f.email, endereco: f.endereco, cargo: f.cargo,
       salario: f.salario, data_admissao: f.data_admissao || null, status: f.status,
       observacoes: f.observacoes, permite_bater_ponto: f.permite_bater_ponto,
       data_desligamento: f.data_desligamento || null, motivo_desligamento: f.motivo_desligamento,
-    }).eq("id", id);
+    };
+    const { error } = await supabase.from("funcionarios").update(payload as never).eq("id", id);
     setSaving(false);
     if (error) toast.error(error.message); else toast.success("Salvo");
   };
@@ -149,7 +150,11 @@ function FuncionarioDetail() {
           </Card>
         </TabsContent>
 
-        {(["jornada", "registros", "cartao", "beneficios", "holerites", "historico"] as const).map((t) => (
+        <TabsContent value="jornada">
+          <JornadaTab funcionarioId={id} canEdit={isAdmin} />
+        </TabsContent>
+
+        {(["registros", "cartao", "beneficios", "holerites", "historico"] as const).map((t) => (
           <TabsContent key={t} value={t}>
             <Card>
               <CardHeader><CardTitle className="capitalize">{t}</CardTitle></CardHeader>
@@ -170,5 +175,140 @@ function Fld({ label, full, children }: { label: string; full?: boolean; childre
       <Label className="mb-1 block text-xs">{label}</Label>
       {children}
     </div>
+  );
+}
+
+type VinculoRow = {
+  id: string;
+  data_inicio: string;
+  data_fim: string | null;
+  ativo: boolean;
+  jornada_id: string;
+  jornadas: { nome: string; status: string } | null;
+};
+
+function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit: boolean }) {
+  const { empresaId } = useAuth();
+  const [jornadas, setJornadas] = useState<Array<{ id: string; nome: string; status: string }>>([]);
+  const [vinculos, setVinculos] = useState<VinculoRow[]>([]);
+  const [jornadaId, setJornadaId] = useState("");
+  const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10));
+  const [loading, setLoading] = useState(false);
+
+  const reload = async () => {
+    if (!empresaId) return;
+    const [{ data: js }, { data: vs }] = await Promise.all([
+      supabase.from("jornadas").select("id,nome,status").eq("empresa_id", empresaId).eq("status", "ativa").order("nome"),
+      supabase.from("funcionarios_jornadas")
+        .select("id,data_inicio,data_fim,ativo,jornada_id,jornadas(nome,status)")
+        .eq("funcionario_id", funcionarioId)
+        .order("data_inicio", { ascending: false }),
+    ]);
+    setJornadas((js ?? []) as Array<{ id: string; nome: string; status: string }>);
+    setVinculos((vs ?? []) as unknown as VinculoRow[]);
+  };
+  useEffect(() => { reload(); }, [funcionarioId, empresaId]);
+
+  const ativo = vinculos.find((v) => v.ativo);
+
+  const vincular = async () => {
+    if (!jornadaId) return toast.error("Selecione uma jornada");
+    setLoading(true);
+    try {
+      const { ativarVinculo } = await import("@/lib/jornadas");
+      await ativarVinculo(funcionarioId, jornadaId, dataInicio);
+      toast.success("Jornada vinculada");
+      setJornadaId("");
+      reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const encerrar = async () => {
+    if (!ativo) return;
+    const dataFim = new Date().toISOString().slice(0, 10);
+    const { error } = await (supabase.from("funcionarios_jornadas") as never as {
+      update: (v: object) => { eq: (a: string, b: unknown) => Promise<{ error: { message: string } | null }> };
+    }).update({ ativo: false, data_fim: dataFim }).eq("id", ativo.id);
+    if (error) return toast.error(error.message);
+    toast.success("Jornada encerrada");
+    reload();
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-5">
+        <div>
+          <h3 className="font-semibold mb-2">Jornada atual</h3>
+          {ativo ? (
+            <div className="rounded-md border p-3 flex items-center justify-between">
+              <div>
+                <div className="font-medium">{ativo.jornadas?.nome ?? "—"}</div>
+                <div className="text-xs text-muted-foreground">
+                  Desde {new Date(ativo.data_inicio + "T00:00").toLocaleDateString("pt-BR")}
+                </div>
+              </div>
+              {canEdit && <Button size="sm" variant="outline" onClick={encerrar}>Encerrar</Button>}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sem jornada ativa. Vincule uma jornada abaixo.</p>
+          )}
+        </div>
+
+        {canEdit && (
+          <div>
+            <h3 className="font-semibold mb-2">{ativo ? "Trocar jornada" : "Vincular jornada"}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+              <select
+                className="h-9 px-3 rounded-md border bg-background text-sm"
+                value={jornadaId}
+                onChange={(e) => setJornadaId(e.target.value)}
+              >
+                <option value="">Selecione...</option>
+                {jornadas.map((j) => <option key={j.id} value={j.id}>{j.nome}</option>)}
+              </select>
+              <input
+                type="date"
+                className="h-9 px-3 rounded-md border bg-background text-sm"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+              />
+              <Button onClick={vincular} disabled={loading}>{loading ? "..." : "Vincular"}</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Ao vincular uma nova jornada, a anterior é encerrada automaticamente preservando o histórico.
+            </p>
+          </div>
+        )}
+
+        <div>
+          <h3 className="font-semibold mb-2">Histórico</h3>
+          {vinculos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sem histórico ainda.</p>
+          ) : (
+            <ul className="divide-y border rounded-md">
+              {vinculos.map((v) => (
+                <li key={v.id} className="p-3 flex justify-between text-sm">
+                  <div>
+                    <div className="font-medium">{v.jornadas?.nome ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(v.data_inicio + "T00:00").toLocaleDateString("pt-BR")}
+                      {" → "}
+                      {v.data_fim ? new Date(v.data_fim + "T00:00").toLocaleDateString("pt-BR") : "atual"}
+                    </div>
+                  </div>
+                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded h-fit ${v.ativo ? "bg-green-500/20 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                    {v.ativo ? "ativa" : "encerrada"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
