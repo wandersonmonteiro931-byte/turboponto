@@ -39,26 +39,33 @@ export function abrirJanelaPdf(): Window | null {
 
 export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string, janela?: Window | null) {
   const arquivoSeguro = nomeArquivo.replace(/[<>:"/\\|?*\x00-\x1F]/g, "-").replace(/\s+/g, " ").trim();
+  const finalName = arquivoSeguro.endsWith(".pdf") ? arquivoSeguro : `${arquivoSeguro}.pdf`;
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = arquivoSeguro.endsWith(".pdf") ? arquivoSeguro : `${arquivoSeguro}.pdf`;
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+
   if (janela && !janela.closed) {
-    janela.document.body.innerHTML = "";
-    const download = janela.document.createElement("a");
-    download.href = url;
-    download.download = link.download;
-    download.textContent = "Baixar PDF";
-    download.style.cssText = "display:inline-flex;margin:24px;padding:12px 16px;border-radius:8px;background:#111;color:#fff;font:16px sans-serif;text-decoration:none";
-    janela.document.body.appendChild(download);
-    download.click();
+    try {
+      janela.document.body.innerHTML = "";
+      const download = janela.document.createElement("a");
+      download.href = url;
+      download.download = finalName;
+      download.textContent = "Baixar PDF";
+      download.style.cssText = "display:inline-flex;margin:24px;padding:12px 16px;border-radius:8px;background:#111;color:#fff;font:16px sans-serif;text-decoration:none";
+      janela.document.body.appendChild(download);
+      download.click();
+    } catch {
+      janela.location.href = url;
+    }
+  } else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = finalName;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 const hm = (t: string | null): number | null => {
@@ -300,13 +307,14 @@ export function gerarPdfCartao(opts: {
     // Linhas a renderizar: { label, qtde }
     type LinhaIrreg = { label: string; qtde: string };
     const linhas: LinhaIrreg[] = [];
+    const temJustificativa = (d.justificativas ?? []).length > 0;
     if (semJornada) {
       linhas.push({ label: "DIA SEM JORNADA CADASTRADA", qtde: "" });
-    } else if (falta) {
+    } else if (falta && !temJustificativa) {
       linhas.push({ label: "FALTA", qtde: "" });
-    } else if (semMarcacao) {
+    } else if (semMarcacao && !temJustificativa) {
       linhas.push({ label: "MARCAÇÃO NÃO REGISTRADA", qtde: "" });
-    } else {
+    } else if (!falta && !semMarcacao) {
       for (const i of irregs) {
         linhas.push({ label: i.label, qtde: fmtMinHHMM(i.qtde) });
       }
