@@ -239,12 +239,17 @@ export function gerarPdfCartao(opts: {
     const dataStr = fmtDataBR(d.data);
 
     if (d.foraVinculo) {
+      const justs = d.justificativas ?? [];
+      const j0 = justs[0];
       drawRow({
         dia: diaSem,
         data: dataStr,
         irreg: "FORA DO VINCULO",
+        just: j0 ? j0.tipo.nome : "",
+        qtde: j0 && j0.quantidadeMinutos != null ? fmtMinHHMM(j0.quantidadeMinutos) : "",
       });
-      for (const j of d.justificativas ?? []) {
+      for (let i = 1; i < justs.length; i++) {
+        const j = justs[i];
         drawRow({
           just: j.tipo.nome,
           qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
@@ -259,14 +264,19 @@ export function gerarPdfCartao(opts: {
         !!d.registrado.saida_intervalo ||
         !!d.registrado.retorno_intervalo ||
         !!d.registrado.saida_final;
+      const justs = d.justificativas ?? [];
+      const j0 = justs[0];
       drawRow({
         dia: diaSem,
         data: dataStr,
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
         irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
+        just: j0 ? j0.tipo.nome : "",
+        qtde: j0 && j0.quantidadeMinutos != null ? fmtMinHHMM(j0.quantidadeMinutos) : "",
       });
-      for (const j of d.justificativas ?? []) {
+      for (let i = 1; i < justs.length; i++) {
+        const j = justs[i];
         drawRow({
           just: j.tipo.nome,
           qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
