@@ -342,7 +342,7 @@ function BeneficiosPage() {
                             )}
                             {(c.status === "entregue" || c.status === "liberado") && (
                               <Link
-                                to="/app/empresa/beneficios/recibo/$calcId"
+                                to="/recibo/$calcId"
                                 params={{ calcId: c.id }}
                                 target="_blank"
                               >

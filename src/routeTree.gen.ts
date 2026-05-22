@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppFuncionarioRouteImport } from './routes/app/funcionario'
 import { Route as AppEmpresaRouteImport } from './routes/app/empresa'
+import { Route as ReciboRouteImport } from './routes/recibo.'
 import { Route as AppFuncionarioIndexRouteImport } from './routes/app/funcionario/index'
 import { Route as AppEmpresaIndexRouteImport } from './routes/app/empresa/index'
 import { Route as AppFuncionarioRegistrosRouteImport } from './routes/app/funcionario/registros'
@@ -35,7 +36,6 @@ import { Route as AppEmpresaConfiguracoesRouteImport } from './routes/app/empres
 import { Route as AppEmpresaCartaoPontoRouteImport } from './routes/app/empresa/cartao-ponto'
 import { Route as AppEmpresaBeneficiosRouteImport } from './routes/app/empresa/beneficios'
 import { Route as AppEmpresaFuncionariosIdRouteImport } from './routes/app/empresa/funcionarios.$id'
-import { Route as AppEmpresaBeneficiosReciboCalcIdRouteImport } from './routes/app/empresa/beneficios.recibo.$calcId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -66,6 +66,11 @@ const AppEmpresaRoute = AppEmpresaRouteImport.update({
   id: '/empresa',
   path: '/empresa',
   getParentRoute: () => AppRoute,
+} as any)
+const ReciboRoute = ReciboRouteImport.update({
+  id: '/recibo/',
+  path: '/recibo/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppFuncionarioIndexRoute = AppFuncionarioIndexRouteImport.update({
   id: '/',
@@ -171,21 +176,16 @@ const AppEmpresaFuncionariosIdRoute =
     path: '/$id',
     getParentRoute: () => AppEmpresaFuncionariosRoute,
   } as any)
-const AppEmpresaBeneficiosReciboCalcIdRoute =
-  AppEmpresaBeneficiosReciboCalcIdRouteImport.update({
-    id: '/recibo/$calcId',
-    path: '/recibo/$calcId',
-    getParentRoute: () => AppEmpresaBeneficiosRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/recibo/': typeof ReciboRoute
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
   '/app/': typeof AppIndexRoute
-  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRouteWithChildren
+  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
@@ -205,13 +205,13 @@ export interface FileRoutesByFullPath {
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
   '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
-  '/app/empresa/beneficios/recibo/$calcId': typeof AppEmpresaBeneficiosReciboCalcIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/recibo': typeof ReciboRoute
   '/app': typeof AppIndexRoute
-  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRouteWithChildren
+  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
@@ -231,17 +231,17 @@ export interface FileRoutesByTo {
   '/app/empresa': typeof AppEmpresaIndexRoute
   '/app/funcionario': typeof AppFuncionarioIndexRoute
   '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
-  '/app/empresa/beneficios/recibo/$calcId': typeof AppEmpresaBeneficiosReciboCalcIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/recibo/': typeof ReciboRoute
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
   '/app/': typeof AppIndexRoute
-  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRouteWithChildren
+  '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
@@ -261,7 +261,6 @@ export interface FileRoutesById {
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
   '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
-  '/app/empresa/beneficios/recibo/$calcId': typeof AppEmpresaBeneficiosReciboCalcIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -269,6 +268,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/recibo/'
     | '/app/empresa'
     | '/app/funcionario'
     | '/app/'
@@ -292,11 +292,11 @@ export interface FileRouteTypes {
     | '/app/empresa/'
     | '/app/funcionario/'
     | '/app/empresa/funcionarios/$id'
-    | '/app/empresa/beneficios/recibo/$calcId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/recibo'
     | '/app'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
@@ -318,12 +318,12 @@ export interface FileRouteTypes {
     | '/app/empresa'
     | '/app/funcionario'
     | '/app/empresa/funcionarios/$id'
-    | '/app/empresa/beneficios/recibo/$calcId'
   id:
     | '__root__'
     | '/'
     | '/app'
     | '/login'
+    | '/recibo/'
     | '/app/empresa'
     | '/app/funcionario'
     | '/app/'
@@ -347,13 +347,13 @@ export interface FileRouteTypes {
     | '/app/empresa/'
     | '/app/funcionario/'
     | '/app/empresa/funcionarios/$id'
-    | '/app/empresa/beneficios/recibo/$calcId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ReciboRoute: typeof ReciboRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -399,6 +399,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/empresa'
       preLoaderRoute: typeof AppEmpresaRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/recibo/': {
+      id: '/recibo/'
+      path: '/recibo'
+      fullPath: '/recibo/'
+      preLoaderRoute: typeof ReciboRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/funcionario/': {
       id: '/app/funcionario/'
@@ -540,26 +547,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaFuncionariosIdRouteImport
       parentRoute: typeof AppEmpresaFuncionariosRoute
     }
-    '/app/empresa/beneficios/recibo/$calcId': {
-      id: '/app/empresa/beneficios/recibo/$calcId'
-      path: '/recibo/$calcId'
-      fullPath: '/app/empresa/beneficios/recibo/$calcId'
-      preLoaderRoute: typeof AppEmpresaBeneficiosReciboCalcIdRouteImport
-      parentRoute: typeof AppEmpresaBeneficiosRoute
-    }
   }
 }
-
-interface AppEmpresaBeneficiosRouteChildren {
-  AppEmpresaBeneficiosReciboCalcIdRoute: typeof AppEmpresaBeneficiosReciboCalcIdRoute
-}
-
-const AppEmpresaBeneficiosRouteChildren: AppEmpresaBeneficiosRouteChildren = {
-  AppEmpresaBeneficiosReciboCalcIdRoute: AppEmpresaBeneficiosReciboCalcIdRoute,
-}
-
-const AppEmpresaBeneficiosRouteWithChildren =
-  AppEmpresaBeneficiosRoute._addFileChildren(AppEmpresaBeneficiosRouteChildren)
 
 interface AppEmpresaFuncionariosRouteChildren {
   AppEmpresaFuncionariosIdRoute: typeof AppEmpresaFuncionariosIdRoute
@@ -576,7 +565,7 @@ const AppEmpresaFuncionariosRouteWithChildren =
   )
 
 interface AppEmpresaRouteChildren {
-  AppEmpresaBeneficiosRoute: typeof AppEmpresaBeneficiosRouteWithChildren
+  AppEmpresaBeneficiosRoute: typeof AppEmpresaBeneficiosRoute
   AppEmpresaCartaoPontoRoute: typeof AppEmpresaCartaoPontoRoute
   AppEmpresaConfiguracoesRoute: typeof AppEmpresaConfiguracoesRoute
   AppEmpresaEmpresaRoute: typeof AppEmpresaEmpresaRoute
@@ -590,7 +579,7 @@ interface AppEmpresaRouteChildren {
 }
 
 const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
-  AppEmpresaBeneficiosRoute: AppEmpresaBeneficiosRouteWithChildren,
+  AppEmpresaBeneficiosRoute: AppEmpresaBeneficiosRoute,
   AppEmpresaCartaoPontoRoute: AppEmpresaCartaoPontoRoute,
   AppEmpresaConfiguracoesRoute: AppEmpresaConfiguracoesRoute,
   AppEmpresaEmpresaRoute: AppEmpresaEmpresaRoute,
@@ -651,7 +640,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ReciboRoute: ReciboRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
