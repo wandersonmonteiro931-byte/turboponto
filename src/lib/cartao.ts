@@ -287,13 +287,27 @@ export async function carregarCartao(
       }
     }
 
+    // Fora do vínculo zera ocorrências e adiciona observação informativa
+    if (foraVinculo) {
+      falta = false;
+      pendente = false;
+      atraso = 0;
+      trabalhado = 0;
+      extras = 0;
+      bancoHorasMin = 0;
+    }
+
     if (falta) totalFaltas += 1;
     totalAtraso += atraso;
     totalTrabalhado += trabalhado;
     totalExtras += extras;
     totalBancoHoras += bancoHorasMin;
 
-    const obsFinal = just?.observacao
+    const obsVinculo = foraVinculo
+      ? (dataAdmissao && data < dataAdmissao ? "Antes da admissão" : "Após desligamento")
+      : null;
+    const obsFinal = obsVinculo
+      ?? just?.observacao
       ?? (falta ? (justFaltas.get(data) ?? obs) : obs);
 
     result.push({
