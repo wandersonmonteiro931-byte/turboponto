@@ -150,7 +150,11 @@ function FuncionarioDetail() {
           </Card>
         </TabsContent>
 
-        {(["jornada", "registros", "cartao", "beneficios", "holerites", "historico"] as const).map((t) => (
+        <TabsContent value="jornada">
+          <JornadaTab funcionarioId={id} canEdit={isAdmin} />
+        </TabsContent>
+
+        {(["registros", "cartao", "beneficios", "holerites", "historico"] as const).map((t) => (
           <TabsContent key={t} value={t}>
             <Card>
               <CardHeader><CardTitle className="capitalize">{t}</CardTitle></CardHeader>
