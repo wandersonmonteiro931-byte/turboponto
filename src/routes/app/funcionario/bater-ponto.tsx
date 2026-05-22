@@ -168,7 +168,7 @@ function BaterPontoPage() {
         empresa_id: empresaId,
         funcionario_id: funcId,
         jornada_id: jornada?.id ?? null,
-        data_referencia: hojeISO(),
+        data_referencia: diaComercialISO(new Date()),
         tipo_ponto: inferido.tipo,
         horario_programado: inferido.programado,
         horario_registrado: new Date().toISOString(),
