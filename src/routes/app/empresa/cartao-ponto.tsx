@@ -240,14 +240,21 @@ function CartaoEmpresaPage() {
               </thead>
               <tbody className="divide-y">
                 {resumo.dias.map((d) => {
-                  const cellClass = (val: string | null) => `p-2 font-mono ${podeEditar ? "cursor-pointer hover:bg-accent/50" : ""}`;
-                  const renderEmpty = () => d.falta
-                    ? <span className="text-red-600 font-bold">FALTA</span>
-                    : d.trabalha
-                      ? <span className="text-yellow-700 text-xs">marcação não registrada</span>
-                      : "—";
+                  const cellClass = (_val: string | null) => `p-2 font-mono ${podeEditar ? "cursor-pointer hover:bg-accent/50" : ""}`;
+                  const renderEmpty = () => d.justificativa
+                    ? <span className="text-blue-700 font-semibold text-xs">{d.justificativa.tipo.nome}</span>
+                    : d.falta
+                      ? <span className="text-red-600 font-bold">FALTA</span>
+                      : d.trabalha
+                        ? <span className="text-yellow-700 text-xs">marcação não registrada</span>
+                        : "—";
+                  const rowBg = d.justificativa
+                    ? "bg-blue-500/5"
+                    : d.falta ? "bg-red-500/5"
+                    : d.pendente && d.trabalha ? "bg-yellow-500/5"
+                    : !d.trabalha ? "bg-muted/30" : "";
                   return (
-                  <tr key={d.data} className={d.falta ? "bg-red-500/5" : d.pendente && d.trabalha ? "bg-yellow-500/5" : !d.trabalha ? "bg-muted/30" : ""}>
+                  <tr key={d.data} className={rowBg}>
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
                     </td>
@@ -261,11 +268,15 @@ function CartaoEmpresaPage() {
                     <td className="p-2 text-xs text-muted-foreground">{d.observacao ?? ""}</td>
                     {podeEditar && (
                       <td className="p-2">
-                        {d.trabalha && Object.keys(d.registroIds).length === 0 && (
-                          <Button size="sm" variant={d.falta ? "outline" : "destructive"} onClick={() => toggleFalta(d)} className="h-6 px-2 text-xs">
-                            {d.falta ? <><X className="h-3 w-3 mr-1" />Remover falta</> : "Marcar falta"}
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant={d.justificativa ? "secondary" : "outline"}
+                          onClick={() => setJustDia(d)}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          {d.justificativa ? "Editar just." : "Justificar"}
+                        </Button>
                       </td>
                     )}
                   </tr>
@@ -291,6 +302,17 @@ function CartaoEmpresaPage() {
           funcionarios={funcs}
           onSaved={carregar}
           prefill={prefill}
+        />
+      )}
+      {empresaId && justDia && funcId && (
+        <AplicarJustificativaDialog
+          open={!!justDia}
+          onClose={() => setJustDia(null)}
+          empresaId={empresaId}
+          funcionarioId={funcId}
+          data={justDia.data}
+          justificativaAtualId={justDia.justificativa?.id ?? null}
+          onSaved={carregar}
         />
       )}
     </div>
