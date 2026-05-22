@@ -1278,6 +1278,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      preencher_marcacoes_esquecimento_registro_dia: {
+        Args: { _data: string; _empresa_id: string; _funcionario_id: string }
+        Returns: undefined
+      }
       seed_justificativas_padrao: {
         Args: { _empresa_id: string }
         Returns: undefined
