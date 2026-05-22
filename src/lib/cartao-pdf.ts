@@ -307,13 +307,14 @@ export function gerarPdfCartao(opts: {
     // Linhas a renderizar: { label, qtde }
     type LinhaIrreg = { label: string; qtde: string };
     const linhas: LinhaIrreg[] = [];
+    const temJustificativa = (d.justificativas ?? []).length > 0;
     if (semJornada) {
       linhas.push({ label: "DIA SEM JORNADA CADASTRADA", qtde: "" });
-    } else if (falta) {
+    } else if (falta && !temJustificativa) {
       linhas.push({ label: "FALTA", qtde: "" });
-    } else if (semMarcacao) {
+    } else if (semMarcacao && !temJustificativa) {
       linhas.push({ label: "MARCAÇÃO NÃO REGISTRADA", qtde: "" });
-    } else {
+    } else if (!falta && !semMarcacao) {
       for (const i of irregs) {
         linhas.push({ label: i.label, qtde: fmtMinHHMM(i.qtde) });
       }
