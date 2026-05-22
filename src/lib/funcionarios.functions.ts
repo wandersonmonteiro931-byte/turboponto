@@ -23,6 +23,7 @@ async function requireAdmin(token: string) {
 }
 
 const FuncionarioSchema = z.object({
+  token: z.string().min(10),
   nome: z.string().trim().min(2).max(120),
   cpf: z.string().trim().max(20).optional().nullable(),
   rg: z.string().trim().max(20).optional().nullable(),
@@ -42,7 +43,7 @@ const FuncionarioSchema = z.object({
 export const criarFuncionario = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => FuncionarioSchema.parse(d))
   .handler(async ({ data }) => {
-    const { admin, empresaId } = await requireAdmin();
+    const { admin, empresaId } = await requireAdmin(data.token);
 
     // Create auth user
     const { data: created, error: cerr } = await admin.auth.admin.createUser({
