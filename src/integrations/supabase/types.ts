@@ -418,6 +418,51 @@ export type Database = {
         }
         Relationships: []
       }
+      dias_falta: {
+        Row: {
+          created_at: string
+          data: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          justificativa: string | null
+          marcado_por: string | null
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          justificativa?: string | null
+          marcado_por?: string | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          justificativa?: string | null
+          marcado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dias_falta_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dias_falta_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           afastado_pode_bater_ponto: boolean
