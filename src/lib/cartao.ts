@@ -410,6 +410,8 @@ export async function carregarCartao(
     totalExtras,
     totalBancoHoras,
     toleranciaMinutos: toleranciaMin,
+    dataAdmissao,
+    dataDesligamento: dataDeslig,
   };
 }
 
