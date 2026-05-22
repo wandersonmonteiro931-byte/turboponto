@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { JornadaDia } from "@/lib/jornadas";
 import {
   TipoPonto, tipoLabel, statusLabel, statusColor,
-  inferirTipo, avaliar, hojeISO, statusJornadaHoje,
+  inferirTipo, avaliar, hojeISO, diaComercialISO, statusJornadaHoje,
 } from "@/lib/ponto";
 
 export const Route = createFileRoute("/app/funcionario/bater-ponto")({
