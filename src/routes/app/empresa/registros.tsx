@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { TIPOS_PONTO, tipoLabel, statusLabel, statusColor } from "@/lib/ponto";
+import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
+import { Pencil, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/app/empresa/registros")({
   component: RegistrosPage,
@@ -33,7 +35,10 @@ type Registro = {
 type Funcionario = { id: string; nome: string };
 
 function RegistrosPage() {
-  const { empresaId } = useAuth();
+  const { empresaId, role } = useAuth();
+  const podeEditar = role === "admin" || role === "gerente";
+  const [editando, setEditando] = useState<RegistroEdit | null>(null);
+  const [inserindo, setInserindo] = useState(false);
   const [funcs, setFuncs] = useState<Funcionario[]>([]);
   const [lista, setLista] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,9 +100,14 @@ function RegistrosPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">Registros de ponto</h2>
-        <p className="text-sm text-muted-foreground">Acompanhe todas as marcações dos funcionários.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold">Registros de ponto</h2>
+          <p className="text-sm text-muted-foreground">Acompanhe todas as marcações dos funcionários.</p>
+        </div>
+        {podeEditar && (
+          <Button onClick={() => setInserindo(true)}><Plus className="h-4 w-4 mr-1" />Inserir ponto</Button>
+        )}
       </div>
 
       <Card>
@@ -168,6 +178,7 @@ function RegistrosPage() {
                     <th className="text-left p-2">Atraso</th>
                     <th className="text-left p-2">Status</th>
                     <th className="text-left p-2">Origem</th>
+                    {podeEditar && <th className="text-right p-2">Ações</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -185,6 +196,15 @@ function RegistrosPage() {
                         </span>
                       </td>
                       <td className="p-2 capitalize text-xs text-muted-foreground">{r.origem}</td>
+                      {podeEditar && (
+                        <td className="p-2 text-right">
+                          <Button size="sm" variant="ghost" onClick={() => setEditando({
+                            id: r.id, empresa_id: empresaId!, funcionario_id: r.funcionario_id,
+                            data_referencia: r.data_referencia, tipo_ponto: r.tipo_ponto,
+                            horario_registrado: r.horario_registrado, observacao: r.observacao,
+                          })}><Pencil className="h-3 w-3" /></Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -193,6 +213,22 @@ function RegistrosPage() {
           )}
         </CardContent>
       </Card>
+
+      <EditarPontoDialog
+        open={!!editando}
+        onClose={() => setEditando(null)}
+        registro={editando}
+        onSaved={carregar}
+      />
+      {empresaId && (
+        <InserirPontoDialog
+          open={inserindo}
+          onClose={() => setInserindo(false)}
+          empresaId={empresaId}
+          funcionarios={funcs}
+          onSaved={carregar}
+        />
+      )}
     </div>
   );
 }
