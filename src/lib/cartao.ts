@@ -121,7 +121,7 @@ export async function carregarCartao(
     horario_saida: string | null;
   }> = [];
 
-  let toleranciaMin = 0;
+  let toleranciaMin = 5;
   if (vinc?.jornada_id) {
     const { data: jd } = await supabase
       .from("jornadas_dias")
@@ -135,7 +135,7 @@ export async function carregarCartao(
       .select("tolerancia_atraso_minutos")
       .eq("id", vinc.jornada_id)
       .maybeSingle();
-    toleranciaMin = j?.tolerancia_atraso_minutos ?? 0;
+    toleranciaMin = j?.tolerancia_atraso_minutos ?? 5;
   }
 
   const { data: registros } = await supabase
