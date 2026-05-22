@@ -157,7 +157,6 @@ export async function carregarCartao(
     .from("justificativas_aplicadas")
     .select("id,tipo_id,data,data_inicio,data_fim,observacao,anexo_url,status,quantidade_minutos")
     .eq("funcionario_id", funcionarioId)
-    .in("status", ["aprovada", "pendente"])
     .gte("data", ini)
     .lte("data", fim);
   const tipoIds = Array.from(new Set((justApls ?? []).map((j) => j.tipo_id).filter(Boolean)));
