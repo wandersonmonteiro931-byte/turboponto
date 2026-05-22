@@ -338,7 +338,15 @@ export async function carregarCartao(
     const just = justificativas[0] ?? null;
     const temHoraExtraPagar = justificativas.some((j) => j.tipo.codigo === "HE_PAGAR");
     const justHoraExtraCredito = justificativas.find((j) => j.tipo.codigo === "HE_CREDITO");
-    const temDebitoManualBH = justificativas.some((j) => j.tipo.movimenta_banco_horas === "debito");
+    const faltaComDescontoAplicada = justificativas.some(
+      (j) => j.tipo.categoria === "falta" && j.tipo.desconta_salario,
+    );
+    const faltaComDesconto = faltaComDescontoAplicada || (semRegistro && setFaltas.has(data));
+    const temDebitoManualBH = justificativas.some(
+      (j) =>
+        j.tipo.movimenta_banco_horas === "debito" &&
+        !(j.tipo.categoria === "falta" && j.tipo.desconta_salario),
+    );
     let abonoSemDesconto = false;
     for (const just of justificativas) {
       const t = just.tipo;
@@ -365,6 +373,7 @@ export async function carregarCartao(
         const minutosCredito = just.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
         bancoHorasMin += Math.max(0, minutosCredito);
       } else if (t.movimenta_banco_horas === "debito") {
+        if (t.categoria === "falta" && t.desconta_salario) continue;
         const minutosDebito = just.quantidadeMinutos ?? (cargaProg > 0 ? cargaProg : atraso);
         bancoHorasMin -= Math.max(0, minutosDebito);
       }
@@ -381,7 +390,7 @@ export async function carregarCartao(
     }
 
     // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
-    if (trabalha && !abonoSemDesconto && !temDebitoManualBH) {
+    if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
         bancoHorasMin -= cargaProg;
       } else {
