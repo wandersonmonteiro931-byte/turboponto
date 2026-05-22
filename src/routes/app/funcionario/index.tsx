@@ -63,8 +63,43 @@ function FuncionarioHome() {
         setDias((ds ?? []) as JornadaDia[]);
       }
       setCarregou(true);
+
+      const funcId = (func as { id: string }).id;
+      const hoje = new Date();
+      const mes = hoje.getMonth() + 1;
+      const ano = hoje.getFullYear();
+      const inicioMes = `${ano}-${String(mes).padStart(2, "0")}-01`;
+      const [{ data: pontos }, { data: calc }, { data: hol }, { data: avisos }, { data: leituras }] = await Promise.all([
+        supabase.from("registros_ponto").select("atraso_minutos")
+          .eq("funcionario_id", funcId).gte("data_referencia", inicioMes),
+        supabase.from("beneficios_calculos").select("status,tem_direito,total_atraso_minutos")
+          .eq("funcionario_id", funcId).eq("mes_referencia", mes).eq("ano_referencia", ano).maybeSingle(),
+        supabase.from("holerites").select("mes_referencia,ano_referencia")
+          .eq("funcionario_id", funcId).eq("liberado", true)
+          .order("ano_referencia", { ascending: false })
+          .order("mes_referencia", { ascending: false }).limit(1),
+        supabase.from("avisos").select("id").eq("status", "ativo"),
+        supabase.from("avisos_leituras").select("aviso_id").eq("funcionario_id", funcId),
+      ]);
+      const atrasoMes = (pontos ?? []).reduce((s, p) => s + ((p as { atraso_minutos: number }).atraso_minutos || 0), 0);
+      const c = calc as { status: string; tem_direito: boolean; total_atraso_minutos: number } | null;
+      const cestaStatus = !c ? "Em cálculo"
+        : !c.tem_direito ? "Perdida"
+        : c.status === "entregue" ? "Entregue"
+        : c.status === "liberada" ? "Liberada"
+        : c.total_atraso_minutos >= 90 ? "Em risco" : "OK";
+      const lidos = new Set((leituras ?? []).map((l) => (l as { aviso_id: string }).aviso_id));
+      const naoLidos = (avisos ?? []).filter((a) => !lidos.has((a as { id: string }).id)).length;
+      const uh = (hol ?? [])[0] as { mes_referencia: number; ano_referencia: number } | undefined;
+      setResumo({
+        atrasoMes,
+        cestaStatus,
+        ultimoHolerite: uh ? { mes: uh.mes_referencia, ano: uh.ano_referencia } : null,
+        avisosNaoLidos: naoLidos,
+      });
     })();
   }, [userId]);
+
 
   const dataStr = now.toLocaleDateString("pt-BR", {
     weekday: "long", day: "2-digit", month: "long", year: "numeric",
