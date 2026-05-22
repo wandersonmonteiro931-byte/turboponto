@@ -213,6 +213,22 @@ function RegistrosPage() {
           )}
         </CardContent>
       </Card>
+
+      <EditarPontoDialog
+        open={!!editando}
+        onClose={() => setEditando(null)}
+        registro={editando}
+        onSaved={carregar}
+      />
+      {empresaId && (
+        <InserirPontoDialog
+          open={inserindo}
+          onClose={() => setInserindo(false)}
+          empresaId={empresaId}
+          funcionarios={funcs}
+          onSaved={carregar}
+        />
+      )}
     </div>
   );
 }
