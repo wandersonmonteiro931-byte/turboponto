@@ -88,6 +88,15 @@ export async function carregarCartao(
   const ini = datas[0];
   const fim = datas[datas.length - 1];
 
+  // datas de admissão/desligamento do funcionário
+  const { data: func } = await supabase
+    .from("funcionarios")
+    .select("data_admissao,data_desligamento")
+    .eq("id", funcionarioId)
+    .maybeSingle();
+  const dataAdmissao = func?.data_admissao ?? null;
+  const dataDeslig = func?.data_desligamento ?? null;
+
   // jornada ativa atual (simplificação: usa jornada ativa do funcionário no momento)
   const { data: vinc } = await supabase
     .from("funcionarios_jornadas")
@@ -179,7 +188,13 @@ export async function carregarCartao(
     const d = new Date(data + "T00:00");
     const dow = d.getDay();
     const jd = dias.find((x) => x.dia_semana === dow);
-    const trabalha = !!jd?.trabalha;
+    let trabalha = !!jd?.trabalha;
+
+    // Fora do vínculo: antes da admissão ou após desligamento
+    const foraVinculo =
+      (dataAdmissao != null && data < dataAdmissao) ||
+      (dataDeslig != null && data > dataDeslig);
+    if (foraVinculo) trabalha = false;
 
     const regs = porDia.get(data) ?? [];
     const reg: DiaCartao["registrado"] = {
