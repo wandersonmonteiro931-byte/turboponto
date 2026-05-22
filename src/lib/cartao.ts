@@ -103,6 +103,14 @@ export async function carregarCartao(
     .gte("data_referencia", ini)
     .lte("data_referencia", fim);
 
+  const { data: faltasManual } = await supabase
+    .from("dias_falta")
+    .select("data")
+    .eq("funcionario_id", funcionarioId)
+    .gte("data", ini)
+    .lte("data", fim);
+  const setFaltas = new Set((faltasManual ?? []).map((x) => x.data as string));
+
   const porDia = new Map<string, typeof registros>();
   for (const r of registros ?? []) {
     const arr = porDia.get(r.data_referencia) ?? [];
