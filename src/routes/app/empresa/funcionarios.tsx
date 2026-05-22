@@ -138,14 +138,20 @@ function FuncionariosPage() {
             <ul className="divide-y">
               {filtered.map((f) => (
                 <li key={f.id} className="flex items-center gap-3 p-3 hover:bg-muted/50">
-                  <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0">
-                    {f.foto_url ? <img src={f.foto_url} className="h-full w-full object-cover" /> : <UserCircle2 className="h-6 w-6 text-muted-foreground" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{f.nome}</div>
-                    <div className="text-xs text-muted-foreground truncate">{f.cargo ?? "—"} · {f.email ?? f.cpf ?? "—"}</div>
-                  </div>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${statusColor[f.status] ?? "bg-muted"}`}>{f.status}</span>
+                  <Link
+                    to="/app/empresa/funcionarios/$id"
+                    params={{ id: f.id }}
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                  >
+                    <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0">
+                      {f.foto_url ? <img src={f.foto_url} className="h-full w-full object-cover" /> : <UserCircle2 className="h-6 w-6 text-muted-foreground" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{f.nome}</div>
+                      <div className="text-xs text-muted-foreground truncate">{f.cargo ?? "—"} · {f.email ?? f.cpf ?? "—"}</div>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${statusColor[f.status] ?? "bg-muted"}`}>{f.status}</span>
+                  </Link>
                   {isAdmin && (
                     <div className="hidden sm:flex gap-1">
                       {f.status !== "ativo" && (
