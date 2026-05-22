@@ -320,13 +320,9 @@ export function gerarPdfCartao(opts: {
             j.tipo.afeta_assiduidade !== "nao",
         ));
     for (const i of irregs) {
-      // Créditos são somados pelo bancoHorasMinutos do dia,
-      // para não duplicar o crédito automático no rodapé do PDF.
-      if (i.debito) {
-        debitos += i.qtde;
-        if (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA") {
-          horasBenef += i.qtde;
-        }
+      // Crédito/débito do rodapé vem de bancoHorasMinutos para não duplicar valores.
+      if (i.debito && (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA")) {
+        horasBenef += i.qtde;
       }
     }
 
