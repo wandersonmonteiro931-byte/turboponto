@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Search, UserCircle2, Power, PowerOff } from "lucide-react";
+import { Plus, Search, UserCircle2, Power, PowerOff, Pencil } from "lucide-react";
 import { criarFuncionario } from "@/lib/funcionarios.functions";
 import { getAccessToken } from "@/lib/session";
 
