@@ -85,14 +85,14 @@ type Irregularidade = { label: string; qtde: number; credito: boolean; debito: b
 function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
   const out: Irregularidade[] = [];
   const entDiff = minDiff(d.programado.entrada, d.registrado.entrada);
-  if (entDiff != null && Math.abs(entDiff) > tolMin) {
+  if (entDiff != null && entDiff !== 0) {
     if (entDiff > 0)
       out.push({ label: "ATRASO", qtde: entDiff, credito: false, debito: true });
     else
-      out.push({ label: "ENTRADA ANTECIPADA", qtde: -entDiff, credito: false, debito: false });
+      out.push({ label: "ENTRADA ANTECIPADA", qtde: -entDiff, credito: true, debito: false });
   }
   const saiDiff = minDiff(d.programado.saida_final, d.registrado.saida_final);
-  if (saiDiff != null && Math.abs(saiDiff) > tolMin) {
+  if (saiDiff != null && (saiDiff > 10 || saiDiff < 0)) {
     if (saiDiff > 0)
       out.push({ label: "HORA EXTRA", qtde: saiDiff, credito: true, debito: false });
     else
