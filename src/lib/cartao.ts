@@ -21,6 +21,7 @@ export type DiaCartao = {
   trabalhadoMinutos: number;
   extrasMinutos: number;
   falta: boolean;
+  pendente: boolean;
   observacao: string | null;
 };
 
