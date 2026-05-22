@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Download, Lock, Unlock, CheckCircle2, FileText } from "lucide-react";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type DiaCartao, type ResumoCartao } from "@/lib/cartao";
-import { gerarPdfCartao } from "@/lib/cartao-pdf";
+import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
 import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
 import { AplicarJustificativaDialog } from "@/components/AplicarJustificativaDialog";
 import type { TipoPonto } from "@/lib/ponto";
@@ -139,7 +139,8 @@ function CartaoEmpresaPage() {
         resumo: resumoAtual,
         status: cartao?.status ?? "aberto",
       });
-      doc.save(`cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+      salvarPdfArquivo(doc, `cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+      toast.success("PDF gerado.");
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
