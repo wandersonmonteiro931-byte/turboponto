@@ -29,8 +29,9 @@ export type JornadaInfo = {
 };
 
 export function abrirJanelaPdf(): Window | null {
-  const janela = window.open("", "_blank", "noopener,noreferrer");
+  const janela = window.open("", "_blank");
   if (janela) {
+    janela.opener = null;
     janela.document.write("<p style='font-family: sans-serif'>Gerando PDF...</p>");
   }
   return janela;
