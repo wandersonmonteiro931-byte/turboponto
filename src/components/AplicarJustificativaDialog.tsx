@@ -9,79 +9,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
 
-async function preencherMarcacoesFaltantes(
-  empresaId: string,
-  funcionarioId: string,
-  dataISO: string,
-) {
-  // Descobre jornada ativa do funcionário (vínculo mais recente)
-  const { data: vinc, error: vincErr } = await supabase
-    .from("funcionarios_jornadas")
-    .select("jornada_id")
-    .eq("funcionario_id", funcionarioId)
-    .eq("ativo", true)
-    .order("data_inicio", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (vincErr) throw vincErr;
-  if (!vinc?.jornada_id) {
-    throw new Error("Funcionário sem jornada ativa: cadastre a jornada antes de aplicar essa justificativa.");
-  }
-
-  const diaSemana = new Date(`${dataISO}T12:00:00`).getDay();
-  const { data: jd, error: jdErr } = await supabase
-    .from("jornadas_dias")
-    .select("trabalha,horario_entrada,horario_intervalo_saida,horario_intervalo_retorno,horario_saida")
-    .eq("jornada_id", vinc.jornada_id)
-    .eq("dia_semana", diaSemana)
-    .maybeSingle();
-  if (jdErr) throw jdErr;
-  if (!jd || !jd.trabalha) {
-    throw new Error("Esse dia da semana não está marcado como dia de trabalho na jornada.");
-  }
-
-  const mapa: Array<{ tipo: TipoPontoKey; hora: string | null }> = [
-    { tipo: "entrada", hora: jd.horario_entrada },
-    { tipo: "saida_intervalo", hora: jd.horario_intervalo_saida },
-    { tipo: "retorno_intervalo", hora: jd.horario_intervalo_retorno },
-    { tipo: "saida_final", hora: jd.horario_saida },
-  ];
-
-  const { data: existentes, error: exErr } = await supabase
-    .from("registros_ponto")
-    .select("tipo_ponto")
-    .eq("funcionario_id", funcionarioId)
-    .eq("data_referencia", dataISO)
-    .neq("status", "corrigido");
-  if (exErr) throw exErr;
-  const jaTem = new Set((existentes ?? []).map((r) => r.tipo_ponto));
-
-  const novos = mapa
-    .filter((m) => m.hora && !jaTem.has(m.tipo))
-    .map((m) => {
-      const hhmm = (m.hora ?? "00:00").slice(0, 5);
-      return {
-        empresa_id: empresaId,
-        funcionario_id: funcionarioId,
-        jornada_id: vinc.jornada_id,
-        data_referencia: dataISO,
-        tipo_ponto: m.tipo,
-        horario_programado: m.hora,
-        horario_registrado: `${dataISO} ${hhmm}:00`,
-        atraso_minutos: 0,
-        status: "no_horario",
-        origem: "sistema",
-        observacao: "Preenchido por ESQUECIMENTO REGIST COLAB",
-      };
-    });
-
-  if (!novos.length) return;
-
-  const { error: insErr } = await supabase.from("registros_ponto").insert(novos);
-  if (insErr) throw insErr;
-}
-
-type TipoPontoKey = "entrada" | "saida_intervalo" | "retorno_intervalo" | "saida_final";
+// O preenchimento das marcações faltantes do ESQUECIMENTO REGIST COLAB
+// é feito por trigger no banco (preencher_marcacoes_esquecimento_registro_trg_fn),
+// garantindo o horário previsto exato em America/Sao_Paulo.
 
 
 
@@ -186,10 +116,7 @@ export function AplicarJustificativaDialog({
       const { error } = await supabase.from("justificativas_aplicadas").insert(rows);
       if (error) throw error;
 
-      // Esquecimento de registro: preenche marcações em branco com o horário previsto
-      if (tipo.codigo === "ESQUEC_REGISTRO" && status === "aprovada") {
-        await preencherMarcacoesFaltantes(empresaId, funcionarioId, data);
-      }
+      // Esquecimento de registro: o trigger no banco preenche as marcações em branco.
 
       toast.success(status === "aprovada" ? "Justificativa aplicada" : "Justificativa registrada (aguardando aprovação)");
       onSaved();
