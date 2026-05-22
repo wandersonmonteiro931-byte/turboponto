@@ -123,7 +123,7 @@ export function EditarPontoDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Editar registro de ponto</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Tipo</Label>
               <Select value={tipo} onValueChange={setTipo}>
@@ -132,6 +132,10 @@ export function EditarPontoDialog({
                   {TIPOS_PONTO.map((t) => <SelectItem key={t.v} value={t.v}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Data</Label>
+              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
             </div>
             <div>
               <Label className="text-xs">Horário</Label>
