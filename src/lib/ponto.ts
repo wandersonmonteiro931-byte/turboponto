@@ -126,6 +126,18 @@ export function hojeISO(): string {
 }
 
 /**
+ * Data do "dia comercial" — considera madrugada (antes das 06:00) como
+ * continuação do dia anterior. Útil para jornadas noturnas que terminam
+ * após a meia-noite.
+ */
+export function diaComercialISO(agora: Date = new Date()): string {
+  const d = new Date(agora);
+  if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * Status geral da jornada do dia para exibir na home / bater-ponto.
  */
 export function statusJornadaHoje(

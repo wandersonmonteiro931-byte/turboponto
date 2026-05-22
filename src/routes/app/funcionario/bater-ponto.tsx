@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { JornadaDia } from "@/lib/jornadas";
 import {
   TipoPonto, tipoLabel, statusLabel, statusColor,
-  inferirTipo, avaliar, hojeISO, statusJornadaHoje,
+  inferirTipo, avaliar, diaComercialISO, statusJornadaHoje,
 } from "@/lib/ponto";
 
 export const Route = createFileRoute("/app/funcionario/bater-ponto")({
@@ -82,10 +82,14 @@ function BaterPontoPage() {
     const j = (vinc as { jornadas: JornadaInfo | null } | null)?.jornadas ?? null;
     setJornada(j);
 
+    // Dia comercial: madrugada (< 06:00) conta como dia anterior
+    const dataComercial = diaComercialISO(new Date());
+    const diaSemanaComercial = new Date(`${dataComercial}T12:00:00`).getDay();
+
     if (j) {
       const { data: dias } = await supabase
         .from("jornadas_dias").select("*").eq("jornada_id", j.id);
-      const hoje = (dias ?? []).find((d) => (d as JornadaDia).dia_semana === new Date().getDay()) as JornadaDia | undefined;
+      const hoje = (dias ?? []).find((d) => (d as JornadaDia).dia_semana === diaSemanaComercial) as JornadaDia | undefined;
       setDia(hoje ?? null);
     }
 
@@ -93,7 +97,7 @@ function BaterPontoPage() {
       .from("registros_ponto")
       .select("id,tipo_ponto,horario_registrado,horario_programado,atraso_minutos,status")
       .eq("funcionario_id", f.id)
-      .eq("data_referencia", hojeISO())
+      .eq("data_referencia", dataComercial)
       .neq("status", "corrigido")
       .order("horario_registrado");
     setRegistros((regs ?? []) as RegistroHoje[]);
@@ -164,7 +168,7 @@ function BaterPontoPage() {
         empresa_id: empresaId,
         funcionario_id: funcId,
         jornada_id: jornada?.id ?? null,
-        data_referencia: hojeISO(),
+        data_referencia: diaComercialISO(new Date()),
         tipo_ponto: inferido.tipo,
         horario_programado: inferido.programado,
         horario_registrado: new Date().toISOString(),
@@ -183,7 +187,7 @@ function BaterPontoPage() {
 
       // Após saída final, gera automaticamente os registros de intervalo do dia
       if (inferido.tipo === "saida_final" && dia) {
-        const dataRef = hojeISO();
+        const dataRef = diaComercialISO(new Date());
         const jaTipos = registros.map((r) => r.tipo_ponto);
         const autos: Array<{ tipo: TipoPonto; hora: string }> = [];
         if (dia.horario_intervalo_saida && !jaTipos.includes("saida_intervalo")) {
