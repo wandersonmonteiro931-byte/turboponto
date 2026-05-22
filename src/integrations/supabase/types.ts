@@ -139,6 +139,48 @@ export type Database = {
           },
         ]
       }
+      banco_horas_movimentos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          justificativa_aplicada_id: string | null
+          minutos: number
+          observacao: string | null
+          origem: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          justificativa_aplicada_id?: string | null
+          minutos: number
+          observacao?: string | null
+          origem?: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          justificativa_aplicada_id?: string | null
+          minutos?: number
+          observacao?: string | null
+          origem?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       beneficios: {
         Row: {
           created_at: string
