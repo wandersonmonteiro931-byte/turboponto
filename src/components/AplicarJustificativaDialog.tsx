@@ -8,6 +8,69 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
+type TipoPontoKey = "entrada" | "saida_intervalo" | "retorno_intervalo" | "saida_final";
+
+async function preencherMarcacoesFaltantes(
+  empresaId: string,
+  funcionarioId: string,
+  dataISO: string,
+) {
+  // Descobre jornada ativa do funcionário
+  const { data: vinc } = await supabase
+    .from("funcionarios_jornadas")
+    .select("jornada_id")
+    .eq("funcionario_id", funcionarioId)
+    .eq("ativo", true)
+    .order("data_inicio", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!vinc?.jornada_id) return;
+
+  const diaSemana = new Date(`${dataISO}T12:00:00`).getDay();
+  const { data: jd } = await supabase
+    .from("jornadas_dias")
+    .select("trabalha,horario_entrada,horario_intervalo_saida,horario_intervalo_retorno,horario_saida")
+    .eq("jornada_id", vinc.jornada_id)
+    .eq("dia_semana", diaSemana)
+    .maybeSingle();
+  if (!jd || !jd.trabalha) return;
+
+  const mapa: Array<{ tipo: TipoPontoKey; hora: string | null }> = [
+    { tipo: "entrada", hora: jd.horario_entrada },
+    { tipo: "saida_intervalo", hora: jd.horario_intervalo_saida },
+    { tipo: "retorno_intervalo", hora: jd.horario_intervalo_retorno },
+    { tipo: "saida_final", hora: jd.horario_saida },
+  ];
+
+  const { data: existentes } = await supabase
+    .from("registros_ponto")
+    .select("tipo_ponto")
+    .eq("funcionario_id", funcionarioId)
+    .eq("data_referencia", dataISO)
+    .neq("status", "corrigido");
+  const jaTem = new Set((existentes ?? []).map((r) => r.tipo_ponto));
+
+  const novos = mapa
+    .filter((m) => m.hora && !jaTem.has(m.tipo))
+    .map((m) => ({
+      empresa_id: empresaId,
+      funcionario_id: funcionarioId,
+      jornada_id: vinc.jornada_id,
+      data_referencia: dataISO,
+      tipo_ponto: m.tipo,
+      horario_programado: m.hora,
+      horario_registrado: `${dataISO}T${(m.hora ?? "00:00").slice(0, 5)}:00`,
+      atraso_minutos: 0,
+      status: "no_horario",
+      origem: "sistema",
+      observacao: "Preenchido por ESQUECIMENTO REGIST COLAB",
+    }));
+
+  if (novos.length) {
+    await supabase.from("registros_ponto").insert(novos);
+  }
+}
+
 
 type Props = {
   open: boolean;
