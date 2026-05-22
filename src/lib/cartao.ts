@@ -278,13 +278,15 @@ export async function carregarCartao(
         reg.retorno_intervalo = prog.retorno_intervalo;
     }
 
-    // Entrada em atraso = débito pelo tempo exato após o horário previsto.
+    // Atraso = soma das entradas (entrada + retorno) após tolerância
     let atraso = 0;
-    const entradaPrevistaMin = hm(prog.entrada);
-    const entradaRealMin = hm(reg.entrada);
-    if (entradaPrevistaMin != null && entradaRealMin != null) {
-      const diff = diffRelogioAssinado(entradaPrevistaMin, entradaRealMin);
-      if (diff > 0) atraso = diff;
+    for (const k of ["entrada", "retorno_intervalo"] as const) {
+      const p = hm(prog[k]);
+      const r = hm(reg[k]);
+      if (p != null && r != null) {
+        const diff = diffRelogioAssinado(p, r);
+        if (diff > toleranciaMin) atraso += diff;
+      }
     }
 
     // Trabalhado = (saida_final - entrada) - (retorno - saida_intervalo)
@@ -312,23 +314,21 @@ export async function carregarCartao(
 
     // Créditos/débitos por categoria (regra solicitada):
     // - Entrada antecipada → CRÉDITO
-    // - Entrada em atraso  → DÉBITO
     // - Saída antecipada   → DÉBITO
-    // - Hora extra somente após +10min do horário previsto de saída → CRÉDITO
+    // - Entrada em atraso  → DÉBITO (já contabilizado em "atraso")
+    // - Hora extra: somente após o horário previsto de saída + 10 minutos → CRÉDITO
     const LIMITE_EXTRA_MIN = 10;
     let creditoEntradaAntec = 0;
-    let debitoEntradaAtraso = 0;
     let debitoSaidaAntec = 0;
     let creditoHoraExtra = 0;
     if (pe != null && e != null) {
       const diffE = diffRelogioAssinado(pe, e);
-      if (diffE < 0) creditoEntradaAntec = -diffE;
-      else if (diffE > 0) debitoEntradaAtraso = diffE;
+      if (diffE < -toleranciaMin) creditoEntradaAntec = -diffE;
     }
     if (psf != null && sf != null) {
       const diffS = diffRelogioAssinado(psf, sf);
       if (diffS > LIMITE_EXTRA_MIN) creditoHoraExtra = diffS;
-      else if (diffS < 0) debitoSaidaAntec = -diffS;
+      else if (diffS < -toleranciaMin) debitoSaidaAntec = -diffS;
     }
     let extras = creditoHoraExtra;
 
@@ -412,12 +412,12 @@ export async function carregarCartao(
     // Crédito automático por entrada antecipada (sempre crédito, independe de HE_PAGAR).
     bancoHorasMin += creditoEntradaAntec;
 
-    // Débitos automáticos: falta injustificada, entrada em atraso e saída antecipada viram débito de BH.
+    // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
     if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
         bancoHorasMin -= cargaProg;
       } else {
-        const debitoAutomatico = debitoEntradaAtraso + debitoSaidaAntec;
+        const debitoAutomatico = atraso + debitoSaidaAntec;
         bancoHorasMin -= Math.max(0, debitoAutomatico);
       }
     }

@@ -85,14 +85,14 @@ type Irregularidade = { label: string; qtde: number; credito: boolean; debito: b
 function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
   const out: Irregularidade[] = [];
   const entDiff = minDiff(d.programado.entrada, d.registrado.entrada);
-  if (entDiff != null && entDiff !== 0) {
+  if (entDiff != null && Math.abs(entDiff) > tolMin) {
     if (entDiff > 0)
       out.push({ label: "ATRASO", qtde: entDiff, credito: false, debito: true });
     else
-      out.push({ label: "ENTRADA ANTECIPADA", qtde: -entDiff, credito: true, debito: false });
+      out.push({ label: "ENTRADA ANTECIPADA", qtde: -entDiff, credito: false, debito: false });
   }
   const saiDiff = minDiff(d.programado.saida_final, d.registrado.saida_final);
-  if (saiDiff != null && (saiDiff > 10 || saiDiff < 0)) {
+  if (saiDiff != null && Math.abs(saiDiff) > tolMin) {
     if (saiDiff > 0)
       out.push({ label: "HORA EXTRA", qtde: saiDiff, credito: true, debito: false });
     else
@@ -320,9 +320,13 @@ export function gerarPdfCartao(opts: {
             j.tipo.afeta_assiduidade !== "nao",
         ));
     for (const i of irregs) {
-      // Crédito/débito do rodapé vem de bancoHorasMinutos para não duplicar valores.
-      if (i.debito && (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA")) {
-        horasBenef += i.qtde;
+      // Créditos de hora extra são somados pelo bancoHorasMinutos do dia,
+      // para não duplicar o crédito automático no rodapé do PDF.
+      if (i.debito) {
+        debitos += i.qtde;
+        if (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA") {
+          horasBenef += i.qtde;
+        }
       }
     }
 
@@ -359,8 +363,6 @@ export function gerarPdfCartao(opts: {
               : "HORA EXTRA / CRED BH"
             : i.label === "ATRASO"
               ? "ATRASO / DEB BH"
-              : i.label === "ENTRADA ANTECIPADA"
-                ? "ENTRADA ANTECIPADA / CRED BH"
               : i.label === "SAÍDA ANTECIPADA"
                 ? "SAIDA ANTECIPADA / DEB BH"
                 : i.label;
