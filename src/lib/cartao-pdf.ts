@@ -194,14 +194,16 @@ export function gerarPdfCartao(opts: {
     let justMain = "";
     let realEntrMain = "";
     let realSaidaMain = "";
+    let marcacaoNaoRegistrada = false;
 
     const subs: SubLinha[] = [];
     if (!d.trabalha) {
       irregMain = "FOLGA";
     } else if (d.falta) {
       irregMain = "Falta";
+      justMain = d.observacao ?? "";
     } else if (d.pendente) {
-      irregMain = "Pendente";
+      marcacaoNaoRegistrada = true;
     } else {
       const irregs = irregularidadesDoDia(d);
       if (irregs.length > 0) {
@@ -218,15 +220,25 @@ export function gerarPdfCartao(opts: {
       }
     }
 
-    doc.text(
-      linha([
-        diaSem, dataStr, codeJ, escala,
-        progE, progSI, progRI, progSF,
-        realEntrMain, realSaidaMain,
-        irregMain, qtdeMain, justMain, "",
-      ]),
-      ML, y,
-    );
+    if (marcacaoNaoRegistrada) {
+      doc.text(
+        linha([diaSem, dataStr, codeJ, escala, "", "", "", "", "", "", "", "", "", ""]),
+        ML, y,
+      );
+      // posicao aproximada da coluna "Marcacao do Ponto" (apos Dia+Data+Hora+Esca = 4+9+7+5 chars)
+      // largura de char ~1.6mm em courier 8pt
+      doc.text("MARCACAO NAO REGISTRADA", ML + (4 + 9 + 7 + 5) * 1.6, y);
+    } else {
+      doc.text(
+        linha([
+          diaSem, dataStr, codeJ, escala,
+          progE, progSI, progRI, progSF,
+          realEntrMain, realSaidaMain,
+          irregMain, qtdeMain, justMain, "",
+        ]),
+        ML, y,
+      );
+    }
     y += rowH;
 
     for (const s of subs) {
