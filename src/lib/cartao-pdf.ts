@@ -262,7 +262,7 @@ export function gerarPdfCartao(opts: {
         data: dataStr,
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA / DSR",
+        irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
       });
       for (const j of d.justificativas ?? []) {
         drawRow({
