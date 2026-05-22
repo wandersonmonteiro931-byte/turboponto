@@ -345,11 +345,14 @@ export async function carregarCartao(
       if (agoraMin < fimMin) aindaDentroDoExpediente = true;
     }
 
+    const isFuturo = data > todayStr;
     const semRegistro = trabalha && regs.length === 0;
     let falta = semRegistro && setFaltas.has(data);
-    let pendente = semRegistro && !falta && !aindaDentroDoExpediente;
+    let pendente = semRegistro && !falta && !aindaDentroDoExpediente && !isFuturo;
     const faltaRegistrada = falta;
-    const marcacaoNaoRegistrada = semRegistro && !aindaDentroDoExpediente;
+    // "Marcação não registrada" agora é exclusivo de dias futuros.
+    // Dias passados sem registro viram débito automático de banco de horas.
+    const marcacaoNaoRegistrada = semRegistro && isFuturo;
     let bancoHorasMin = 0;
 
     // Aplica regras das justificativas, mas mantém todas registradas para exibição no PDF
@@ -415,6 +418,15 @@ export async function carregarCartao(
     // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
     if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
+        bancoHorasMin -= cargaProg;
+      } else if (
+        semRegistro &&
+        !isFuturo &&
+        !aindaDentroDoExpediente &&
+        justificativas.length === 0 &&
+        cargaProg > 0
+      ) {
+        // Dia passado sem nenhuma marcação e sem justificativa → débito da carga prevista.
         bancoHorasMin -= cargaProg;
       } else {
         const debitoAutomatico = atraso + debitoSaidaAntec;
