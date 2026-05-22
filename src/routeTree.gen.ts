@@ -34,6 +34,7 @@ import { Route as AppEmpresaEmpresaRouteImport } from './routes/app/empresa/empr
 import { Route as AppEmpresaConfiguracoesRouteImport } from './routes/app/empresa/configuracoes'
 import { Route as AppEmpresaCartaoPontoRouteImport } from './routes/app/empresa/cartao-ponto'
 import { Route as AppEmpresaBeneficiosRouteImport } from './routes/app/empresa/beneficios'
+import { Route as AppEmpresaFuncionariosIdRouteImport } from './routes/app/empresa/funcionarios.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -163,6 +164,12 @@ const AppEmpresaBeneficiosRoute = AppEmpresaBeneficiosRouteImport.update({
   path: '/beneficios',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
+const AppEmpresaFuncionariosIdRoute =
+  AppEmpresaFuncionariosIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AppEmpresaFuncionariosRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -176,7 +183,7 @@ export interface FileRoutesByFullPath {
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
-  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRoute
+  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRouteWithChildren
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
+  '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -200,7 +208,7 @@ export interface FileRoutesByTo {
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
-  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRoute
+  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRouteWithChildren
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
@@ -214,6 +222,7 @@ export interface FileRoutesByTo {
   '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa': typeof AppEmpresaIndexRoute
   '/app/funcionario': typeof AppFuncionarioIndexRoute
+  '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -228,7 +237,7 @@ export interface FileRoutesById {
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
-  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRoute
+  '/app/empresa/funcionarios': typeof AppEmpresaFuncionariosRouteWithChildren
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/registros': typeof AppEmpresaRegistrosRoute
@@ -242,6 +251,7 @@ export interface FileRoutesById {
   '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa/': typeof AppEmpresaIndexRoute
   '/app/funcionario/': typeof AppFuncionarioIndexRoute
+  '/app/empresa/funcionarios/$id': typeof AppEmpresaFuncionariosIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/app/funcionario/registros'
     | '/app/empresa/'
     | '/app/funcionario/'
+    | '/app/empresa/funcionarios/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/app/funcionario/registros'
     | '/app/empresa'
     | '/app/funcionario'
+    | '/app/empresa/funcionarios/$id'
   id:
     | '__root__'
     | '/'
@@ -322,6 +334,7 @@ export interface FileRouteTypes {
     | '/app/funcionario/registros'
     | '/app/empresa/'
     | '/app/funcionario/'
+    | '/app/empresa/funcionarios/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -507,8 +520,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaBeneficiosRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
+    '/app/empresa/funcionarios/$id': {
+      id: '/app/empresa/funcionarios/$id'
+      path: '/$id'
+      fullPath: '/app/empresa/funcionarios/$id'
+      preLoaderRoute: typeof AppEmpresaFuncionariosIdRouteImport
+      parentRoute: typeof AppEmpresaFuncionariosRoute
+    }
   }
 }
+
+interface AppEmpresaFuncionariosRouteChildren {
+  AppEmpresaFuncionariosIdRoute: typeof AppEmpresaFuncionariosIdRoute
+}
+
+const AppEmpresaFuncionariosRouteChildren: AppEmpresaFuncionariosRouteChildren =
+  {
+    AppEmpresaFuncionariosIdRoute: AppEmpresaFuncionariosIdRoute,
+  }
+
+const AppEmpresaFuncionariosRouteWithChildren =
+  AppEmpresaFuncionariosRoute._addFileChildren(
+    AppEmpresaFuncionariosRouteChildren,
+  )
 
 interface AppEmpresaRouteChildren {
   AppEmpresaBeneficiosRoute: typeof AppEmpresaBeneficiosRoute
@@ -516,7 +550,7 @@ interface AppEmpresaRouteChildren {
   AppEmpresaConfiguracoesRoute: typeof AppEmpresaConfiguracoesRoute
   AppEmpresaEmpresaRoute: typeof AppEmpresaEmpresaRoute
   AppEmpresaFechamentoRoute: typeof AppEmpresaFechamentoRoute
-  AppEmpresaFuncionariosRoute: typeof AppEmpresaFuncionariosRoute
+  AppEmpresaFuncionariosRoute: typeof AppEmpresaFuncionariosRouteWithChildren
   AppEmpresaHoleritesRoute: typeof AppEmpresaHoleritesRoute
   AppEmpresaJornadasRoute: typeof AppEmpresaJornadasRoute
   AppEmpresaRegistrosRoute: typeof AppEmpresaRegistrosRoute
@@ -530,7 +564,7 @@ const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
   AppEmpresaConfiguracoesRoute: AppEmpresaConfiguracoesRoute,
   AppEmpresaEmpresaRoute: AppEmpresaEmpresaRoute,
   AppEmpresaFechamentoRoute: AppEmpresaFechamentoRoute,
-  AppEmpresaFuncionariosRoute: AppEmpresaFuncionariosRoute,
+  AppEmpresaFuncionariosRoute: AppEmpresaFuncionariosRouteWithChildren,
   AppEmpresaHoleritesRoute: AppEmpresaHoleritesRoute,
   AppEmpresaJornadasRoute: AppEmpresaJornadasRoute,
   AppEmpresaRegistrosRoute: AppEmpresaRegistrosRoute,
