@@ -373,6 +373,7 @@ export function gerarPdfCartao(opts: {
         linhas.push({ label: "TRABALHADO", qtde: fmtMinHHMM(d.trabalhadoMinutos) });
       }
     }
+    const debitoJaRepresentadoPelaFalta = faltaInjustificada && d.bancoHorasMinutos < 0;
     if (d.bancoHorasMinutos > 0) {
       creditos += d.bancoHorasMinutos;
       linhas.push({
@@ -382,11 +383,13 @@ export function gerarPdfCartao(opts: {
     }
     if (d.bancoHorasMinutos < 0) {
       debitos += -d.bancoHorasMinutos;
-      horasBenef += -d.bancoHorasMinutos;
-      linhas.push({
-        label: "DÉBITO BCO DE HORAS",
-        qtde: fmtMinHHMM(-d.bancoHorasMinutos),
-      });
+      if (!debitoJaRepresentadoPelaFalta) {
+        horasBenef += -d.bancoHorasMinutos;
+        linhas.push({
+          label: "DÉBITO BCO DE HORAS",
+          qtde: fmtMinHHMM(-d.bancoHorasMinutos),
+        });
+      }
     }
     if (linhas.length === 0) linhas.push({ label: "", qtde: "" });
 
