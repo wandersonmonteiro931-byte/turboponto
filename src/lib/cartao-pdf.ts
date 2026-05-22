@@ -246,7 +246,7 @@ export function gerarPdfCartao(opts: {
       });
       for (const j of d.justificativas ?? []) {
         drawRow({
-          just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
+          just: j.tipo.nome,
           qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
         });
       }
