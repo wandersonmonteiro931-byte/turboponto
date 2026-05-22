@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Download, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type ResumoCartao } from "@/lib/cartao";
-import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
+import { abrirJanelaPdf, gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
 
 export const Route = createFileRoute("/app/funcionario/cartao-ponto")({
   component: CartaoFuncPage,
@@ -56,8 +56,10 @@ function CartaoFuncPage() {
   const liberado = cartao?.status === "liberado";
 
   const baixarPdf = async () => {
+    const janelaPdf = abrirJanelaPdf();
     try {
       if (!funcionario) {
+        if (janelaPdf && !janelaPdf.closed) janelaPdf.close();
         console.warn("PDF: funcionário não carregado");
         return;
       }
@@ -92,9 +94,10 @@ function CartaoFuncPage() {
         ano, mes, resumo: resumoAtual,
         status: cartao?.status ?? "aberto",
       });
-      salvarPdfArquivo(doc, `cartao-${funcionario.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+      salvarPdfArquivo(doc, `cartao-${funcionario.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`, janelaPdf);
       toast.success("PDF gerado.");
     } catch (e) {
+      if (janelaPdf && !janelaPdf.closed) janelaPdf.close();
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
     }
