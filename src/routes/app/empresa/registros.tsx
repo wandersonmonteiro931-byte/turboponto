@@ -100,9 +100,14 @@ function RegistrosPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">Registros de ponto</h2>
-        <p className="text-sm text-muted-foreground">Acompanhe todas as marcações dos funcionários.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold">Registros de ponto</h2>
+          <p className="text-sm text-muted-foreground">Acompanhe todas as marcações dos funcionários.</p>
+        </div>
+        {podeEditar && (
+          <Button onClick={() => setInserindo(true)}><Plus className="h-4 w-4 mr-1" />Inserir ponto</Button>
+        )}
       </div>
 
       <Card>
