@@ -207,29 +207,23 @@ export function gerarPdfCartao(opts: {
 
     const totalLinhas = Math.max(eventos.length, justificativas.length, 1);
 
-    // Linha principal (1ª): traz dia/data/programado + 1º evento + justificativa
     const progE = d.programado.entrada?.slice(0, 5) ?? "";
     const progSI = d.programado.saida_intervalo?.slice(0, 5) ?? "";
     const progRI = d.programado.retorno_intervalo?.slice(0, 5) ?? "";
     const progSF = d.programado.saida_final?.slice(0, 5) ?? "";
 
-    const e0 = eventos[0];
-    doc.text(
-      linha([
-        diaSem, dataStr, codeJ, escala,
-        progE, progSI, progRI, progSF,
-        e0.realEntr, e0.realSaida,
-        e0.irreg, e0.qtde, justSupervisor, "",
-      ]),
-      ML, y,
-    );
-    y += rowH;
-
-    // Linhas adicionais para os demais eventos
-    for (let k = 1; k < eventos.length; k++) {
-      const ev = eventos[k];
+    for (let k = 0; k < totalLinhas; k++) {
+      const ev = eventos[k] ?? { realEntr: "", realSaida: "", irreg: "", qtde: "", just: "" };
+      const just = justificativas[k] ?? { just: "", qtde: "" };
+      const marcacaoEntr = ev.marcacao ? "MARCAC" : ev.realEntr;
+      const marcacaoSaida = ev.marcacao ? "NAO REG" : ev.realSaida;
       doc.text(
-        linha(["", "", "", "", "", "", "", "", ev.realEntr, ev.realSaida, ev.irreg, ev.qtde, justSupervisor, ""]),
+        linha([
+          k === 0 ? diaSem : "", k === 0 ? dataStr : "", k === 0 ? codeJ : "", k === 0 ? escala : "",
+          k === 0 ? progE : "", k === 0 ? progSI : "", k === 0 ? progRI : "", k === 0 ? progSF : "",
+          marcacaoEntr, marcacaoSaida,
+          ev.irreg, just.qtde || ev.qtde, just.just, "",
+        ]),
         ML, y,
       );
       y += rowH;
