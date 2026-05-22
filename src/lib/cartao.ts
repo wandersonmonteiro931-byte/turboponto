@@ -183,8 +183,8 @@ export async function carregarCartao(
       return x.toISOString().slice(0, 10);
     })();
     const semRegistro = trabalha && regs.length === 0;
-    const falta = semRegistro && data < hojeStr;
-    const pendente = semRegistro && data >= hojeStr;
+    const falta = semRegistro && data <= hojeStr;
+    const pendente = semRegistro && data > hojeStr;
     if (falta) totalFaltas += 1;
     totalAtraso += atraso;
     totalTrabalhado += trabalhado;
