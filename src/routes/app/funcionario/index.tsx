@@ -234,6 +234,21 @@ function Bloc({ label, v }: { label: string; v: string }) {
   );
 }
 
+function InfoCard({ icon: Icon, label, value, accent }: { icon: typeof Clock; label: string; value: string | number; accent: string }) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+        <CardTitle className="text-xs font-medium text-muted-foreground leading-tight">{label}</CardTitle>
+        <Icon className={`h-4 w-4 shrink-0 ${accent}`} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-xl font-bold tabular-nums">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 function Shortcut({ to, icon: Icon, label }: { to: string; icon: typeof Clock; label: string }) {
   return (
     <Link to={to}>
