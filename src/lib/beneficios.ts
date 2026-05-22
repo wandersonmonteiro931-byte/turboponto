@@ -167,18 +167,21 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
   // afeta_assiduidade='sim' = conta como ocorrência (não abona)
   // afeta_assiduidade='nao' = não afeta (abona)
   // afeta_assiduidade='configuravel' = segue abona_ocorrencia do tipo
-  const abonaPorJust = (j: JA | undefined): boolean => {
-    if (!j) return false;
+  const abonaPorJust = (justs: JA[] | undefined): boolean => {
+    if (!justs?.length) return false;
+    return justs.some((j) => {
     const t = j.justificativas_tipos;
     if (!t) return false;
     if (t.afeta_assiduidade === "nao") return true;
     if (t.afeta_assiduidade === "sim") return false;
     return t.abona_ocorrencia === true;
+    });
   };
 
   const calculos: CalculoBeneficio[] = (funcs ?? []).map((f) => {
     const regs = (registros ?? []).filter((r) => r.funcionario_id === f.id);
-    const justMap = justPorFunc.get(f.id) ?? new Map<string, JA>();
+    const justMap = justPorFunc.get(f.id) ?? new Map<string, JA[]>();
+    const faltasManualSet = faltasManualPorFunc.get(f.id) ?? new Set<string>();
 
     // atraso ignora dias abonados por justificativa
     const regsConsiderados = regs.filter((r) => !abonaPorJust(justMap.get(r.data_referencia)));
@@ -186,15 +189,16 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     const diasComAtraso = new Set(regsConsiderados.filter((r) => (r.atraso_minutos || 0) > 0).map((r) => r.data_referencia)).size;
 
     const jornadaId = jornadaPorFunc.get(f.id);
-    const diasUteis = jornadaId ? diasPorJornada.get(jornadaId) ?? new Set<number>() : new Set<number>();
+    const diasUteis = jornadaId ? diasPorJornada.get(jornadaId) ?? new Map<number, JornadaDiaBenef>() : new Map<number, JornadaDiaBenef>();
     const datasComEntrada = new Set(
       regs.filter((r) => r.tipo_ponto === "entrada").map((r) => r.data_referencia),
     );
     let faltas = 0;
     if (jornadaId) {
       for (const { iso, dow } of todasDatas) {
-        if (!diasUteis.has(dow)) continue;
-        if (datasComEntrada.has(iso)) continue;
+        const diaJornada = diasUteis.get(dow);
+        if (!diaJornada?.trabalha) continue;
+        if (!faltasManualSet.has(iso) && datasComEntrada.has(iso)) continue;
         // se há justificativa que abona, não conta falta
         if (abonaPorJust(justMap.get(iso))) continue;
         faltas++;
