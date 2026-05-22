@@ -53,6 +53,92 @@ export type Database = {
         }
         Relationships: []
       }
+      avisos: {
+        Row: {
+          cargo_destino: string | null
+          created_at: string
+          criado_por: string
+          empresa_id: string
+          funcionario_id: string | null
+          id: string
+          mensagem: string
+          status: string
+          tipo_destino: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          cargo_destino?: string | null
+          created_at?: string
+          criado_por: string
+          empresa_id: string
+          funcionario_id?: string | null
+          id?: string
+          mensagem: string
+          status?: string
+          tipo_destino?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          cargo_destino?: string | null
+          created_at?: string
+          criado_por?: string
+          empresa_id?: string
+          funcionario_id?: string | null
+          id?: string
+          mensagem?: string
+          status?: string
+          tipo_destino?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avisos_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      avisos_leituras: {
+        Row: {
+          aviso_id: string
+          funcionario_id: string
+          id: string
+          lido_em: string
+        }
+        Insert: {
+          aviso_id: string
+          funcionario_id: string
+          id?: string
+          lido_em?: string
+        }
+        Update: {
+          aviso_id?: string
+          funcionario_id?: string
+          id?: string
+          lido_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avleit_aviso_fk"
+            columns: ["aviso_id"]
+            isOneToOne: false
+            referencedRelation: "avisos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avleit_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beneficios: {
         Row: {
           created_at: string
@@ -159,7 +245,22 @@ export type Database = {
           updated_at?: string
           valor_estimado?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bencalc_beneficio_fk"
+            columns: ["beneficio_id"]
+            isOneToOne: false
+            referencedRelation: "beneficios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bencalc_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beneficios_entregas: {
         Row: {
@@ -207,7 +308,22 @@ export type Database = {
           recibo_pdf_url?: string | null
           valor_estimado?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "benent_beneficio_fk"
+            columns: ["beneficio_id"]
+            isOneToOne: false
+            referencedRelation: "beneficios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "benent_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beneficios_logs: {
         Row: {
@@ -528,6 +644,62 @@ export type Database = {
             columns: ["jornada_id"]
             isOneToOne: false
             referencedRelation: "jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      holerites: {
+        Row: {
+          acessado_em: string | null
+          ano_referencia: number
+          created_at: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          liberado: boolean
+          liberado_em: string | null
+          liberado_por: string | null
+          mes_referencia: number
+          pdf_url: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acessado_em?: string | null
+          ano_referencia: number
+          created_at?: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          liberado?: boolean
+          liberado_em?: string | null
+          liberado_por?: string | null
+          mes_referencia: number
+          pdf_url: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acessado_em?: string | null
+          ano_referencia?: number
+          created_at?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          liberado?: boolean
+          liberado_em?: string | null
+          liberado_por?: string | null
+          mes_referencia?: number
+          pdf_url?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holerites_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
             referencedColumns: ["id"]
           },
         ]
