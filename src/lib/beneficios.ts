@@ -83,6 +83,27 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     .lte("data_referencia", fim);
   if (e2) throw e2;
 
+  // justificativas aprovadas no período (com tipo)
+  const { data: justAplic } = await supabase
+    .from("justificativas_aplicadas")
+    .select("funcionario_id,data,tipo_id,justificativas_tipos(afeta_assiduidade,abona_ocorrencia,categoria)")
+    .eq("empresa_id", empresaId)
+    .eq("status", "aprovada")
+    .gte("data", inicio)
+    .lte("data", fim);
+
+  type JA = {
+    funcionario_id: string;
+    data: string;
+    justificativas_tipos: { afeta_assiduidade: string; abona_ocorrencia: boolean; categoria: string } | null;
+  };
+  const justPorFunc = new Map<string, Map<string, JA>>();
+  for (const j of (justAplic ?? []) as unknown as JA[]) {
+    const m = justPorFunc.get(j.funcionario_id) ?? new Map();
+    m.set(j.data, j);
+    justPorFunc.set(j.funcionario_id, m);
+  }
+
   const funcIds = (funcs ?? []).map((f) => f.id);
   const { data: vincs } = funcIds.length
     ? await supabase
@@ -127,10 +148,27 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     .maybeSingle();
   const fechado = fechamento?.status === "fechado";
 
+  // helper: a justificativa afeta assiduidade negativamente?
+  // afeta_assiduidade='sim' = conta como ocorrência (não abona)
+  // afeta_assiduidade='nao' = não afeta (abona)
+  // afeta_assiduidade='configuravel' = segue abona_ocorrencia do tipo
+  const abonaPorJust = (j: JA | undefined): boolean => {
+    if (!j) return false;
+    const t = j.justificativas_tipos;
+    if (!t) return false;
+    if (t.afeta_assiduidade === "nao") return true;
+    if (t.afeta_assiduidade === "sim") return false;
+    return t.abona_ocorrencia === true;
+  };
+
   const calculos: CalculoBeneficio[] = (funcs ?? []).map((f) => {
     const regs = (registros ?? []).filter((r) => r.funcionario_id === f.id);
-    const totalAtraso = regs.reduce((s, r) => s + (r.atraso_minutos || 0), 0);
-    const diasComAtraso = new Set(regs.filter((r) => (r.atraso_minutos || 0) > 0).map((r) => r.data_referencia)).size;
+    const justMap = justPorFunc.get(f.id) ?? new Map<string, JA>();
+
+    // atraso ignora dias abonados por justificativa
+    const regsConsiderados = regs.filter((r) => !abonaPorJust(justMap.get(r.data_referencia)));
+    const totalAtraso = regsConsiderados.reduce((s, r) => s + (r.atraso_minutos || 0), 0);
+    const diasComAtraso = new Set(regsConsiderados.filter((r) => (r.atraso_minutos || 0) > 0).map((r) => r.data_referencia)).size;
 
     const jornadaId = jornadaPorFunc.get(f.id);
     const diasUteis = jornadaId ? diasPorJornada.get(jornadaId) ?? new Set<number>() : new Set<number>();
@@ -141,7 +179,10 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     if (jornadaId) {
       for (const { iso, dow } of todasDatas) {
         if (!diasUteis.has(dow)) continue;
-        if (!datasComEntrada.has(iso)) faltas++;
+        if (datasComEntrada.has(iso)) continue;
+        // se há justificativa que abona, não conta falta
+        if (abonaPorJust(justMap.get(iso))) continue;
+        faltas++;
       }
     }
 

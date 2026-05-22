@@ -26,6 +26,7 @@ export function AplicarJustificativaDialog({
   const [tipoId, setTipoId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [dataCompensada, setDataCompensada] = useState("");
+  const [anexo, setAnexo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function AplicarJustificativaDialog({
     setObservacao("");
     setTipoId("");
     setDataCompensada("");
+    setAnexo(null);
   }, [open, empresaId]);
 
   const tipo = tipos.find((t) => t.id === tipoId);
@@ -49,6 +51,10 @@ export function AplicarJustificativaDialog({
       toast.error("Esta justificativa exige observação");
       return;
     }
+    if (tipo.exige_anexo && !anexo) {
+      toast.error("Esta justificativa exige anexo");
+      return;
+    }
     if (tipo.categoria === "troca" && !dataCompensada) {
       toast.error("Informe o dia compensado");
       return;
@@ -58,6 +64,18 @@ export function AplicarJustificativaDialog({
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Sessão expirada");
       const status = tipo.exige_aprovacao ? "pendente" : "aprovada";
+
+      let anexoUrl: string | null = null;
+      if (anexo) {
+        const ext = anexo.name.split(".").pop()?.toLowerCase() || "bin";
+        const path = `${empresaId}/${funcionarioId}/${data}-${crypto.randomUUID()}.${ext}`;
+        const up = await supabase.storage.from("justificativas-anexos").upload(path, anexo, {
+          upsert: false, contentType: anexo.type || undefined,
+        });
+        if (up.error) throw up.error;
+        anexoUrl = path;
+      }
+
       const baseRow = {
         empresa_id: empresaId,
         funcionario_id: funcionarioId,
@@ -66,7 +84,9 @@ export function AplicarJustificativaDialog({
         aplicado_por: u.user.id,
         aprovado_por: status === "aprovada" ? u.user.id : null,
         aprovado_em: status === "aprovada" ? new Date().toISOString() : null,
+        anexo_url: anexoUrl,
       };
+
 
       const datasAlvo = tipo.categoria === "troca" ? [data, dataCompensada] : [data];
       const obsTrim = observacao.trim();
@@ -165,6 +185,18 @@ export function AplicarJustificativaDialog({
               rows={2}
               maxLength={500}
             />
+          </div>
+          <div>
+            <Label>
+              Anexo{tipo?.exige_anexo && <span className="text-destructive"> *</span>}
+            </Label>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              onChange={(e) => setAnexo(e.target.files?.[0] ?? null)}
+            />
+            {anexo && <p className="text-xs text-muted-foreground mt-1">{anexo.name}</p>}
           </div>
         </div>
         <DialogFooter className="flex-row justify-between">
