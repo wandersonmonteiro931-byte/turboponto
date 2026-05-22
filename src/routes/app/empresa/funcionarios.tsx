@@ -152,25 +152,33 @@ function FuncionariosPage() {
                     </div>
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${statusColor[f.status] ?? "bg-muted"}`}>{f.status}</span>
                   </Link>
-                  {isAdmin && (
-                    <div className="hidden sm:flex gap-1">
-                      {f.status !== "ativo" && (
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(f.id, "ativo")} title="Reativar">
-                          <Power className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {f.status === "ativo" && (
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(f.id, "afastado")} title="Afastar">
-                          <PowerOff className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {f.status !== "desligado" && (
-                        <Button size="sm" variant="ghost" onClick={() => { if (confirm("Desligar este funcionário?")) setStatus(f.id, "desligado"); }} title="Desligar">
-                          <PowerOff className="h-4 w-4 text-red-600" />
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex gap-1 items-center">
+                    <Button size="sm" variant="outline" asChild title="Editar">
+                      <Link to="/app/empresa/funcionarios/$id" params={{ id: f.id }}>
+                        <Pencil className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Editar</span>
+                      </Link>
+                    </Button>
+                    {isAdmin && (
+                      <div className="hidden sm:flex gap-1">
+                        {f.status !== "ativo" && (
+                          <Button size="sm" variant="ghost" onClick={() => setStatus(f.id, "ativo")} title="Reativar">
+                            <Power className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {f.status === "ativo" && (
+                          <Button size="sm" variant="ghost" onClick={() => setStatus(f.id, "afastado")} title="Afastar">
+                            <PowerOff className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {f.status !== "desligado" && (
+                          <Button size="sm" variant="ghost" onClick={() => { if (confirm("Desligar este funcionário?")) setStatus(f.id, "desligado"); }} title="Desligar">
+                            <PowerOff className="h-4 w-4 text-red-600" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
