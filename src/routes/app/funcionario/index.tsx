@@ -6,7 +6,7 @@ import { Clock, CreditCard, Gift, FileText, CalendarClock, Bell, TrendingDown } 
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { DIAS_SEMANA, JornadaDia } from "@/lib/jornadas";
-import { formatMinutos, formatDateBR, mesNome } from "@/lib/format";
+import { formatMinutos, mesNome } from "@/lib/format";
 
 export const Route = createFileRoute("/app/funcionario/")({
   component: FuncionarioHome,
