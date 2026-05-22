@@ -184,85 +184,56 @@ export function gerarPdfCartao(opts: {
     const codeJ = jornada?.nome.slice(0, 5).padStart(5, "0") ?? "";
     const escala = "";
 
-    // Dia fora do vínculo (antes da admissão / após desligamento): linha em branco
-    if (d.foraVinculo) {
-      doc.text(linha([diaSem, dataStr, "", "", "", "", "", "", "", "", "", "", "", ""]), ML, y);
-      y += rowH;
-      continue;
-    }
-
-    // Linha principal
-
-    // Justificativa do supervisor (sempre exibida na coluna Justificativa)
-    const justSupervisor = d.justificativa
-      ? (d.justificativa.tipo.nome + (d.justificativa.observacao ? " · " + d.justificativa.observacao : "")).slice(0, 30)
-      : "";
-    const justQtde = d.justificativa?.quantidadeMinutos != null
-      ? fmtMinHHMM(d.justificativa.quantidadeMinutos)
-      : "";
-
-    // Eventos: lista de TUDO que deve aparecer (sem filtro, sem exceção)
-    type Evento = { realEntr: string; realSaida: string; irreg: string; qtde: string };
+    type Evento = { marcacao?: string; realEntr: string; realSaida: string; irreg: string; qtde: string; just: string };
     const eventos: Evento[] = [];
 
-    // 1) Folga programada
-    if (!d.trabalha) {
-      eventos.push({ realEntr: "", realSaida: "", irreg: "FOLGA", qtde: "" });
-    }
-    // 2) Falta
-    if (d.falta) {
-      eventos.push({ realEntr: "", realSaida: "", irreg: "FALTA", qtde: "" });
-    }
-    // 3) Marcação não registrada
-    if (d.pendente) {
-      eventos.push({ realEntr: "", realSaida: "", irreg: "MARCACAO NAO REGISTRADA", qtde: "" });
-    }
-    // 4) Todas as irregularidades detectadas (Hora Extra, Atraso, etc.)
-    const irregs = irregularidadesDoDia(d);
-    for (const i of irregs) {
-      eventos.push({ realEntr: i.realEntr, realSaida: i.realSaida, irreg: i.irreg, qtde: i.qtde });
+    if (!d.trabalha && !d.foraVinculo) eventos.push({ realEntr: "", realSaida: "", irreg: "FOLGA", qtde: "", just: "" });
+    if (d.faltaRegistrada || d.falta) eventos.push({ realEntr: "", realSaida: "", irreg: "FALTA", qtde: "", just: "" });
+    if (d.marcacaoNaoRegistrada || d.pendente) eventos.push({ marcacao: "MARCACAO NAO REGISTRADA", realEntr: "", realSaida: "", irreg: "", qtde: "", just: "" });
+
+    for (const i of irregularidadesDoDia(d)) {
+      eventos.push({ realEntr: i.realEntr, realSaida: i.realSaida, irreg: i.irreg, qtde: i.qtde, just: "" });
       if (i.just.startsWith("CRED")) creditos += hm(i.qtde) ?? 0;
       else debitos += hm(i.qtde) ?? 0;
     }
-    // 5) Tipo da justificativa (sempre listado, mesmo sem irregularidade)
-    if (d.justificativa) {
-      eventos.push({
-        realEntr: "", realSaida: "",
-        irreg: d.justificativa.tipo.nome.toUpperCase().slice(0, 19),
-        qtde: justQtde,
-      });
-    }
 
-    // Garante pelo menos uma linha para o dia (com programado/registrado)
-    if (eventos.length === 0) {
-      eventos.push({ realEntr: "", realSaida: "", irreg: "", qtde: "" });
-    }
+    const justificativas = (d.justificativas?.length ? d.justificativas : d.justificativa ? [d.justificativa] : []).map((j) => ({
+      realEntr: "",
+      realSaida: "",
+      irreg: "",
+      qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
+      just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`.slice(0, 22),
+    }));
 
-    // Linha principal (1ª): traz dia/data/programado + 1º evento + justificativa
-    const progE = d.programado.entrada?.slice(0, 5) ?? "";
-    const progSI = d.programado.saida_intervalo?.slice(0, 5) ?? "";
-    const progRI = d.programado.retorno_intervalo?.slice(0, 5) ?? "";
-    const progSF = d.programado.saida_final?.slice(0, 5) ?? "";
+    const totalLinhas = Math.max(eventos.length, justificativas.length, 1);
 
-    const e0 = eventos[0];
-    doc.text(
-      linha([
-        diaSem, dataStr, codeJ, escala,
-        progE, progSI, progRI, progSF,
-        e0.realEntr, e0.realSaida,
-        e0.irreg, e0.qtde, justSupervisor, "",
-      ]),
-      ML, y,
-    );
-    y += rowH;
+    const marcacoesRegistradas = [
+      d.registrado.entrada ?? "",
+      d.registrado.saida_intervalo ?? "",
+      d.registrado.retorno_intervalo ?? "",
+      d.registrado.saida_final ?? "",
+      "",
+      "",
+    ];
 
-    // Linhas adicionais para os demais eventos
-    for (let k = 1; k < eventos.length; k++) {
-      const ev = eventos[k];
-      doc.text(
-        linha(["", "", "", "", "", "", "", "", ev.realEntr, ev.realSaida, ev.irreg, ev.qtde, justSupervisor, ""]),
-        ML, y,
-      );
+    for (let k = 0; k < totalLinhas; k++) {
+      const ev = eventos[k] ?? { realEntr: "", realSaida: "", irreg: "", qtde: "", just: "" };
+      const just = justificativas[k] ?? { just: "", qtde: "" };
+      const marcacaoCols = ev.marcacao
+        ? ["", "", "", "", "", ""]
+        : k === 0 && !ev.realEntr && !ev.realSaida
+          ? marcacoesRegistradas
+          : ["", "", "", "", ev.realEntr, ev.realSaida];
+      const cols = [
+        k === 0 ? diaSem : "", k === 0 ? dataStr : "", k === 0 ? codeJ : "", k === 0 ? escala : "",
+        ...marcacaoCols,
+        ev.irreg, just.qtde || ev.qtde, just.just, "",
+      ];
+      doc.text(linha(cols), ML, y);
+      if (ev.marcacao) {
+        const prefix = pad(cols[0], 4) + pad(cols[1], 9) + pad(cols[2], 7) + pad(cols[3], 5);
+        doc.text(ev.marcacao, ML + doc.getTextWidth(prefix), y);
+      }
       y += rowH;
     }
   }
