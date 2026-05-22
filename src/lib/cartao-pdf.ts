@@ -214,7 +214,8 @@ export function gerarPdfCartao(opts: {
 
   const rowH = 3;
   let creditos = 0,
-    debitos = 0;
+    debitos = 0,
+    horasBenef = 0;
 
   const drawRow = (vals: Record<string, string>) => {
     cols.forEach((c, i) => {
