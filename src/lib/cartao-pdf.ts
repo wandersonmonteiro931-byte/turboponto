@@ -220,15 +220,27 @@ export function gerarPdfCartao(opts: {
       }
     }
 
-    doc.text(
-      linha([
-        diaSem, dataStr, codeJ, escala,
-        progE, progSI, progRI, progSF,
-        realEntrMain, realSaidaMain,
-        irregMain, qtdeMain, justMain, "",
-      ]),
-      ML, y,
-    );
+    if (marcacaoNaoRegistrada) {
+      doc.text(
+        linha([
+          diaSem, dataStr, codeJ, escala,
+          "", "", "", "",
+          "MARCACAO", "NAO REGISTRADA",
+          "", "", "", "",
+        ]),
+        ML, y,
+      );
+    } else {
+      doc.text(
+        linha([
+          diaSem, dataStr, codeJ, escala,
+          progE, progSI, progRI, progSF,
+          realEntrMain, realSaidaMain,
+          irregMain, qtdeMain, justMain, "",
+        ]),
+        ML, y,
+      );
+    }
     y += rowH;
 
     for (const s of subs) {
