@@ -402,25 +402,26 @@ export async function carregarCartao(
       }
     }
 
-    // Toda hora extra vira crédito automaticamente, exceto quando o admin marca HORA EXTRA - PAGAR.
+    // Toda hora extra (após +10 min) vira crédito automaticamente,
+    // exceto quando o admin marca HORA EXTRA - PAGAR.
     if (!temHoraExtraPagar) {
-      const minutosCreditoHE = justHoraExtraCredito?.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
+      const minutosCreditoHE = justHoraExtraCredito?.quantidadeMinutos ?? creditoHoraExtra;
       bancoHorasMin += Math.max(0, minutosCreditoHE);
     }
+
+    // Crédito automático por entrada antecipada (sempre crédito, independe de HE_PAGAR).
+    bancoHorasMin += creditoEntradaAntec;
 
     // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
     if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
         bancoHorasMin -= cargaProg;
       } else {
-        let debitoAutomatico = atraso;
-        if (psf != null && sf != null) {
-          const saidaDiff = diffRelogioAssinado(psf, sf);
-          if (saidaDiff < -toleranciaMin) debitoAutomatico += -saidaDiff;
-        }
+        const debitoAutomatico = atraso + debitoSaidaAntec;
         bancoHorasMin -= Math.max(0, debitoAutomatico);
       }
     }
+
 
     // Fora do vínculo zera ocorrências e adiciona observação informativa
     if (foraVinculo) {
