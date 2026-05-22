@@ -1,0 +1,1 @@
+ALTER TABLE public.justificativas_aplicadas ADD COLUMN IF NOT EXISTS quantidade_minutos integer;

@@ -894,6 +894,7 @@ export type Database = {
           funcionario_id: string
           id: string
           observacao: string | null
+          quantidade_minutos: number | null
           status: string
           tipo_id: string
           updated_at: string
@@ -911,6 +912,7 @@ export type Database = {
           funcionario_id: string
           id?: string
           observacao?: string | null
+          quantidade_minutos?: number | null
           status?: string
           tipo_id: string
           updated_at?: string
@@ -928,6 +930,7 @@ export type Database = {
           funcionario_id?: string
           id?: string
           observacao?: string | null
+          quantidade_minutos?: number | null
           status?: string
           tipo_id?: string
           updated_at?: string
