@@ -40,7 +40,7 @@ function CartaoEmpresaPage() {
         setFuncs(list);
         if (list.length && !funcId) setFuncId(list[0].id);
       });
-    supabase.from("empresas").select("nome_fantasia,cnpj").eq("id", empresaId).maybeSingle()
+    supabase.from("empresas").select("nome_fantasia,cnpj,endereco").eq("id", empresaId).maybeSingle()
       .then(({ data }) => setEmpresaInfo(data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId]);
