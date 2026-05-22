@@ -401,6 +401,7 @@ export async function carregarCartao(
     totalTrabalhado,
     totalExtras,
     totalBancoHoras,
+    toleranciaMinutos: toleranciaMin,
   };
 }
 
