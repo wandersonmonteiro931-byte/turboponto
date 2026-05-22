@@ -102,43 +102,50 @@ function CartaoEmpresaPage() {
   };
 
   const baixarPdf = async () => {
-    if (!empresaInfo || !funcId) return;
-    // Recarrega o cartão para garantir que o PDF reflete todas as alterações recentes (inclusive justificativas pendentes)
-    const resumoAtual = await carregarCartao(funcId, ano, mes);
-    setResumo(resumoAtual);
-    const f = funcs.find((x) => x.id === funcId);
-    if (!f) return;
-    // Busca jornada ativa do funcionário (dia de seg-sex como referência)
-    const { data: vinc } = await supabase
-      .from("funcionarios_jornadas")
-      .select("jornadas(nome), jornada_id")
-      .eq("funcionario_id", f.id).eq("ativo", true).maybeSingle();
-    const v = vinc as { jornadas: { nome: string } | null; jornada_id: string } | null;
-    let jornada: { nome: string; entrada: string | null; saida: string | null; intervalo_saida: string | null; intervalo_retorno: string | null } | null = null;
-    if (v?.jornada_id) {
-      const { data: jd } = await supabase
-        .from("jornadas_dias")
-        .select("dia_semana,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno,trabalha")
-        .eq("jornada_id", v.jornada_id);
-      const refDia = (jd ?? []).find((x) => x.trabalha) as { horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null } | undefined;
-      jornada = {
-        nome: v.jornadas?.nome ?? "JORNADA",
-        entrada: refDia?.horario_entrada?.slice(0, 5) ?? null,
-        saida: refDia?.horario_saida?.slice(0, 5) ?? null,
-        intervalo_saida: refDia?.horario_intervalo_saida?.slice(0, 5) ?? null,
-        intervalo_retorno: refDia?.horario_intervalo_retorno?.slice(0, 5) ?? null,
-      };
+    try {
+      if (!funcId) { toast.error("Selecione um funcionário."); return; }
+      const f = funcs.find((x) => x.id === funcId);
+      if (!f) { toast.error("Funcionário não encontrado."); return; }
+      const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
+      // Recarrega o cartão para refletir todas as alterações recentes
+      const resumoAtual = await carregarCartao(funcId, ano, mes);
+      setResumo(resumoAtual);
+      // Busca jornada ativa do funcionário (dia de seg-sex como referência)
+      const { data: vinc } = await supabase
+        .from("funcionarios_jornadas")
+        .select("jornadas(nome), jornada_id")
+        .eq("funcionario_id", f.id).eq("ativo", true).maybeSingle();
+      const v = vinc as { jornadas: { nome: string } | null; jornada_id: string } | null;
+      let jornada: { nome: string; entrada: string | null; saida: string | null; intervalo_saida: string | null; intervalo_retorno: string | null } | null = null;
+      if (v?.jornada_id) {
+        const { data: jd } = await supabase
+          .from("jornadas_dias")
+          .select("dia_semana,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno,trabalha")
+          .eq("jornada_id", v.jornada_id);
+        const refDia = (jd ?? []).find((x) => x.trabalha) as { horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null } | undefined;
+        jornada = {
+          nome: v.jornadas?.nome ?? "JORNADA",
+          entrada: refDia?.horario_entrada?.slice(0, 5) ?? null,
+          saida: refDia?.horario_saida?.slice(0, 5) ?? null,
+          intervalo_saida: refDia?.horario_intervalo_saida?.slice(0, 5) ?? null,
+          intervalo_retorno: refDia?.horario_intervalo_retorno?.slice(0, 5) ?? null,
+        };
+      }
+      const doc = gerarPdfCartao({
+        empresa: emp,
+        funcionario: f,
+        jornada,
+        ano, mes,
+        resumo: resumoAtual,
+        status: cartao?.status ?? "aberto",
+      });
+      doc.save(`cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+    } catch (e) {
+      console.error("Erro ao gerar PDF", e);
+      toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
     }
-    const doc = gerarPdfCartao({
-      empresa: empresaInfo,
-      funcionario: f,
-      jornada,
-      ano, mes,
-      resumo: resumoAtual,
-      status: cartao?.status ?? "aberto",
-    });
-    doc.save(`cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
   };
+
 
   const totaisStr = useMemo(() => {
     if (!resumo) return null;

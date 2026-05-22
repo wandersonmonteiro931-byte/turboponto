@@ -224,7 +224,7 @@ export function gerarPdfCartao(opts: {
       });
       for (const j of d.justificativas ?? []) {
         drawRow({
-          just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
+          just: j.tipo.nome,
           qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
         });
       }
@@ -246,7 +246,7 @@ export function gerarPdfCartao(opts: {
       });
       for (const j of d.justificativas ?? []) {
         drawRow({
-          just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
+          just: j.tipo.nome,
           qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
         });
       }
@@ -308,9 +308,7 @@ export function gerarPdfCartao(opts: {
       saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
       irreg: primeira.label,
       qtde: primeira.qtde,
-      just: justificativas[0]
-        ? `${justificativas[0].tipo.nome}${justificativas[0].observacao ? " - " + justificativas[0].observacao : ""}`
-        : "",
+      just: justificativas[0] ? justificativas[0].tipo.nome : "",
       adic: "",
     });
 
@@ -323,7 +321,7 @@ export function gerarPdfCartao(opts: {
     for (let i = 1; i < justificativas.length; i++) {
       const j = justificativas[i];
       drawRow({
-        just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
+        just: j.tipo.nome,
       });
     }
   }
