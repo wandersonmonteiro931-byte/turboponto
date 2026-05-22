@@ -30,7 +30,7 @@ function EmpresaLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && role && role !== "admin" && role !== "gerente") {
+    if (!loading && role === "funcionario") {
       navigate({ to: "/app/funcionario" });
     }
   }, [role, loading, navigate]);

@@ -16,42 +16,57 @@ export type Database = {
     Tables: {
       empresas: {
         Row: {
+          afastado_pode_bater_ponto: boolean
           cnpj: string | null
           created_at: string
           email: string | null
           endereco: string | null
+          horario_entrada: string | null
+          horario_saida: string | null
           id: string
+          intervalo_almoco_min: number | null
           logo_url: string | null
           nome_fantasia: string
           razao_social: string | null
           responsavel: string | null
           telefone: string | null
+          tolerancia_atraso_min: number | null
           updated_at: string
         }
         Insert: {
+          afastado_pode_bater_ponto?: boolean
           cnpj?: string | null
           created_at?: string
           email?: string | null
           endereco?: string | null
+          horario_entrada?: string | null
+          horario_saida?: string | null
           id?: string
+          intervalo_almoco_min?: number | null
           logo_url?: string | null
           nome_fantasia: string
           razao_social?: string | null
           responsavel?: string | null
           telefone?: string | null
+          tolerancia_atraso_min?: number | null
           updated_at?: string
         }
         Update: {
+          afastado_pode_bater_ponto?: boolean
           cnpj?: string | null
           created_at?: string
           email?: string | null
           endereco?: string | null
+          horario_entrada?: string | null
+          horario_saida?: string | null
           id?: string
+          intervalo_almoco_min?: number | null
           logo_url?: string | null
           nome_fantasia?: string
           razao_social?: string | null
           responsavel?: string | null
           telefone?: string | null
+          tolerancia_atraso_min?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -62,13 +77,18 @@ export type Database = {
           cpf: string | null
           created_at: string
           data_admissao: string | null
+          data_desligamento: string | null
           data_nascimento: string | null
           email: string | null
           empresa_id: string
           endereco: string | null
           foto_url: string | null
           id: string
+          jornada_padrao_id: string | null
+          motivo_desligamento: string | null
           nome: string
+          observacoes: string | null
+          permite_bater_ponto: boolean
           rg: string | null
           salario: number | null
           status: string
@@ -81,13 +101,18 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
+          data_desligamento?: string | null
           data_nascimento?: string | null
           email?: string | null
           empresa_id: string
           endereco?: string | null
           foto_url?: string | null
           id?: string
+          jornada_padrao_id?: string | null
+          motivo_desligamento?: string | null
           nome: string
+          observacoes?: string | null
+          permite_bater_ponto?: boolean
           rg?: string | null
           salario?: number | null
           status?: string
@@ -100,13 +125,18 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
+          data_desligamento?: string | null
           data_nascimento?: string | null
           email?: string | null
           empresa_id?: string
           endereco?: string | null
           foto_url?: string | null
           id?: string
+          jornada_padrao_id?: string | null
+          motivo_desligamento?: string | null
           nome?: string
+          observacoes?: string | null
+          permite_bater_ponto?: boolean
           rg?: string | null
           salario?: number | null
           status?: string
@@ -202,6 +232,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      criar_empresa_inicial: {
+        Args: {
+          _cnpj: string
+          _email: string
+          _endereco: string
+          _nome_fantasia: string
+          _razao_social: string
+          _responsavel: string
+          _telefone: string
+        }
+        Returns: string
+      }
       get_user_empresa: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

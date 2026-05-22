@@ -12,10 +12,10 @@ function AppIndex() {
 
   useEffect(() => {
     if (loading) return;
-    if (role === "admin" || role === "gerente") {
-      navigate({ to: "/app/empresa" });
-    } else {
+    if (role === "funcionario") {
       navigate({ to: "/app/funcionario" });
+    } else {
+      navigate({ to: "/app/empresa" });
     }
   }, [role, loading, navigate]);
 
