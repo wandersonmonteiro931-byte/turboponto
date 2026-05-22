@@ -231,6 +231,14 @@ export async function carregarCartao(
       saida_final: jd?.horario_saida?.slice(0, 5) ?? null,
     };
 
+    // Quando há marcação do dia, mas o intervalo não foi registrado,
+    // considera o intervalo programado para manter o cálculo do cartão correto.
+    const temMarcacaoDoDia = Object.values(reg).some(Boolean);
+    if (trabalha && temMarcacaoDoDia) {
+      if (!reg.saida_intervalo && prog.saida_intervalo) reg.saida_intervalo = prog.saida_intervalo;
+      if (!reg.retorno_intervalo && prog.retorno_intervalo) reg.retorno_intervalo = prog.retorno_intervalo;
+    }
+
     // Atraso = soma das entradas (entrada + retorno) após tolerância
     let atraso = 0;
     for (const k of ["entrada", "retorno_intervalo"] as const) {
