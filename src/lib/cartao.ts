@@ -207,7 +207,7 @@ export async function carregarCartao(
       extrasMinutos: extras,
       falta,
       pendente,
-      observacao: obs,
+      observacao: falta ? (justFaltas.get(data) ?? obs) : obs,
     });
   }
 
