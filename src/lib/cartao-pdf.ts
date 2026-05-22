@@ -222,14 +222,12 @@ export function gerarPdfCartao(opts: {
 
     if (marcacaoNaoRegistrada) {
       doc.text(
-        linha([
-          diaSem, dataStr, codeJ, escala,
-          "", "", "", "",
-          "MARCACAO", "NAO REGISTRADA",
-          "", "", "", "",
-        ]),
+        linha([diaSem, dataStr, codeJ, escala, "", "", "", "", "", "", "", "", "", ""]),
         ML, y,
       );
+      // posicao aproximada da coluna "Marcacao do Ponto" (apos Dia+Data+Hora+Esca = 4+9+7+5 chars)
+      // largura de char ~1.6mm em courier 8pt
+      doc.text("MARCACAO NAO REGISTRADA", ML + (4 + 9 + 7 + 5) * 1.6, y);
     } else {
       doc.text(
         linha([
