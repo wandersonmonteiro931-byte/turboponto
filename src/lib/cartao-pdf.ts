@@ -267,6 +267,16 @@ export function gerarPdfCartao(opts: {
         !!d.registrado.saida_final;
       const justs = d.justificativas ?? [];
       const j0 = justs[0];
+      // Crédito BH em folga (ex: HORA EXTRA - CREDIT em dia de folga)
+      if (d.bancoHorasMinutos > 0) creditos += d.bancoHorasMinutos;
+      const qtdePrimeira =
+        d.bancoHorasMinutos > 0
+          ? fmtMinHHMM(d.bancoHorasMinutos)
+          : j0 && j0.quantidadeMinutos != null
+            ? fmtMinHHMM(j0.quantidadeMinutos)
+            : d.trabalhadoMinutos > 0 && temReg
+              ? fmtMinHHMM(d.trabalhadoMinutos)
+              : "";
       drawRow({
         dia: diaSem,
         data: dataStr,
@@ -274,7 +284,7 @@ export function gerarPdfCartao(opts: {
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
         irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
         just: j0 ? j0.tipo.nome : "",
-        qtde: j0 && j0.quantidadeMinutos != null ? fmtMinHHMM(j0.quantidadeMinutos) : "",
+        qtde: qtdePrimeira,
       });
       for (let i = 1; i < justs.length; i++) {
         const j = justs[i];
