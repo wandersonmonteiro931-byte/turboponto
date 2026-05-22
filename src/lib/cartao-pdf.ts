@@ -28,7 +28,15 @@ export type JornadaInfo = {
   intervalo_retorno: string | null;
 };
 
-export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string) {
+export function abrirJanelaPdf(): Window | null {
+  const janela = window.open("", "_blank", "noopener,noreferrer");
+  if (janela) {
+    janela.document.write("<p style='font-family: sans-serif'>Gerando PDF...</p>");
+  }
+  return janela;
+}
+
+export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string, janela?: Window | null) {
   const arquivoSeguro = nomeArquivo.replace(/[<>:"/\\|?*\x00-\x1F]/g, "-").replace(/\s+/g, " ").trim();
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
@@ -39,6 +47,9 @@ export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string) {
   document.body.appendChild(link);
   link.click();
   link.remove();
+  if (janela && !janela.closed) {
+    janela.location.href = url;
+  }
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
