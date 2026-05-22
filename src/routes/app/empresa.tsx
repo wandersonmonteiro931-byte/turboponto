@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import {
   LayoutDashboard, Building2, Users, Clock, ClipboardList,
-  CreditCard, CalendarCheck, Gift, FileText, BarChart3, Settings,
+  CreditCard, CalendarCheck, Gift, FileText, BarChart3, Settings, ShieldCheck,
 } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
@@ -15,6 +15,7 @@ const items: NavItem[] = [
   { to: "/app/empresa/registros", label: "Registros de Ponto", icon: <ClipboardList className="h-4 w-4" /> },
   { to: "/app/empresa/cartao-ponto", label: "Cartão de Ponto", icon: <CreditCard className="h-4 w-4" /> },
   { to: "/app/empresa/fechamento", label: "Fechamento Mensal", icon: <CalendarCheck className="h-4 w-4" /> },
+  { to: "/app/empresa/justificativas", label: "Justificativas", icon: <ShieldCheck className="h-4 w-4" /> },
   { to: "/app/empresa/beneficios", label: "Benefícios", icon: <Gift className="h-4 w-4" /> },
   { to: "/app/empresa/holerites", label: "Holerites", icon: <FileText className="h-4 w-4" /> },
   { to: "/app/empresa/relatorios", label: "Relatórios", icon: <BarChart3 className="h-4 w-4" /> },
