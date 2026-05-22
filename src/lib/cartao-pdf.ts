@@ -267,6 +267,16 @@ export function gerarPdfCartao(opts: {
         !!d.registrado.saida_final;
       const justs = d.justificativas ?? [];
       const j0 = justs[0];
+      // Crédito BH em folga (ex: HORA EXTRA - CREDIT em dia de folga)
+      if (d.bancoHorasMinutos > 0) creditos += d.bancoHorasMinutos;
+      const qtdePrimeira =
+        d.bancoHorasMinutos > 0
+          ? fmtMinHHMM(d.bancoHorasMinutos)
+          : j0 && j0.quantidadeMinutos != null
+            ? fmtMinHHMM(j0.quantidadeMinutos)
+            : d.trabalhadoMinutos > 0 && temReg
+              ? fmtMinHHMM(d.trabalhadoMinutos)
+              : "";
       drawRow({
         dia: diaSem,
         data: dataStr,
@@ -274,7 +284,7 @@ export function gerarPdfCartao(opts: {
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
         irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
         just: j0 ? j0.tipo.nome : "",
-        qtde: j0 && j0.quantidadeMinutos != null ? fmtMinHHMM(j0.quantidadeMinutos) : "",
+        qtde: qtdePrimeira,
       });
       for (let i = 1; i < justs.length; i++) {
         const j = justs[i];
@@ -302,6 +312,18 @@ export function gerarPdfCartao(opts: {
       }
     }
 
+    // Carga programada do dia (para faltas injustificadas em horas benef)
+    const cargaProgDia = (() => {
+      const pe = hm(d.programado.entrada);
+      const psf = hm(d.programado.saida_final);
+      if (pe == null || psf == null) return 0;
+      let c = psf - pe;
+      const psi = hm(d.programado.saida_intervalo);
+      const pri = hm(d.programado.retorno_intervalo);
+      if (psi != null && pri != null) c -= pri - psi;
+      return Math.max(0, c);
+    })();
+
     // Linhas a renderizar: { label, qtde }
     type LinhaIrreg = { label: string; qtde: string };
     const linhas: LinhaIrreg[] = [];
@@ -309,7 +331,9 @@ export function gerarPdfCartao(opts: {
     if (semJornada) {
       linhas.push({ label: "DIA SEM JORNADA CADASTRADA", qtde: "" });
     } else if (falta && !temJustificativa) {
-      linhas.push({ label: "FALTA", qtde: "" });
+      linhas.push({ label: "FALTA", qtde: cargaProgDia > 0 ? fmtMinHHMM(cargaProgDia) : "" });
+      // Falta injustificada conta como hora benef
+      horasBenef += cargaProgDia;
     } else if (semMarcacao && !temJustificativa) {
       linhas.push({ label: "MARCAÇÃO NÃO REGISTRADA", qtde: "" });
     } else if (!falta && !semMarcacao) {
@@ -338,6 +362,7 @@ export function gerarPdfCartao(opts: {
     }
     if (d.bancoHorasMinutos < 0) {
       debitos += -d.bancoHorasMinutos;
+      horasBenef += -d.bancoHorasMinutos;
       linhas.push({
         label: "DÉBITO BCO DE HORAS",
         qtde: fmtMinHHMM(-d.bancoHorasMinutos),
@@ -392,11 +417,7 @@ export function gerarPdfCartao(opts: {
     y,
   );
   y += 3.5;
-  doc.text(
-    `QTDE HORAS BENEF: ${fmtMinHHMM(horasBenef)}   (atrasos+saidas antecipadas; >=02:00 perde cesta basica do mes)`,
-    ML,
-    y,
-  );
+  doc.text(`QTDE HORAS BENEF: ${fmtMinHHMM(horasBenef)}`, ML, y);
   y += 1.5;
   hr(y);
 
