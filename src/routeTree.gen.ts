@@ -35,6 +35,7 @@ import { Route as AppEmpresaEmpresaRouteImport } from './routes/app/empresa/empr
 import { Route as AppEmpresaConfiguracoesRouteImport } from './routes/app/empresa/configuracoes'
 import { Route as AppEmpresaCartaoPontoRouteImport } from './routes/app/empresa/cartao-ponto'
 import { Route as AppEmpresaBeneficiosRouteImport } from './routes/app/empresa/beneficios'
+import { Route as AppEmpresaAvisosRouteImport } from './routes/app/empresa/avisos'
 import { Route as AppEmpresaFuncionariosIdRouteImport } from './routes/app/empresa/funcionarios.$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -170,6 +171,11 @@ const AppEmpresaBeneficiosRoute = AppEmpresaBeneficiosRouteImport.update({
   path: '/beneficios',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
+const AppEmpresaAvisosRoute = AppEmpresaAvisosRouteImport.update({
+  id: '/avisos',
+  path: '/avisos',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
 const AppEmpresaFuncionariosIdRoute =
   AppEmpresaFuncionariosIdRouteImport.update({
     id: '/$id',
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
   '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
+  '/app/empresa/avisos': typeof AppEmpresaAvisosRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app': typeof AppIndexRoute
+  '/app/empresa/avisos': typeof AppEmpresaAvisosRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
   '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
+  '/app/empresa/avisos': typeof AppEmpresaAvisosRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
   '/app/empresa/configuracoes': typeof AppEmpresaConfiguracoesRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/app/funcionario'
     | '/recibo/$calcId'
     | '/app/'
+    | '/app/empresa/avisos'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
     | '/app/empresa/configuracoes'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recibo/$calcId'
     | '/app'
+    | '/app/empresa/avisos'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
     | '/app/empresa/configuracoes'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/app/funcionario'
     | '/recibo/$calcId'
     | '/app/'
+    | '/app/empresa/avisos'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
     | '/app/empresa/configuracoes'
@@ -540,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaBeneficiosRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
+    '/app/empresa/avisos': {
+      id: '/app/empresa/avisos'
+      path: '/avisos'
+      fullPath: '/app/empresa/avisos'
+      preLoaderRoute: typeof AppEmpresaAvisosRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
     '/app/empresa/funcionarios/$id': {
       id: '/app/empresa/funcionarios/$id'
       path: '/$id'
@@ -565,6 +584,7 @@ const AppEmpresaFuncionariosRouteWithChildren =
   )
 
 interface AppEmpresaRouteChildren {
+  AppEmpresaAvisosRoute: typeof AppEmpresaAvisosRoute
   AppEmpresaBeneficiosRoute: typeof AppEmpresaBeneficiosRoute
   AppEmpresaCartaoPontoRoute: typeof AppEmpresaCartaoPontoRoute
   AppEmpresaConfiguracoesRoute: typeof AppEmpresaConfiguracoesRoute
@@ -579,6 +599,7 @@ interface AppEmpresaRouteChildren {
 }
 
 const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
+  AppEmpresaAvisosRoute: AppEmpresaAvisosRoute,
   AppEmpresaBeneficiosRoute: AppEmpresaBeneficiosRoute,
   AppEmpresaCartaoPontoRoute: AppEmpresaCartaoPontoRoute,
   AppEmpresaConfiguracoesRoute: AppEmpresaConfiguracoesRoute,

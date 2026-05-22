@@ -93,7 +93,15 @@ export type Database = {
           titulo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "avisos_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       avisos_leituras: {
         Row: {
@@ -114,7 +122,22 @@ export type Database = {
           id?: string
           lido_em?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "avleit_aviso_fk"
+            columns: ["aviso_id"]
+            isOneToOne: false
+            referencedRelation: "avisos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avleit_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beneficios: {
         Row: {
@@ -222,7 +245,22 @@ export type Database = {
           updated_at?: string
           valor_estimado?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bencalc_beneficio_fk"
+            columns: ["beneficio_id"]
+            isOneToOne: false
+            referencedRelation: "beneficios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bencalc_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beneficios_entregas: {
         Row: {
@@ -270,7 +308,22 @@ export type Database = {
           recibo_pdf_url?: string | null
           valor_estimado?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "benent_beneficio_fk"
+            columns: ["beneficio_id"]
+            isOneToOne: false
+            referencedRelation: "beneficios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "benent_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beneficios_logs: {
         Row: {
@@ -641,7 +694,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "holerites_funcionario_fk"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       jornadas: {
         Row: {
