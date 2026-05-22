@@ -34,6 +34,7 @@ export function EditarPontoDialog({
 }) {
   const { user } = useAuth();
   const [tipo, setTipo] = useState("entrada");
+  const [data, setData] = useState("");
   const [hora, setHora] = useState("");
   const [observacao, setObservacao] = useState("");
   const [justificativa, setJustificativa] = useState("");
@@ -43,6 +44,7 @@ export function EditarPontoDialog({
   useEffect(() => {
     if (!registro) return;
     setTipo(registro.tipo_ponto);
+    setData(registro.data_referencia);
     const d = new Date(registro.horario_registrado);
     setHora(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
     setObservacao(registro.observacao ?? "");
