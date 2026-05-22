@@ -178,6 +178,7 @@ function RegistrosPage() {
                     <th className="text-left p-2">Atraso</th>
                     <th className="text-left p-2">Status</th>
                     <th className="text-left p-2">Origem</th>
+                    {podeEditar && <th className="text-right p-2">Ações</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -195,6 +196,15 @@ function RegistrosPage() {
                         </span>
                       </td>
                       <td className="p-2 capitalize text-xs text-muted-foreground">{r.origem}</td>
+                      {podeEditar && (
+                        <td className="p-2 text-right">
+                          <Button size="sm" variant="ghost" onClick={() => setEditando({
+                            id: r.id, empresa_id: empresaId!, funcionario_id: r.funcionario_id,
+                            data_referencia: r.data_referencia, tipo_ponto: r.tipo_ponto,
+                            horario_registrado: r.horario_registrado, observacao: r.observacao,
+                          })}><Pencil className="h-3 w-3" /></Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
