@@ -28,44 +28,26 @@ export type JornadaInfo = {
   intervalo_retorno: string | null;
 };
 
-export function abrirJanelaPdf(): Window | null {
-  const janela = window.open("", "_blank");
-  if (janela) {
-    janela.opener = null;
-    janela.document.write("<p style='font-family: sans-serif'>Gerando PDF...</p>");
-  }
-  return janela;
-}
-
-export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string, janela?: Window | null) {
+export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string) {
   const arquivoSeguro = nomeArquivo.replace(/[<>:"/\\|?*\x00-\x1F]/g, "-").replace(/\s+/g, " ").trim();
   const finalName = arquivoSeguro.endsWith(".pdf") ? arquivoSeguro : `${arquivoSeguro}.pdf`;
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
 
-  if (janela && !janela.closed) {
-    try {
-      janela.document.body.innerHTML = "";
-      const download = janela.document.createElement("a");
-      download.href = url;
-      download.download = finalName;
-      download.textContent = "Baixar PDF";
-      download.style.cssText = "display:inline-flex;margin:24px;padding:12px 16px;border-radius:8px;background:#111;color:#fff;font:16px sans-serif;text-decoration:none";
-      janela.document.body.appendChild(download);
-      download.click();
-    } catch {
-      janela.location.href = url;
-    }
-  } else {
+  try {
     const link = document.createElement("a");
     link.href = url;
     link.download = finalName;
     link.rel = "noopener";
+    link.style.display = "none";
     document.body.appendChild(link);
     link.click();
     link.remove();
+  } catch {
+    doc.save(finalName);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 const hm = (t: string | null): number | null => {
