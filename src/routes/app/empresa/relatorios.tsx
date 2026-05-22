@@ -97,8 +97,6 @@ function RelatoriosPage() {
           const semReg = dias.filter((d) => !presencas.has(`${f.id}|${d}`)).length;
           return { Funcionário: f.nome, Cargo: f.cargo ?? "", "Dias úteis no período": dias.length, "Dias sem registro": semReg };
         });
-      } else if (rel === "ponto_mensal") {
-        // (já tratado acima)
       } else if (rel === "beneficios" || rel === "cesta_basica") {
         const { data, error } = await supabase.from("beneficios_calculos")
           .select("total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,valor_estimado,funcionarios(nome,cargo),beneficios(nome)")
