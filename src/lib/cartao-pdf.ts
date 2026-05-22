@@ -59,10 +59,15 @@ function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
   const entDiff = minDiff(d.programado.entrada, d.registrado.entrada);
   if (entDiff != null && Math.abs(entDiff) > tolMin) {
     if (entDiff > 0)
-      out.push({ label: `Atraso ${fmtMinHHMM(entDiff)}`, qtde: entDiff, credito: false, debito: true });
+      out.push({
+        label: `ATRASO ${fmtMinHHMM(entDiff)}`,
+        qtde: entDiff,
+        credito: false,
+        debito: true,
+      });
     else
       out.push({
-        label: `Ent.Antec ${fmtMinHHMM(entDiff)}`,
+        label: `ENTRADA ANTECIPADA ${fmtMinHHMM(entDiff)}`,
         qtde: -entDiff,
         credito: false,
         debito: false,
@@ -72,18 +77,28 @@ function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
   if (saiDiff != null && Math.abs(saiDiff) > tolMin) {
     if (saiDiff > 0)
       out.push({
-        label: `H.Extra ${fmtMinHHMM(saiDiff)}`,
+        label: `HORA EXTRA ${fmtMinHHMM(saiDiff)}`,
         qtde: saiDiff,
         credito: true,
         debito: false,
       });
     else
       out.push({
-        label: `Sai.Antec ${fmtMinHHMM(saiDiff)}`,
+        label: `SAÍDA ANTECIPADA ${fmtMinHHMM(saiDiff)}`,
         qtde: -saiDiff,
         credito: false,
         debito: true,
       });
+  }
+  // Marcação incompleta: tem alguma marcação mas falta entrada ou saída final
+  const temAlguma =
+    !!d.registrado.entrada ||
+    !!d.registrado.saida_intervalo ||
+    !!d.registrado.retorno_intervalo ||
+    !!d.registrado.saida_final;
+  const faltaPrincipal = !d.registrado.entrada || !d.registrado.saida_final;
+  if (temAlguma && faltaPrincipal) {
+    out.push({ label: "MARCAÇÃO INCOMPLETA", qtde: 0, credito: false, debito: false });
   }
   return out;
 }
@@ -237,7 +252,18 @@ export function gerarPdfCartao(opts: {
     }
 
     if (!d.trabalha) {
-      drawRow({ dia: diaSem, data: dataStr, irreg: "FOLGA / DSR" });
+      const temReg =
+        !!d.registrado.entrada ||
+        !!d.registrado.saida_intervalo ||
+        !!d.registrado.retorno_intervalo ||
+        !!d.registrado.saida_final;
+      drawRow({
+        dia: diaSem,
+        data: dataStr,
+        entReal: temReg ? (d.registrado.entrada ?? "") : "",
+        saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
+        irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA / DSR",
+      });
       for (const j of d.justificativas ?? []) {
         drawRow({
           just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
@@ -247,22 +273,34 @@ export function gerarPdfCartao(opts: {
       continue;
     }
 
+    const semJornada =
+      !d.programado.entrada && !d.programado.saida_final;
     const semMarcacao = d.marcacaoNaoRegistrada || d.pendente;
     const falta = d.faltaRegistrada || d.falta;
 
     const irregs = irregularidadesDoDia(d, tol);
+    const irregLabels = irregs.map((i) => i.label);
     for (const i of irregs) {
       if (i.credito) creditos += i.qtde;
       if (i.debito) debitos += i.qtde;
     }
-    if (d.bancoHorasMinutos > 0) creditos += d.bancoHorasMinutos;
-    if (d.bancoHorasMinutos < 0) debitos += -d.bancoHorasMinutos;
+    if (d.bancoHorasMinutos > 0) {
+      creditos += d.bancoHorasMinutos;
+      irregLabels.push(`CRÉDITO BCO DE HORAS ${fmtMinHHMM(d.bancoHorasMinutos)}`);
+    }
+    if (d.bancoHorasMinutos < 0) {
+      debitos += -d.bancoHorasMinutos;
+      irregLabels.push(`DÉBITO BCO DE HORAS ${fmtMinHHMM(-d.bancoHorasMinutos)}`);
+    }
 
-    const irregTexto = falta
-      ? "FALTA"
-      : semMarcacao
-        ? "MARCACAO NAO REGISTRADA"
-        : irregs.map((i) => i.label).join(" / ");
+    const irregTexto = semJornada
+      ? "DIA SEM JORNADA CADASTRADA"
+      : falta
+        ? "FALTA"
+        : semMarcacao
+          ? "MARCAÇÃO NÃO REGISTRADA"
+          : irregLabels.join(" / ");
+
 
     const justificativas = d.justificativas ?? [];
     const justPrincipal = justificativas[0];
