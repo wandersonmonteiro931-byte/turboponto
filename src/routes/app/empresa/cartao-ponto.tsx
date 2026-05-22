@@ -102,7 +102,10 @@ function CartaoEmpresaPage() {
   };
 
   const baixarPdf = async () => {
-    if (!resumo || !empresaInfo) return;
+    if (!empresaInfo || !funcId) return;
+    // Recarrega o cartão para garantir que o PDF reflete todas as alterações recentes (inclusive justificativas pendentes)
+    const resumoAtual = await carregarCartao(funcId, ano, mes);
+    setResumo(resumoAtual);
     const f = funcs.find((x) => x.id === funcId);
     if (!f) return;
     // Busca jornada ativa do funcionário (dia de seg-sex como referência)
@@ -131,7 +134,7 @@ function CartaoEmpresaPage() {
       funcionario: f,
       jornada,
       ano, mes,
-      resumo,
+      resumo: resumoAtual,
       status: cartao?.status ?? "aberto",
     });
     doc.save(`cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
