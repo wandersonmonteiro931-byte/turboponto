@@ -442,6 +442,13 @@ export async function carregarCartao(
       ) {
         // Dia passado sem nenhuma marcação e sem justificativa → débito da carga prevista.
         bancoHorasMin -= cargaProg;
+      } else if (
+        hojePassouEntradaSemRegistro &&
+        justificativas.length === 0 &&
+        cargaProg > 0
+      ) {
+        // Hoje: passou da entrada prevista e ainda sem marcação/justificativa → débito.
+        bancoHorasMin -= cargaProg;
       } else {
         const debitoAutomatico = atraso + debitoSaidaAntec;
         bancoHorasMin -= Math.max(0, debitoAutomatico);
