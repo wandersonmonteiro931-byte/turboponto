@@ -256,12 +256,17 @@ function CartaoEmpresaPage() {
               <tbody className="divide-y">
                 {resumo.dias.map((d) => {
                   const cellClass = (_val: string | null) => `p-2 font-mono ${podeEditar ? "cursor-pointer hover:bg-accent/50" : ""}`;
+                  const semRegistro = !d.registrado.entrada && !d.registrado.saida_intervalo && !d.registrado.retorno_intervalo && !d.registrado.saida_final;
                   const renderEmpty = () => d.justificativa
                     ? <span className="text-blue-700 font-semibold text-xs">{d.justificativa.tipo.nome}</span>
                     : d.falta
                       ? <span className="text-red-600 font-bold">FALTA</span>
-                      : d.trabalha
+                      : d.trabalha && semRegistro && (d.marcacaoNaoRegistrada || d.pendente)
                         ? <span className="text-yellow-700 text-xs">marcação não registrada</span>
+                        : d.trabalha && semRegistro && d.bancoHorasMinutos < 0
+                          ? <span className="text-red-600 font-bold text-xs">DÉBITO BH</span>
+                          : d.trabalha
+                            ? <span className="text-muted-foreground text-xs">—</span>
                         : <span className="text-muted-foreground text-xs">{podeEditar ? "folga · clique p/ inserir" : "folga"}</span>;
                   const rowBg = d.justificativa
                     ? "bg-blue-500/5"

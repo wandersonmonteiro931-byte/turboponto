@@ -304,7 +304,7 @@ export function gerarPdfCartao(opts: {
 
     const semJornada =
       !d.programado.entrada && !d.programado.saida_final;
-    const semMarcacao = d.marcacaoNaoRegistrada || d.pendente;
+    const semMarcacao = (d.marcacaoNaoRegistrada || d.pendente) && d.bancoHorasMinutos >= 0;
     const falta = d.faltaRegistrada || d.falta;
 
     const irregs = irregularidadesDoDia(d, tol);
@@ -352,7 +352,7 @@ export function gerarPdfCartao(opts: {
       linhas.push({ label: "FALTA", qtde: cargaProgDia > 0 ? fmtMinHHMM(cargaProgDia) : "" });
       // Falta injustificada conta como hora benef
       horasBenef += cargaProgDia;
-    } else if (semMarcacao && !temJustificativa) {
+    } else if (semMarcacao && !temJustificativa && d.bancoHorasMinutos >= 0) {
       linhas.push({ label: "MARCAÇÃO NÃO REGISTRADA", qtde: "" });
     } else if (!falta && !semMarcacao) {
       for (const i of irregs) {
