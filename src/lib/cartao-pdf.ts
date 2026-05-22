@@ -312,6 +312,18 @@ export function gerarPdfCartao(opts: {
       }
     }
 
+    // Carga programada do dia (para faltas injustificadas em horas benef)
+    const cargaProgDia = (() => {
+      const pe = hm(d.programado.entrada);
+      const psf = hm(d.programado.saida_final);
+      if (pe == null || psf == null) return 0;
+      let c = psf - pe;
+      const psi = hm(d.programado.saida_intervalo);
+      const pri = hm(d.programado.retorno_intervalo);
+      if (psi != null && pri != null) c -= pri - psi;
+      return Math.max(0, c);
+    })();
+
     // Linhas a renderizar: { label, qtde }
     type LinhaIrreg = { label: string; qtde: string };
     const linhas: LinhaIrreg[] = [];
@@ -319,7 +331,9 @@ export function gerarPdfCartao(opts: {
     if (semJornada) {
       linhas.push({ label: "DIA SEM JORNADA CADASTRADA", qtde: "" });
     } else if (falta && !temJustificativa) {
-      linhas.push({ label: "FALTA", qtde: "" });
+      linhas.push({ label: "FALTA", qtde: cargaProgDia > 0 ? fmtMinHHMM(cargaProgDia) : "" });
+      // Falta injustificada conta como hora benef
+      horasBenef += cargaProgDia;
     } else if (semMarcacao && !temJustificativa) {
       linhas.push({ label: "MARCAÇÃO NÃO REGISTRADA", qtde: "" });
     } else if (!falta && !semMarcacao) {
@@ -348,6 +362,7 @@ export function gerarPdfCartao(opts: {
     }
     if (d.bancoHorasMinutos < 0) {
       debitos += -d.bancoHorasMinutos;
+      horasBenef += -d.bancoHorasMinutos;
       linhas.push({
         label: "DÉBITO BCO DE HORAS",
         qtde: fmtMinHHMM(-d.bancoHorasMinutos),
