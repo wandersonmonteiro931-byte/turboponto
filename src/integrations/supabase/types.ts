@@ -838,6 +838,81 @@ export type Database = {
           },
         ]
       }
+      justificativas_tipos: {
+        Row: {
+          abona_ocorrencia: boolean
+          afeta_assiduidade: string
+          ativo: boolean
+          categoria: string
+          codigo: string
+          conta_dia_trabalhado: boolean
+          created_at: string
+          desconta_dsr: boolean
+          desconta_salario: boolean
+          descricao: string | null
+          empresa_id: string
+          exige_anexo: boolean
+          exige_aprovacao: boolean
+          exige_marcacao_ponto: boolean
+          exige_observacao: boolean
+          id: string
+          movimenta_banco_horas: string
+          nome: string
+          padrao_sistema: boolean
+          pode_aplicar_individual: boolean
+          pode_aplicar_massa: boolean
+          updated_at: string
+        }
+        Insert: {
+          abona_ocorrencia?: boolean
+          afeta_assiduidade?: string
+          ativo?: boolean
+          categoria: string
+          codigo: string
+          conta_dia_trabalhado?: boolean
+          created_at?: string
+          desconta_dsr?: boolean
+          desconta_salario?: boolean
+          descricao?: string | null
+          empresa_id: string
+          exige_anexo?: boolean
+          exige_aprovacao?: boolean
+          exige_marcacao_ponto?: boolean
+          exige_observacao?: boolean
+          id?: string
+          movimenta_banco_horas?: string
+          nome: string
+          padrao_sistema?: boolean
+          pode_aplicar_individual?: boolean
+          pode_aplicar_massa?: boolean
+          updated_at?: string
+        }
+        Update: {
+          abona_ocorrencia?: boolean
+          afeta_assiduidade?: string
+          ativo?: boolean
+          categoria?: string
+          codigo?: string
+          conta_dia_trabalhado?: boolean
+          created_at?: string
+          desconta_dsr?: boolean
+          desconta_salario?: boolean
+          descricao?: string | null
+          empresa_id?: string
+          exige_anexo?: boolean
+          exige_aprovacao?: boolean
+          exige_marcacao_ponto?: boolean
+          exige_observacao?: boolean
+          id?: string
+          movimenta_banco_horas?: string
+          nome?: string
+          padrao_sistema?: boolean
+          pode_aplicar_individual?: boolean
+          pode_aplicar_massa?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cpf: string | null
@@ -998,6 +1073,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      seed_justificativas_padrao: {
+        Args: { _empresa_id: string }
+        Returns: undefined
       }
     }
     Enums: {
