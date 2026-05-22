@@ -20,6 +20,7 @@ import { Route as AppFuncionarioIndexRouteImport } from './routes/app/funcionari
 import { Route as AppEmpresaIndexRouteImport } from './routes/app/empresa/index'
 import { Route as AppFuncionarioRegistrosRouteImport } from './routes/app/funcionario/registros'
 import { Route as AppFuncionarioPerfilRouteImport } from './routes/app/funcionario/perfil'
+import { Route as AppFuncionarioNotificacoesRouteImport } from './routes/app/funcionario/notificacoes'
 import { Route as AppFuncionarioHoleritesRouteImport } from './routes/app/funcionario/holerites'
 import { Route as AppFuncionarioCartaoPontoRouteImport } from './routes/app/funcionario/cartao-ponto'
 import { Route as AppFuncionarioBeneficiosRouteImport } from './routes/app/funcionario/beneficios'
@@ -98,6 +99,12 @@ const AppFuncionarioPerfilRoute = AppFuncionarioPerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => AppFuncionarioRoute,
 } as any)
+const AppFuncionarioNotificacoesRoute =
+  AppFuncionarioNotificacoesRouteImport.update({
+    id: '/notificacoes',
+    path: '/notificacoes',
+    getParentRoute: () => AppFuncionarioRoute,
+  } as any)
 const AppFuncionarioHoleritesRoute = AppFuncionarioHoleritesRouteImport.update({
   id: '/holerites',
   path: '/holerites',
@@ -246,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/app/funcionario/beneficios': typeof AppFuncionarioBeneficiosRoute
   '/app/funcionario/cartao-ponto': typeof AppFuncionarioCartaoPontoRoute
   '/app/funcionario/holerites': typeof AppFuncionarioHoleritesRoute
+  '/app/funcionario/notificacoes': typeof AppFuncionarioNotificacoesRoute
   '/app/funcionario/perfil': typeof AppFuncionarioPerfilRoute
   '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa/': typeof AppEmpresaIndexRoute
@@ -278,6 +286,7 @@ export interface FileRoutesByTo {
   '/app/funcionario/beneficios': typeof AppFuncionarioBeneficiosRoute
   '/app/funcionario/cartao-ponto': typeof AppFuncionarioCartaoPontoRoute
   '/app/funcionario/holerites': typeof AppFuncionarioHoleritesRoute
+  '/app/funcionario/notificacoes': typeof AppFuncionarioNotificacoesRoute
   '/app/funcionario/perfil': typeof AppFuncionarioPerfilRoute
   '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa': typeof AppEmpresaIndexRoute
@@ -314,6 +323,7 @@ export interface FileRoutesById {
   '/app/funcionario/beneficios': typeof AppFuncionarioBeneficiosRoute
   '/app/funcionario/cartao-ponto': typeof AppFuncionarioCartaoPontoRoute
   '/app/funcionario/holerites': typeof AppFuncionarioHoleritesRoute
+  '/app/funcionario/notificacoes': typeof AppFuncionarioNotificacoesRoute
   '/app/funcionario/perfil': typeof AppFuncionarioPerfilRoute
   '/app/funcionario/registros': typeof AppFuncionarioRegistrosRoute
   '/app/empresa/': typeof AppEmpresaIndexRoute
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/app/funcionario/beneficios'
     | '/app/funcionario/cartao-ponto'
     | '/app/funcionario/holerites'
+    | '/app/funcionario/notificacoes'
     | '/app/funcionario/perfil'
     | '/app/funcionario/registros'
     | '/app/empresa/'
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/app/funcionario/beneficios'
     | '/app/funcionario/cartao-ponto'
     | '/app/funcionario/holerites'
+    | '/app/funcionario/notificacoes'
     | '/app/funcionario/perfil'
     | '/app/funcionario/registros'
     | '/app/empresa'
@@ -418,6 +430,7 @@ export interface FileRouteTypes {
     | '/app/funcionario/beneficios'
     | '/app/funcionario/cartao-ponto'
     | '/app/funcionario/holerites'
+    | '/app/funcionario/notificacoes'
     | '/app/funcionario/perfil'
     | '/app/funcionario/registros'
     | '/app/empresa/'
@@ -510,6 +523,13 @@ declare module '@tanstack/react-router' {
       path: '/perfil'
       fullPath: '/app/funcionario/perfil'
       preLoaderRoute: typeof AppFuncionarioPerfilRouteImport
+      parentRoute: typeof AppFuncionarioRoute
+    }
+    '/app/funcionario/notificacoes': {
+      id: '/app/funcionario/notificacoes'
+      path: '/notificacoes'
+      fullPath: '/app/funcionario/notificacoes'
+      preLoaderRoute: typeof AppFuncionarioNotificacoesRouteImport
       parentRoute: typeof AppFuncionarioRoute
     }
     '/app/funcionario/holerites': {
@@ -723,6 +743,7 @@ interface AppFuncionarioRouteChildren {
   AppFuncionarioBeneficiosRoute: typeof AppFuncionarioBeneficiosRoute
   AppFuncionarioCartaoPontoRoute: typeof AppFuncionarioCartaoPontoRoute
   AppFuncionarioHoleritesRoute: typeof AppFuncionarioHoleritesRoute
+  AppFuncionarioNotificacoesRoute: typeof AppFuncionarioNotificacoesRoute
   AppFuncionarioPerfilRoute: typeof AppFuncionarioPerfilRoute
   AppFuncionarioRegistrosRoute: typeof AppFuncionarioRegistrosRoute
   AppFuncionarioIndexRoute: typeof AppFuncionarioIndexRoute
@@ -734,6 +755,7 @@ const AppFuncionarioRouteChildren: AppFuncionarioRouteChildren = {
   AppFuncionarioBeneficiosRoute: AppFuncionarioBeneficiosRoute,
   AppFuncionarioCartaoPontoRoute: AppFuncionarioCartaoPontoRoute,
   AppFuncionarioHoleritesRoute: AppFuncionarioHoleritesRoute,
+  AppFuncionarioNotificacoesRoute: AppFuncionarioNotificacoesRoute,
   AppFuncionarioPerfilRoute: AppFuncionarioPerfilRoute,
   AppFuncionarioRegistrosRoute: AppFuncionarioRegistrosRoute,
   AppFuncionarioIndexRoute: AppFuncionarioIndexRoute,
