@@ -28,6 +28,20 @@ export type JornadaInfo = {
   intervalo_retorno: string | null;
 };
 
+export function salvarPdfArquivo(doc: jsPDF, nomeArquivo: string) {
+  const arquivoSeguro = nomeArquivo.replace(/[<>:"/\\|?*\x00-\x1F]/g, "-").replace(/\s+/g, " ").trim();
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = arquivoSeguro.endsWith(".pdf") ? arquivoSeguro : `${arquivoSeguro}.pdf`;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 const hm = (t: string | null): number | null => {
   if (!t) return null;
   const [h, m] = t.slice(0, 5).split(":").map(Number);
