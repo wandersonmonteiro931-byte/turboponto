@@ -13,9 +13,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as ReciboCalcIdRouteImport } from './routes/recibo.$calcId'
 import { Route as AppFuncionarioRouteImport } from './routes/app/funcionario'
 import { Route as AppEmpresaRouteImport } from './routes/app/empresa'
-import { Route as ReciboRouteImport } from './routes/recibo.'
 import { Route as AppFuncionarioIndexRouteImport } from './routes/app/funcionario/index'
 import { Route as AppEmpresaIndexRouteImport } from './routes/app/empresa/index'
 import { Route as AppFuncionarioRegistrosRouteImport } from './routes/app/funcionario/registros'
@@ -57,6 +57,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const ReciboCalcIdRoute = ReciboCalcIdRouteImport.update({
+  id: '/recibo/$calcId',
+  path: '/recibo/$calcId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppFuncionarioRoute = AppFuncionarioRouteImport.update({
   id: '/funcionario',
   path: '/funcionario',
@@ -66,11 +71,6 @@ const AppEmpresaRoute = AppEmpresaRouteImport.update({
   id: '/empresa',
   path: '/empresa',
   getParentRoute: () => AppRoute,
-} as any)
-const ReciboRoute = ReciboRouteImport.update({
-  id: '/recibo/',
-  path: '/recibo/',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AppFuncionarioIndexRoute = AppFuncionarioIndexRouteImport.update({
   id: '/',
@@ -181,9 +181,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/recibo/': typeof ReciboRoute
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
+  '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
@@ -209,7 +209,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/recibo': typeof ReciboRoute
+  '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app': typeof AppIndexRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
@@ -237,9 +237,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/recibo/': typeof ReciboRoute
   '/app/empresa': typeof AppEmpresaRouteWithChildren
   '/app/funcionario': typeof AppFuncionarioRouteWithChildren
+  '/recibo/$calcId': typeof ReciboCalcIdRoute
   '/app/': typeof AppIndexRoute
   '/app/empresa/beneficios': typeof AppEmpresaBeneficiosRoute
   '/app/empresa/cartao-ponto': typeof AppEmpresaCartaoPontoRoute
@@ -268,9 +268,9 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
-    | '/recibo/'
     | '/app/empresa'
     | '/app/funcionario'
+    | '/recibo/$calcId'
     | '/app/'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
@@ -296,7 +296,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/recibo'
+    | '/recibo/$calcId'
     | '/app'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
@@ -323,9 +323,9 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
-    | '/recibo/'
     | '/app/empresa'
     | '/app/funcionario'
+    | '/recibo/$calcId'
     | '/app/'
     | '/app/empresa/beneficios'
     | '/app/empresa/cartao-ponto'
@@ -353,7 +353,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  ReciboRoute: typeof ReciboRoute
+  ReciboCalcIdRoute: typeof ReciboCalcIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -386,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/recibo/$calcId': {
+      id: '/recibo/$calcId'
+      path: '/recibo/$calcId'
+      fullPath: '/recibo/$calcId'
+      preLoaderRoute: typeof ReciboCalcIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/funcionario': {
       id: '/app/funcionario'
       path: '/funcionario'
@@ -399,13 +406,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/empresa'
       preLoaderRoute: typeof AppEmpresaRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/recibo/': {
-      id: '/recibo/'
-      path: '/recibo'
-      fullPath: '/recibo/'
-      preLoaderRoute: typeof ReciboRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/app/funcionario/': {
       id: '/app/funcionario/'
@@ -640,8 +640,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  ReciboRoute: ReciboRoute,
+  ReciboCalcIdRoute: ReciboCalcIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

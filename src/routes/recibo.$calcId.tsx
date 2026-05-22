@@ -5,7 +5,7 @@ import { fmtBRL, mesNome } from "@/lib/beneficios";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 
-export const Route = createFileRoute("/recibo/")({
+export const Route = createFileRoute("/recibo/$calcId")({
   component: ReciboPage,
 });
 
