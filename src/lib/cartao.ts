@@ -311,8 +311,27 @@ export async function carregarCartao(
       const pri = hm(prog.retorno_intervalo);
       if (psi != null && pri != null) cargaProg -= diffRelogio(psi, pri);
     }
-    const extrasBruto = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
-    let extras = extrasBruto > toleranciaMin ? extrasBruto : 0;
+
+    // Créditos/débitos por categoria (regra solicitada):
+    // - Entrada antecipada → CRÉDITO
+    // - Saída antecipada   → DÉBITO
+    // - Entrada em atraso  → DÉBITO (já contabilizado em "atraso")
+    // - Hora extra: somente após o horário previsto de saída + 10 minutos → CRÉDITO
+    const LIMITE_EXTRA_MIN = 10;
+    let creditoEntradaAntec = 0;
+    let debitoSaidaAntec = 0;
+    let creditoHoraExtra = 0;
+    if (pe != null && e != null) {
+      const diffE = diffRelogioAssinado(pe, e);
+      if (diffE < -toleranciaMin) creditoEntradaAntec = -diffE;
+    }
+    if (psf != null && sf != null) {
+      const diffS = diffRelogioAssinado(psf, sf);
+      if (diffS > LIMITE_EXTRA_MIN) creditoHoraExtra = diffS;
+      else if (diffS < -toleranciaMin) debitoSaidaAntec = -diffS;
+    }
+    let extras = creditoHoraExtra;
+
 
     // Hoje (yyyy-mm-dd local)
     const hoje = new Date();
@@ -383,25 +402,26 @@ export async function carregarCartao(
       }
     }
 
-    // Toda hora extra vira crédito automaticamente, exceto quando o admin marca HORA EXTRA - PAGAR.
+    // Toda hora extra (após +10 min) vira crédito automaticamente,
+    // exceto quando o admin marca HORA EXTRA - PAGAR.
     if (!temHoraExtraPagar) {
-      const minutosCreditoHE = justHoraExtraCredito?.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
+      const minutosCreditoHE = justHoraExtraCredito?.quantidadeMinutos ?? creditoHoraExtra;
       bancoHorasMin += Math.max(0, minutosCreditoHE);
     }
+
+    // Crédito automático por entrada antecipada (sempre crédito, independe de HE_PAGAR).
+    bancoHorasMin += creditoEntradaAntec;
 
     // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
     if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
         bancoHorasMin -= cargaProg;
       } else {
-        let debitoAutomatico = atraso;
-        if (psf != null && sf != null) {
-          const saidaDiff = diffRelogioAssinado(psf, sf);
-          if (saidaDiff < -toleranciaMin) debitoAutomatico += -saidaDiff;
-        }
+        const debitoAutomatico = atraso + debitoSaidaAntec;
         bancoHorasMin -= Math.max(0, debitoAutomatico);
       }
     }
+
 
     // Fora do vínculo zera ocorrências e adiciona observação informativa
     if (foraVinculo) {
