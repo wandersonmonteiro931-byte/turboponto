@@ -139,11 +139,14 @@ function CartaoEmpresaPage() {
 
   const totaisStr = useMemo(() => {
     if (!resumo) return null;
+    const bh = resumo.totalBancoHoras;
+    const bhLabel = bh === 0 ? "—" : `${bh > 0 ? "+" : "-"}${formatMin(Math.abs(bh))}`;
     return {
       atraso: `${resumo.totalAtraso} min`,
       faltas: resumo.totalFaltas,
       trab: formatMin(resumo.totalTrabalhado),
       ext: formatMin(resumo.totalExtras),
+      banco: bhLabel,
     };
   }, [resumo]);
 
