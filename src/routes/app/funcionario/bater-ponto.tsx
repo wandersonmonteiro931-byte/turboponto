@@ -55,6 +55,7 @@ function BaterPontoPage() {
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const [bloqueioAte, setBloqueioAte] = useState<Date | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
