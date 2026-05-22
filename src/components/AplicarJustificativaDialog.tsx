@@ -26,6 +26,7 @@ export function AplicarJustificativaDialog({
   const [tipoId, setTipoId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [dataCompensada, setDataCompensada] = useState("");
+  const [quantidade, setQuantidade] = useState(""); // HH:MM
   const [anexo, setAnexo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -37,6 +38,7 @@ export function AplicarJustificativaDialog({
     setObservacao("");
     setTipoId("");
     setDataCompensada("");
+    setQuantidade("");
     setAnexo(null);
   }, [open, empresaId]);
 
