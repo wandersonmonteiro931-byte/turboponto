@@ -67,7 +67,7 @@ function MassaPage() {
       }
 
       const status = tipo.exige_aprovacao ? "pendente" : "aprovada";
-      const rows: Array<Record<string, unknown>> = [];
+      const rows = [];
       for (const fid of selecionados) {
         for (const dt of datas) {
           rows.push({
