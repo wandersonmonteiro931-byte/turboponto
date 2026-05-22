@@ -17,7 +17,7 @@ import { Plus, Search, UserCircle2, Power, PowerOff, Pencil } from "lucide-react
 import { criarFuncionario } from "@/lib/funcionarios.functions";
 import { getAccessToken } from "@/lib/session";
 
-export const Route = createFileRoute("/app/empresa/funcionarios")({
+export const Route = createFileRoute("/app/empresa/funcionarios/")({
   component: FuncionariosPage,
 });
 
