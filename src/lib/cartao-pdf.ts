@@ -153,7 +153,19 @@ export function gerarPdfCartao(opts: {
   doc.setFont("courier", "normal");
   y += 1;
   hr(y);
+  y += 3.2;
+  doc.setFont("courier", "italic");
+  doc.setFontSize(7);
+  doc.text(
+    "Irregularidade = detectada automaticamente pelo sistema    |    Justificativa = informada pelo supervisor",
+    ML, y,
+  );
+  doc.setFont("courier", "normal");
+  doc.setFontSize(8);
+  y += 1.2;
+  hr(y);
   y += 3.5;
+
 
   const rowH = 3.2;
   let totalNoturno = 0;
@@ -183,6 +195,13 @@ export function gerarPdfCartao(opts: {
     const codeJ = jornada?.nome.slice(0, 5).padStart(5, "0") ?? "";
     const escala = "";
 
+    // Dia fora do vínculo (antes da admissão / após desligamento): linha em branco
+    if (d.foraVinculo) {
+      doc.text(linha([diaSem, dataStr, "", "", "", "", "", "", "", "", "", "", "", ""]), ML, y);
+      y += rowH;
+      continue;
+    }
+
     // Linha principal
     const progE = d.programado.entrada?.slice(0, 5) ?? "";
     const progSI = d.programado.saida_intervalo?.slice(0, 5) ?? "";
@@ -196,17 +215,20 @@ export function gerarPdfCartao(opts: {
     let realSaidaMain = "";
     let marcacaoNaoRegistrada = false;
 
+    // Justificativa do supervisor (sempre exibida na coluna Justificativa)
+    const justSupervisor = d.justificativa
+      ? (d.justificativa.tipo.nome + (d.justificativa.observacao ? " · " + d.justificativa.observacao : "")).slice(0, 30)
+      : "";
+
     const subs: SubLinha[] = [];
-    if (d.justificativa) {
-      irregMain = d.justificativa.tipo.nome.slice(0, 24);
-      justMain = (d.justificativa.observacao ?? "").slice(0, 30);
-    } else if (!d.trabalha) {
+    if (!d.trabalha && !d.justificativa) {
       irregMain = "FOLGA";
     } else if (d.falta) {
-      irregMain = "Falta";
-      justMain = d.observacao ?? "";
+      irregMain = "FALTA";
+      justMain = justSupervisor || (d.observacao ?? "").slice(0, 30);
     } else if (d.pendente) {
       marcacaoNaoRegistrada = true;
+      justMain = justSupervisor;
     } else {
       const irregs = irregularidadesDoDia(d);
       if (irregs.length > 0) {
@@ -215,21 +237,20 @@ export function gerarPdfCartao(opts: {
         realSaidaMain = first.realSaida;
         irregMain = first.irreg;
         qtdeMain = first.qtde;
-        justMain = first.just;
         subs.push(...irregs);
         // computa créditos/débitos do mês
         if (first.just.startsWith("CRED")) creditos += hm(first.qtde) ?? 0;
         else debitos += hm(first.qtde) ?? 0;
       }
+      justMain = justSupervisor;
     }
 
     if (marcacaoNaoRegistrada) {
       doc.text(
-        linha([diaSem, dataStr, codeJ, escala, "", "", "", "", "", "", "", "", "", ""]),
+        linha([diaSem, dataStr, codeJ, escala, "", "", "", "", "", "", "", "", justMain, ""]),
         ML, y,
       );
-      // posicao aproximada da coluna "Marcacao do Ponto" (apos Dia+Data+Hora+Esca = 4+9+7+5 chars)
-      // largura de char ~1.6mm em courier 8pt
+      // posicao aproximada da coluna "Marcacao do Ponto"
       doc.text("MARCACAO NAO REGISTRADA", ML + (4 + 9 + 7 + 5) * 1.6, y);
     } else {
       doc.text(
@@ -248,7 +269,7 @@ export function gerarPdfCartao(opts: {
       if (s.just.startsWith("CRED")) creditos += hm(s.qtde) ?? 0;
       else debitos += hm(s.qtde) ?? 0;
       doc.text(
-        linha(["", "", "", "", "", "", "", "", s.realEntr, s.realSaida, s.irreg, s.qtde, s.just, ""]),
+        linha(["", "", "", "", "", "", "", "", s.realEntr, s.realSaida, s.irreg, s.qtde, "", ""]),
         ML, y,
       );
       y += rowH;
