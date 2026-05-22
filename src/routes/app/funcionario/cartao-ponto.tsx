@@ -20,7 +20,7 @@ function CartaoFuncPage() {
   const { user } = useAuth();
   const hoje = new Date();
   const [funcionario, setFuncionario] = useState<{ id: string; nome: string; cpf: string | null; cargo: string | null; empresa_id: string } | null>(null);
-  const [empresa, setEmpresa] = useState<{ nome_fantasia: string; cnpj: string | null } | null>(null);
+  const [empresa, setEmpresa] = useState<{ nome_fantasia: string; cnpj: string | null; endereco: string | null } | null>(null);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<ResumoCartao | null>(null);
