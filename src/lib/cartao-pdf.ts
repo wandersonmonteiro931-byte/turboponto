@@ -222,18 +222,17 @@ export function gerarPdfCartao(opts: {
     const dataStr = fmtDataBR(d.data);
 
     if (d.foraVinculo) {
-      let justTxt = "";
-      if (resumo.dataAdmissao && d.data < resumo.dataAdmissao) {
-        justTxt = `Pre-admissao (admitido em ${fmtDataBR(resumo.dataAdmissao)})`;
-      } else if (resumo.dataDesligamento && d.data > resumo.dataDesligamento) {
-        justTxt = `Pos-desligamento (em ${fmtDataBR(resumo.dataDesligamento)})`;
-      }
       drawRow({
         dia: diaSem,
         data: dataStr,
         irreg: "FORA DO VINCULO",
-        just: justTxt,
       });
+      for (const j of d.justificativas ?? []) {
+        drawRow({
+          just: `${j.tipo.nome}${j.observacao ? " - " + j.observacao : ""}`,
+          qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
+        });
+      }
       continue;
     }
 
