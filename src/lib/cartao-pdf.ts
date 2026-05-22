@@ -192,10 +192,6 @@ export function gerarPdfCartao(opts: {
     }
 
     // Linha principal
-    const progE = d.programado.entrada?.slice(0, 5) ?? "";
-    const progSI = d.programado.saida_intervalo?.slice(0, 5) ?? "";
-    const progRI = d.programado.retorno_intervalo?.slice(0, 5) ?? "";
-    const progSF = d.programado.saida_final?.slice(0, 5) ?? "";
 
     // Justificativa do supervisor (sempre exibida na coluna Justificativa)
     const justSupervisor = d.justificativa
