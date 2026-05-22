@@ -311,8 +311,27 @@ export async function carregarCartao(
       const pri = hm(prog.retorno_intervalo);
       if (psi != null && pri != null) cargaProg -= diffRelogio(psi, pri);
     }
-    const extrasBruto = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
-    let extras = extrasBruto > toleranciaMin ? extrasBruto : 0;
+
+    // Créditos/débitos por categoria (regra solicitada):
+    // - Entrada antecipada → CRÉDITO
+    // - Saída antecipada   → DÉBITO
+    // - Entrada em atraso  → DÉBITO (já contabilizado em "atraso")
+    // - Hora extra: somente após o horário previsto de saída + 10 minutos → CRÉDITO
+    const LIMITE_EXTRA_MIN = 10;
+    let creditoEntradaAntec = 0;
+    let debitoSaidaAntec = 0;
+    let creditoHoraExtra = 0;
+    if (pe != null && e != null) {
+      const diffE = diffRelogioAssinado(pe, e);
+      if (diffE < -toleranciaMin) creditoEntradaAntec = -diffE;
+    }
+    if (psf != null && sf != null) {
+      const diffS = diffRelogioAssinado(psf, sf);
+      if (diffS > LIMITE_EXTRA_MIN) creditoHoraExtra = diffS;
+      else if (diffS < -toleranciaMin) debitoSaidaAntec = -diffS;
+    }
+    let extras = creditoHoraExtra;
+
 
     // Hoje (yyyy-mm-dd local)
     const hoje = new Date();
