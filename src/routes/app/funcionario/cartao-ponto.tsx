@@ -166,10 +166,12 @@ function CartaoFuncPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {resumo?.dias.map((d) => (
+                {resumo?.dias.map((d) => {
+                  const semRegistro = !d.registrado.entrada && !d.registrado.saida_intervalo && !d.registrado.retorno_intervalo && !d.registrado.saida_final;
+                  return (
                   <tr key={d.data} className={d.falta ? "bg-red-500/5" : d.pendente && d.trabalha ? "bg-yellow-500/5" : !d.trabalha ? "bg-muted/30" : ""}>
                     <td className="p-2 whitespace-nowrap font-mono">{d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span></td>
-                    <td className="p-2 font-mono">{d.registrado.entrada ?? (d.falta ? <span className="text-red-600 font-bold">FALTA</span> : d.pendente && d.trabalha ? <span className="text-yellow-700 text-xs">marcação não registrada</span> : "—")}</td>
+                    <td className="p-2 font-mono">{d.registrado.entrada ?? (d.falta ? <span className="text-red-600 font-bold">FALTA</span> : semRegistro && d.pendente && d.trabalha ? <span className="text-yellow-700 text-xs">marcação não registrada</span> : semRegistro && d.trabalha && d.bancoHorasMinutos < 0 ? <span className="text-red-600 font-bold text-xs">DÉBITO BH</span> : "—")}</td>
                     <td className="p-2 font-mono">{d.registrado.saida_intervalo ?? "—"}</td>
                     <td className="p-2 font-mono">{d.registrado.retorno_intervalo ?? "—"}</td>
                     <td className="p-2 font-mono">{d.registrado.saida_final ?? "—"}</td>
@@ -177,7 +179,8 @@ function CartaoFuncPage() {
                     <td className="p-2">{d.trabalhadoMinutos ? formatMin(d.trabalhadoMinutos) : "—"}</td>
                     <td className="p-2 text-orange-600">{d.extrasMinutos ? formatMin(d.extrasMinutos) : "—"}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           }
