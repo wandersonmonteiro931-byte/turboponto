@@ -214,11 +214,12 @@ function CartaoEmpresaPage() {
       </Card>
 
       {totaisStr && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <Stat label="Atrasos" value={totaisStr.atraso} />
           <Stat label="Faltas" value={totaisStr.faltas} />
           <Stat label="Horas trabalhadas" value={totaisStr.trab} />
           <Stat label="Horas extras" value={totaisStr.ext} />
+          <Stat label="Banco de horas" value={totaisStr.banco} />
         </div>
       )}
 
