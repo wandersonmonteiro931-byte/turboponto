@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.sync_banco_horas_automatico_dia(uuid, date) FROM PUBLIC, anon, authenticated;
