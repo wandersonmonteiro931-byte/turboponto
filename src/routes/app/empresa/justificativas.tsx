@@ -285,7 +285,6 @@ function JustificativasPage() {
               <Input
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                disabled={!!editing?.padrao_sistema}
                 maxLength={80}
               />
             </div>
@@ -298,6 +297,11 @@ function JustificativasPage() {
                 maxLength={40}
                 placeholder="EX: ABONO_GERENTE"
               />
+              {editing?.padrao_sistema && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Código fixo: usado pelo sistema como chave da regra de cálculo.
+                </p>
+              )}
             </div>
             <div>
               <Label>Categoria</Label>
