@@ -937,6 +937,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "justificativas_aplicadas_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "justificativas_aplicadas_tipo_id_fkey"
             columns: ["tipo_id"]
             isOneToOne: false
