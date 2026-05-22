@@ -44,6 +44,7 @@ export type DiaCartao = {
   extrasMinutos: number;
   falta: boolean;
   pendente: boolean;
+  foraVinculo: boolean;
   observacao: string | null;
   justificativa: JustificativaAplicadaDia | null;
   bancoHorasMinutos: number; // positivo = crédito, negativo = débito
