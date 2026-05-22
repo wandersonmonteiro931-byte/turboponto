@@ -7,6 +7,15 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { DIAS_SEMANA, JornadaDia } from "@/lib/jornadas";
 import { formatMinutos, mesNome } from "@/lib/format";
+import { statusJornadaHoje, TipoPonto, hojeISO } from "@/lib/ponto";
+
+const toneClass: Record<string, string> = {
+  ok: "bg-green-500/20 text-green-700",
+  warn: "bg-yellow-500/20 text-yellow-700",
+  bad: "bg-red-500/20 text-red-700",
+  info: "bg-blue-500/20 text-blue-700",
+  muted: "bg-muted text-muted-foreground",
+};
 
 export const Route = createFileRoute("/app/funcionario/")({
   component: FuncionarioHome,
@@ -31,6 +40,7 @@ function FuncionarioHome() {
   const [jornada, setJornada] = useState<JornadaAtual | null>(null);
   const [dias, setDias] = useState<JornadaDia[]>([]);
   const [carregou, setCarregou] = useState(false);
+  const [tiposHoje, setTiposHoje] = useState<TipoPonto[]>([]);
   const [resumo, setResumo] = useState<{
     atrasoMes: number;
     cestaStatus: string;
@@ -69,7 +79,7 @@ function FuncionarioHome() {
       const mes = hoje.getMonth() + 1;
       const ano = hoje.getFullYear();
       const inicioMes = `${ano}-${String(mes).padStart(2, "0")}-01`;
-      const [{ data: pontos }, { data: calc }, { data: hol }, { data: avisos }, { data: leituras }] = await Promise.all([
+      const [{ data: pontos }, { data: calc }, { data: hol }, { data: avisos }, { data: leituras }, { data: regsHoje }] = await Promise.all([
         supabase.from("registros_ponto").select("atraso_minutos")
           .eq("funcionario_id", funcId).gte("data_referencia", inicioMes),
         supabase.from("beneficios_calculos").select("status,tem_direito,total_atraso_minutos")
@@ -80,7 +90,10 @@ function FuncionarioHome() {
           .order("mes_referencia", { ascending: false }).limit(1),
         supabase.from("avisos").select("id").eq("status", "ativo"),
         supabase.from("avisos_leituras").select("aviso_id").eq("funcionario_id", funcId),
+        supabase.from("registros_ponto").select("tipo_ponto")
+          .eq("funcionario_id", funcId).eq("data_referencia", hojeISO()).neq("status", "corrigido"),
       ]);
+      setTiposHoje(((regsHoje ?? []) as { tipo_ponto: TipoPonto }[]).map((r) => r.tipo_ponto));
       const atrasoMes = (pontos ?? []).reduce((s, p) => s + ((p as { atraso_minutos: number }).atraso_minutos || 0), 0);
       const c = calc as { status: string; tem_direito: boolean; total_atraso_minutos: number } | null;
       const cestaStatus = !c ? "Em cálculo"
@@ -107,18 +120,7 @@ function FuncionarioHome() {
   const horaStr = now.toLocaleTimeString("pt-BR");
 
   const hoje = dias.find((d) => d.dia_semana === now.getDay());
-  const proxHorario = (() => {
-    if (!hoje || !hoje.trabalha) return "—";
-    const hhmm = now.toTimeString().slice(0, 5);
-    const seq: Array<[string, string | null]> = [
-      ["Entrada", hoje.horario_entrada],
-      ["Saída intervalo", hoje.horario_intervalo_saida],
-      ["Retorno intervalo", hoje.horario_intervalo_retorno],
-      ["Saída", hoje.horario_saida],
-    ];
-    const prox = seq.find(([, t]) => t && t.slice(0, 5) > hhmm);
-    return prox ? `${prox[0]} às ${prox[1]?.slice(0, 5)}` : "Jornada concluída";
-  })();
+  const statusDia = statusJornadaHoje(hoje, tiposHoje, now, 0);
 
   const fmt = (t: string | null | undefined) => (t ? t.slice(0, 5) : "—");
 
@@ -129,7 +131,11 @@ function FuncionarioHome() {
           <div>
             <div className="text-sm text-white/70 capitalize">{dataStr}</div>
             <div className="text-3xl sm:text-4xl font-bold mt-1">Olá, {nome || "funcionário"}</div>
-            <div className="text-sm text-primary mt-2">Próximo ponto: {proxHorario}</div>
+            <div className="mt-2">
+              <span className={`text-[11px] uppercase font-bold px-2 py-1 rounded ${toneClass[statusDia.tone]}`}>
+                {statusDia.label}
+              </span>
+            </div>
           </div>
           <div className="text-right">
             <div className="text-4xl sm:text-5xl font-mono font-bold text-primary tabular-nums">{horaStr}</div>
