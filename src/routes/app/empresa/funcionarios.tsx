@@ -155,8 +155,10 @@ function FuncionariosPage() {
                   <div className="flex gap-1 items-center">
                     <Button size="sm" variant="outline" asChild title="Editar">
                       <Link to="/app/empresa/funcionarios/$id" params={{ id: f.id }}>
-                        <Pencil className="h-4 w-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Editar</span>
+                        <span className="inline-flex items-center">
+                          <Pencil className="h-4 w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Editar</span>
+                        </span>
                       </Link>
                     </Button>
                     {isAdmin && (
