@@ -253,9 +253,21 @@ export async function carregarCartao(
     }
     let extras = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
 
+    // Hoje (yyyy-mm-dd local)
+    const hoje = new Date();
+    const todayStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;
+    const isFuturo = data > todayStr;
+    // Para o dia atual, só considera pendente após o horário de saída final + 60min de margem
+    let aindaDentroDoExpediente = false;
+    if (data === todayStr && prog.saida_final) {
+      const agoraMin = hoje.getHours() * 60 + hoje.getMinutes();
+      const fimMin = (hm(prog.saida_final) ?? 0) + 60;
+      if (agoraMin < fimMin) aindaDentroDoExpediente = true;
+    }
+
     const semRegistro = trabalha && regs.length === 0;
     let falta = semRegistro && setFaltas.has(data);
-    let pendente = semRegistro && !falta;
+    let pendente = semRegistro && !falta && !isFuturo && !aindaDentroDoExpediente;
     let bancoHorasMin = 0;
 
     // Aplica regras da justificativa
@@ -304,12 +316,9 @@ export async function carregarCartao(
     totalExtras += extras;
     totalBancoHoras += bancoHorasMin;
 
-    const obsVinculo = foraVinculo
-      ? (dataAdmissao && data < dataAdmissao ? "Antes da admissão" : "Após desligamento")
-      : null;
-    const obsFinal = obsVinculo
-      ?? just?.observacao
-      ?? (falta ? (justFaltas.get(data) ?? obs) : obs);
+    const obsFinal = foraVinculo
+      ? null
+      : (just?.observacao ?? (falta ? (justFaltas.get(data) ?? obs) : obs));
 
     result.push({
       data,
@@ -323,6 +332,7 @@ export async function carregarCartao(
       extrasMinutos: extras,
       falta,
       pendente,
+      foraVinculo,
       observacao: obsFinal,
       justificativa: just,
       bancoHorasMinutos: bancoHorasMin,
