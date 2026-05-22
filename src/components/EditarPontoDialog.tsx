@@ -34,6 +34,7 @@ export function EditarPontoDialog({
 }) {
   const { user } = useAuth();
   const [tipo, setTipo] = useState("entrada");
+  const [data, setData] = useState("");
   const [hora, setHora] = useState("");
   const [observacao, setObservacao] = useState("");
   const [justificativa, setJustificativa] = useState("");
@@ -43,6 +44,7 @@ export function EditarPontoDialog({
   useEffect(() => {
     if (!registro) return;
     setTipo(registro.tipo_ponto);
+    setData(registro.data_referencia);
     const d = new Date(registro.horario_registrado);
     setHora(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
     setObservacao(registro.observacao ?? "");
@@ -57,7 +59,7 @@ export function EditarPontoDialog({
     if (!justificativa.trim()) { toast.error("Justificativa é obrigatória."); return; }
     setSaving(true);
 
-    const dataRef = registro.data_referencia;
+    const dataRef = data || registro.data_referencia;
     const [h, m] = hora.split(":").map(Number);
     const novoTs = new Date(`${dataRef}T00:00:00`);
     novoTs.setHours(h, m, 0, 0);
@@ -68,13 +70,14 @@ export function EditarPontoDialog({
 
     const alteracoes: Array<{ campo: string; antigo: string | null; novo: string | null }> = [];
     if (tipo !== registro.tipo_ponto) alteracoes.push({ campo: "tipo_ponto", antigo: registro.tipo_ponto, novo: tipo });
+    if (dataRef !== registro.data_referencia) alteracoes.push({ campo: "data_referencia", antigo: registro.data_referencia, novo: dataRef });
     if (hora !== horaAntigaStr) alteracoes.push({ campo: "horario_registrado", antigo: horaAntigaStr, novo: hora });
     if ((observacao || "") !== (registro.observacao ?? "")) alteracoes.push({ campo: "observacao", antigo: registro.observacao, novo: observacao });
 
     if (alteracoes.length === 0) { toast.error("Nenhuma alteração detectada."); setSaving(false); return; }
 
     const { error } = await supabase.from("registros_ponto")
-      .update({ tipo_ponto: tipo, horario_registrado: novoIso, observacao: observacao || null, status: "corrigido" })
+      .update({ tipo_ponto: tipo, data_referencia: dataRef, horario_registrado: novoIso, observacao: observacao || null, status: "corrigido" })
       .eq("id", registro.id);
     if (error) { toast.error(error.message); setSaving(false); return; }
 
@@ -120,7 +123,7 @@ export function EditarPontoDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Editar registro de ponto</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Tipo</Label>
               <Select value={tipo} onValueChange={setTipo}>
@@ -129,6 +132,10 @@ export function EditarPontoDialog({
                   {TIPOS_PONTO.map((t) => <SelectItem key={t.v} value={t.v}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Data</Label>
+              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
             </div>
             <div>
               <Label className="text-xs">Horário</Label>
