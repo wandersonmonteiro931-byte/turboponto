@@ -1,5 +1,11 @@
 import jsPDF from "jspdf";
-import { DIAS_SEMANA_CURTO, NOMES_MES, formatMin, type ResumoCartao, type DiaCartao } from "@/lib/cartao";
+import {
+  DIAS_SEMANA_CURTO,
+  NOMES_MES,
+  formatMin,
+  type ResumoCartao,
+  type DiaCartao,
+} from "@/lib/cartao";
 
 export type EmpresaInfo = {
   nome_fantasia: string;
@@ -35,7 +41,8 @@ const hm = (t: string | null): number | null => {
 };
 
 const minDiff = (prog: string | null, real: string | null): number | null => {
-  const p = hm(prog); const r = hm(real);
+  const p = hm(prog);
+  const r = hm(real);
   if (p == null || r == null) return null;
   let d = r - p;
   if (d < -12 * 60) d += 1440;
@@ -50,9 +57,17 @@ const fmtMinHHMM = (min: number): string => {
 
 type SubLinha = { realEntr: string; realSaida: string; irreg: string; qtde: string; just: string };
 
+const horarioPar = (
+  d: DiaCartao,
+  tipo: "entrada" | "saida_intervalo" | "retorno_intervalo" | "saida_final",
+) => d.registrado[tipo] || d.programado[tipo] || "";
+
 function irregularidadesDoDia(d: DiaCartao, tolMin = 0): SubLinha[] {
   const out: SubLinha[] = [];
-  const checks: Array<{ tipo: "entrada" | "saida_intervalo" | "retorno_intervalo" | "saida_final"; isSaida: boolean }> = [
+  const checks: Array<{
+    tipo: "entrada" | "saida_intervalo" | "retorno_intervalo" | "saida_final";
+    isSaida: boolean;
+  }> = [
     { tipo: "entrada", isSaida: false },
     { tipo: "saida_intervalo", isSaida: true },
     { tipo: "retorno_intervalo", isSaida: false },
@@ -67,15 +82,31 @@ function irregularidadesDoDia(d: DiaCartao, tolMin = 0): SubLinha[] {
     let label = "";
     if (c.isSaida) label = diff < 0 ? "Saida Antecipada" : "Hora Extra";
     else label = diff < 0 ? "Entrada Antecipada" : "Entrada em Atraso";
+    const realEntr =
+      c.tipo === "saida_final"
+        ? horarioPar(d, "entrada")
+        : c.tipo === "retorno_intervalo"
+          ? horarioPar(d, "saida_intervalo")
+          : horarioPar(d, c.tipo);
+    const realSaida =
+      c.tipo === "entrada"
+        ? horarioPar(d, "saida_final")
+        : c.tipo === "saida_intervalo"
+          ? horarioPar(d, "retorno_intervalo")
+          : horarioPar(d, c.tipo);
     out.push({
-      realEntr: c.isSaida ? prog : real,
-      realSaida: c.isSaida ? real : prog,
+      realEntr,
+      realSaida,
       irreg: label,
       qtde: fmtMinHHMM(diff),
-      just: diff > 0 && c.isSaida ? "CREDITO BCO DE HORAS"
-        : diff < 0 && !c.isSaida ? "DEBITO BCO DE HORAS"
-        : diff > 0 ? "DEBITO BCO DE HORAS"
-        : "CREDITO BCO DE HORAS",
+      just:
+        diff > 0 && c.isSaida
+          ? "CREDITO BCO DE HORAS"
+          : diff < 0 && !c.isSaida
+            ? "DEBITO BCO DE HORAS"
+            : diff > 0
+              ? "DEBITO BCO DE HORAS"
+              : "CREDITO BCO DE HORAS",
     });
   }
   return out;
@@ -92,8 +123,10 @@ export function gerarPdfCartao(opts: {
 }): jsPDF {
   const { empresa, funcionario, jornada, ano, mes, resumo } = opts;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const pageW = 210, pageH = 297;
-  const ML = 8, MR = 8;
+  const pageW = 210,
+    pageH = 297;
+  const ML = 8,
+    MR = 8;
   const W = pageW - ML - MR;
   doc.setFont("courier", "normal");
   doc.setFontSize(8);
@@ -102,7 +135,14 @@ export function gerarPdfCartao(opts: {
   const hr = (y: number) => doc.line(ML, y, ML + W, y);
 
   // Cabeçalho top
-  const emissao = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const emissao = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   let y = 10;
   hr(y);
   y += 4;
@@ -144,8 +184,31 @@ export function gerarPdfCartao(opts: {
 
   // Cabeçalho da tabela (duas linhas)
   y += 4;
-  const header1 = pad("Dia", 4) + pad("Data", 9) + pad("Hora", 7) + pad("Esca", 5) + pad("Marcacao do Ponto", 32) + pad("Irregularidade", 19) + pad("QTDE", 7) + pad("Justificativa", 22) + pad("Adic.", 8, true);
-  const header2 = pad("Sem", 4) + pad("", 9) + pad("rio", 7) + pad("la", 5) + pad("Entr ", 6) + pad("Saida", 6) + pad("Entr ", 6) + pad("Saida", 6) + pad("Entr ", 6) + pad("Saida", 2) + pad("", 19) + pad("", 7) + pad("", 22) + pad("Noturno", 8, true);
+  const header1 =
+    pad("Dia", 4) +
+    pad("Data", 9) +
+    pad("Hora", 7) +
+    pad("Esca", 5) +
+    pad("Marcacao do Ponto", 32) +
+    pad("Irregularidade", 19) +
+    pad("QTDE", 7) +
+    pad("Justificativa", 22) +
+    pad("Adic.", 8, true);
+  const header2 =
+    pad("Sem", 4) +
+    pad("", 9) +
+    pad("rio", 7) +
+    pad("la", 5) +
+    pad("Entr ", 6) +
+    pad("Saida", 6) +
+    pad("Entr ", 6) +
+    pad("Saida", 6) +
+    pad("Entr ", 6) +
+    pad("Saida", 2) +
+    pad("", 19) +
+    pad("", 7) +
+    pad("", 22) +
+    pad("Noturno", 8, true);
   doc.setFont("courier", "bold");
   doc.text(header1, ML, y);
   y += 3.2;
@@ -155,10 +218,10 @@ export function gerarPdfCartao(opts: {
   hr(y);
   y += 3.5;
 
-
   const rowH = 3.2;
-  let totalNoturno = 0;
-  let creditos = 0, debitos = 0;
+  const totalNoturno = 0;
+  let creditos = 0,
+    debitos = 0;
 
   const linha = (cols: string[]) => {
     // 11 colunas, larguras fixas (em chars)
@@ -176,28 +239,57 @@ export function gerarPdfCartao(opts: {
       doc.addPage();
       y = 14;
       doc.text(`Emissao: ${emissao}`, ML, y);
-      doc.text(`Pagina: ${String(doc.getNumberOfPages()).padStart(4, "0")}`, ML + W, y, { align: "right" });
-      y += 3; hr(y); y += 4;
+      doc.text(`Pagina: ${String(doc.getNumberOfPages()).padStart(4, "0")}`, ML + W, y, {
+        align: "right",
+      });
+      y += 3;
+      hr(y);
+      y += 4;
     }
     const diaSem = DIAS_SEMANA_CURTO[d.diaSemana];
     const dataStr = `${d.data.slice(8)}/${d.data.slice(5, 7)}/${d.data.slice(2, 4)}`;
     const codeJ = jornada?.nome.slice(0, 5).padStart(5, "0") ?? "";
     const escala = "";
 
-    type Evento = { marcacao?: string; realEntr: string; realSaida: string; irreg: string; qtde: string; just: string };
+    type Evento = {
+      marcacao?: string;
+      realEntr: string;
+      realSaida: string;
+      irreg: string;
+      qtde: string;
+      just: string;
+    };
     const eventos: Evento[] = [];
 
-    if (!d.trabalha && !d.foraVinculo) eventos.push({ realEntr: "", realSaida: "", irreg: "FOLGA", qtde: "", just: "" });
-    if (d.faltaRegistrada || d.falta) eventos.push({ realEntr: "", realSaida: "", irreg: "FALTA", qtde: "", just: "" });
-    if (d.marcacaoNaoRegistrada || d.pendente) eventos.push({ marcacao: "MARCACAO NAO REGISTRADA", realEntr: "", realSaida: "", irreg: "", qtde: "", just: "" });
+    if (!d.trabalha && !d.foraVinculo)
+      eventos.push({ realEntr: "", realSaida: "", irreg: "FOLGA", qtde: "", just: "" });
+    if (d.faltaRegistrada || d.falta)
+      eventos.push({ realEntr: "", realSaida: "", irreg: "FALTA", qtde: "", just: "" });
+    if (d.marcacaoNaoRegistrada || d.pendente)
+      eventos.push({
+        marcacao: "MARCACAO NAO REGISTRADA",
+        realEntr: "",
+        realSaida: "",
+        irreg: "",
+        qtde: "",
+        just: "",
+      });
 
     for (const i of irregularidadesDoDia(d)) {
-      eventos.push({ realEntr: i.realEntr, realSaida: i.realSaida, irreg: i.irreg, qtde: i.qtde, just: "" });
+      eventos.push({
+        realEntr: i.realEntr,
+        realSaida: i.realSaida,
+        irreg: i.irreg,
+        qtde: i.qtde,
+        just: "",
+      });
       if (i.just.startsWith("CRED")) creditos += hm(i.qtde) ?? 0;
       else debitos += hm(i.qtde) ?? 0;
     }
 
-    const justificativas = (d.justificativas?.length ? d.justificativas : d.justificativa ? [d.justificativa] : []).map((j) => ({
+    const justificativas = (
+      d.justificativas?.length ? d.justificativas : d.justificativa ? [d.justificativa] : []
+    ).map((j) => ({
       realEntr: "",
       realSaida: "",
       irreg: "",
@@ -219,15 +311,25 @@ export function gerarPdfCartao(opts: {
     for (let k = 0; k < totalLinhas; k++) {
       const ev = eventos[k] ?? { realEntr: "", realSaida: "", irreg: "", qtde: "", just: "" };
       const just = justificativas[k] ?? { just: "", qtde: "" };
+      const marcacaoIrregular =
+        ev.realEntr || ev.realSaida
+          ? [ev.realEntr, "", "", "", "", ev.realSaida]
+          : ["", "", "", "", "", ""];
       const marcacaoCols = ev.marcacao
         ? ["", "", "", "", "", ""]
         : k === 0 && !ev.realEntr && !ev.realSaida
           ? marcacoesRegistradas
-          : ["", "", "", "", ev.realEntr, ev.realSaida];
+          : marcacaoIrregular;
       const cols = [
-        k === 0 ? diaSem : "", k === 0 ? dataStr : "", k === 0 ? codeJ : "", k === 0 ? escala : "",
+        k === 0 ? diaSem : "",
+        k === 0 ? dataStr : "",
+        k === 0 ? codeJ : "",
+        k === 0 ? escala : "",
         ...marcacaoCols,
-        ev.irreg, just.qtde || ev.qtde, just.just, "",
+        ev.irreg,
+        just.qtde || ev.qtde,
+        just.just,
+        "",
       ];
       doc.text(linha(cols), ML, y);
       if (ev.marcacao) {
@@ -250,7 +352,8 @@ export function gerarPdfCartao(opts: {
   y += 4;
   doc.text(
     `Saldo Inicial : 00:00     Saldo Banco de Horas : ${fmtMinHHMM(creditos - debitos)}     Creditos Mes: ${fmtMinHHMM(creditos)}     Debitos Mes: ${fmtMinHHMM(debitos)}`,
-    ML, y,
+    ML,
+    y,
   );
   y += 2;
   hr(y);
@@ -273,7 +376,9 @@ export function gerarPdfCartao(opts: {
   const yFooter = pageH - 8;
   doc.text(
     `Numero Interno : ${Date.now().toString().padStart(14, "0")}     Matricula ${funcionario.matricula ?? funcionario.cpf ?? "-"}`,
-    ML + W, yFooter, { align: "right" },
+    ML + W,
+    yFooter,
+    { align: "right" },
   );
 
   // Suprime aviso de variável não usada
