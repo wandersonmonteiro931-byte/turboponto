@@ -61,6 +61,7 @@ export type ResumoCartao = {
   totalTrabalhado: number;
   totalExtras: number;
   totalBancoHoras: number;
+  toleranciaMinutos: number;
 };
 
 function hm(t: string | null): number | null {
@@ -120,7 +121,7 @@ export async function carregarCartao(
     horario_saida: string | null;
   }> = [];
 
-  let toleranciaMin = 0;
+  let toleranciaMin = 5;
   if (vinc?.jornada_id) {
     const { data: jd } = await supabase
       .from("jornadas_dias")
@@ -134,7 +135,7 @@ export async function carregarCartao(
       .select("tolerancia_atraso_minutos")
       .eq("id", vinc.jornada_id)
       .maybeSingle();
-    toleranciaMin = j?.tolerancia_atraso_minutos ?? 0;
+    toleranciaMin = j?.tolerancia_atraso_minutos ?? 5;
   }
 
   const { data: registros } = await supabase
@@ -295,7 +296,8 @@ export async function carregarCartao(
       const pri = hm(prog.retorno_intervalo);
       if (psi != null && pri != null) cargaProg -= pri - psi;
     }
-    let extras = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
+    const extrasBruto = trabalhado > cargaProg ? trabalhado - cargaProg : 0;
+    let extras = extrasBruto > toleranciaMin ? extrasBruto : 0;
 
     // Hoje (yyyy-mm-dd local)
     const hoje = new Date();
@@ -400,6 +402,7 @@ export async function carregarCartao(
     totalTrabalhado,
     totalExtras,
     totalBancoHoras,
+    toleranciaMinutos: toleranciaMin,
   };
 }
 
