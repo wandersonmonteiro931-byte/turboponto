@@ -31,6 +31,12 @@ function FuncionarioHome() {
   const [jornada, setJornada] = useState<JornadaAtual | null>(null);
   const [dias, setDias] = useState<JornadaDia[]>([]);
   const [carregou, setCarregou] = useState(false);
+  const [resumo, setResumo] = useState<{
+    atrasoMes: number;
+    cestaStatus: string;
+    ultimoHolerite: { mes: number; ano: number } | null;
+    avisosNaoLidos: number;
+  }>({ atrasoMes: 0, cestaStatus: "—", ultimoHolerite: null, avisosNaoLidos: 0 });
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
