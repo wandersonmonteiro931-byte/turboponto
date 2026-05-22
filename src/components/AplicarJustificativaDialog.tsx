@@ -199,6 +199,19 @@ export function AplicarJustificativaDialog({
             />
           </div>
           <div>
+            <Label>Quantidade (HH:MM)</Label>
+            <input
+              type="text"
+              placeholder="Ex: 08:00"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+              value={quantidade}
+              onChange={(e) => setQuantidade(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Quantidade de horas justificadas (deve corresponder à irregularidade detectada).
+            </p>
+          </div>
+          <div>
             <Label>
               Anexo{tipo?.exige_anexo && <span className="text-destructive"> *</span>}
             </Label>
