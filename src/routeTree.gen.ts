@@ -31,8 +31,10 @@ import { Route as AppEmpresaRegistrosRouteImport } from './routes/app/empresa/re
 import { Route as AppEmpresaJustificativasRelatorioRouteImport } from './routes/app/empresa/justificativas-relatorio'
 import { Route as AppEmpresaJustificativasPendentesRouteImport } from './routes/app/empresa/justificativas-pendentes'
 import { Route as AppEmpresaJustificativasMassaRouteImport } from './routes/app/empresa/justificativas-massa'
+import { Route as AppEmpresaJustificativasHistoricoRouteImport } from './routes/app/empresa/justificativas-historico'
 import { Route as AppEmpresaJustificativasRouteImport } from './routes/app/empresa/justificativas'
 import { Route as AppEmpresaJornadasRouteImport } from './routes/app/empresa/jornadas'
+import { Route as AppEmpresaImpactoFolhaRouteImport } from './routes/app/empresa/impacto-folha'
 import { Route as AppEmpresaHoleritesRouteImport } from './routes/app/empresa/holerites'
 import { Route as AppEmpresaFechamentoRouteImport } from './routes/app/empresa/fechamento'
 import { Route as AppEmpresaEmpresaRouteImport } from './routes/app/empresa/empresa'
@@ -161,6 +163,12 @@ const AppEmpresaJustificativasMassaRoute =
     path: '/justificativas-massa',
     getParentRoute: () => AppEmpresaRoute,
   } as any)
+const AppEmpresaJustificativasHistoricoRoute =
+  AppEmpresaJustificativasHistoricoRouteImport.update({
+    id: '/justificativas-historico',
+    path: '/justificativas-historico',
+    getParentRoute: () => AppEmpresaRoute,
+  } as any)
 const AppEmpresaJustificativasRoute =
   AppEmpresaJustificativasRouteImport.update({
     id: '/justificativas',
@@ -170,6 +178,11 @@ const AppEmpresaJustificativasRoute =
 const AppEmpresaJornadasRoute = AppEmpresaJornadasRouteImport.update({
   id: '/jornadas',
   path: '/jornadas',
+  getParentRoute: () => AppEmpresaRoute,
+} as any)
+const AppEmpresaImpactoFolhaRoute = AppEmpresaImpactoFolhaRouteImport.update({
+  id: '/impacto-folha',
+  path: '/impacto-folha',
   getParentRoute: () => AppEmpresaRoute,
 } as any)
 const AppEmpresaHoleritesRoute = AppEmpresaHoleritesRouteImport.update({
@@ -241,8 +254,10 @@ export interface FileRoutesByFullPath {
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
+  '/app/empresa/impacto-folha': typeof AppEmpresaImpactoFolhaRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/justificativas': typeof AppEmpresaJustificativasRoute
+  '/app/empresa/justificativas-historico': typeof AppEmpresaJustificativasHistoricoRoute
   '/app/empresa/justificativas-massa': typeof AppEmpresaJustificativasMassaRoute
   '/app/empresa/justificativas-pendentes': typeof AppEmpresaJustificativasPendentesRoute
   '/app/empresa/justificativas-relatorio': typeof AppEmpresaJustificativasRelatorioRoute
@@ -274,8 +289,10 @@ export interface FileRoutesByTo {
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
+  '/app/empresa/impacto-folha': typeof AppEmpresaImpactoFolhaRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/justificativas': typeof AppEmpresaJustificativasRoute
+  '/app/empresa/justificativas-historico': typeof AppEmpresaJustificativasHistoricoRoute
   '/app/empresa/justificativas-massa': typeof AppEmpresaJustificativasMassaRoute
   '/app/empresa/justificativas-pendentes': typeof AppEmpresaJustificativasPendentesRoute
   '/app/empresa/justificativas-relatorio': typeof AppEmpresaJustificativasRelatorioRoute
@@ -311,8 +328,10 @@ export interface FileRoutesById {
   '/app/empresa/empresa': typeof AppEmpresaEmpresaRoute
   '/app/empresa/fechamento': typeof AppEmpresaFechamentoRoute
   '/app/empresa/holerites': typeof AppEmpresaHoleritesRoute
+  '/app/empresa/impacto-folha': typeof AppEmpresaImpactoFolhaRoute
   '/app/empresa/jornadas': typeof AppEmpresaJornadasRoute
   '/app/empresa/justificativas': typeof AppEmpresaJustificativasRoute
+  '/app/empresa/justificativas-historico': typeof AppEmpresaJustificativasHistoricoRoute
   '/app/empresa/justificativas-massa': typeof AppEmpresaJustificativasMassaRoute
   '/app/empresa/justificativas-pendentes': typeof AppEmpresaJustificativasPendentesRoute
   '/app/empresa/justificativas-relatorio': typeof AppEmpresaJustificativasRelatorioRoute
@@ -349,8 +368,10 @@ export interface FileRouteTypes {
     | '/app/empresa/empresa'
     | '/app/empresa/fechamento'
     | '/app/empresa/holerites'
+    | '/app/empresa/impacto-folha'
     | '/app/empresa/jornadas'
     | '/app/empresa/justificativas'
+    | '/app/empresa/justificativas-historico'
     | '/app/empresa/justificativas-massa'
     | '/app/empresa/justificativas-pendentes'
     | '/app/empresa/justificativas-relatorio'
@@ -382,8 +403,10 @@ export interface FileRouteTypes {
     | '/app/empresa/empresa'
     | '/app/empresa/fechamento'
     | '/app/empresa/holerites'
+    | '/app/empresa/impacto-folha'
     | '/app/empresa/jornadas'
     | '/app/empresa/justificativas'
+    | '/app/empresa/justificativas-historico'
     | '/app/empresa/justificativas-massa'
     | '/app/empresa/justificativas-pendentes'
     | '/app/empresa/justificativas-relatorio'
@@ -418,8 +441,10 @@ export interface FileRouteTypes {
     | '/app/empresa/empresa'
     | '/app/empresa/fechamento'
     | '/app/empresa/holerites'
+    | '/app/empresa/impacto-folha'
     | '/app/empresa/jornadas'
     | '/app/empresa/justificativas'
+    | '/app/empresa/justificativas-historico'
     | '/app/empresa/justificativas-massa'
     | '/app/empresa/justificativas-pendentes'
     | '/app/empresa/justificativas-relatorio'
@@ -602,6 +627,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmpresaJustificativasMassaRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
+    '/app/empresa/justificativas-historico': {
+      id: '/app/empresa/justificativas-historico'
+      path: '/justificativas-historico'
+      fullPath: '/app/empresa/justificativas-historico'
+      preLoaderRoute: typeof AppEmpresaJustificativasHistoricoRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
     '/app/empresa/justificativas': {
       id: '/app/empresa/justificativas'
       path: '/justificativas'
@@ -614,6 +646,13 @@ declare module '@tanstack/react-router' {
       path: '/jornadas'
       fullPath: '/app/empresa/jornadas'
       preLoaderRoute: typeof AppEmpresaJornadasRouteImport
+      parentRoute: typeof AppEmpresaRoute
+    }
+    '/app/empresa/impacto-folha': {
+      id: '/app/empresa/impacto-folha'
+      path: '/impacto-folha'
+      fullPath: '/app/empresa/impacto-folha'
+      preLoaderRoute: typeof AppEmpresaImpactoFolhaRouteImport
       parentRoute: typeof AppEmpresaRoute
     }
     '/app/empresa/holerites': {
@@ -698,8 +737,10 @@ interface AppEmpresaRouteChildren {
   AppEmpresaEmpresaRoute: typeof AppEmpresaEmpresaRoute
   AppEmpresaFechamentoRoute: typeof AppEmpresaFechamentoRoute
   AppEmpresaHoleritesRoute: typeof AppEmpresaHoleritesRoute
+  AppEmpresaImpactoFolhaRoute: typeof AppEmpresaImpactoFolhaRoute
   AppEmpresaJornadasRoute: typeof AppEmpresaJornadasRoute
   AppEmpresaJustificativasRoute: typeof AppEmpresaJustificativasRoute
+  AppEmpresaJustificativasHistoricoRoute: typeof AppEmpresaJustificativasHistoricoRoute
   AppEmpresaJustificativasMassaRoute: typeof AppEmpresaJustificativasMassaRoute
   AppEmpresaJustificativasPendentesRoute: typeof AppEmpresaJustificativasPendentesRoute
   AppEmpresaJustificativasRelatorioRoute: typeof AppEmpresaJustificativasRelatorioRoute
@@ -719,8 +760,11 @@ const AppEmpresaRouteChildren: AppEmpresaRouteChildren = {
   AppEmpresaEmpresaRoute: AppEmpresaEmpresaRoute,
   AppEmpresaFechamentoRoute: AppEmpresaFechamentoRoute,
   AppEmpresaHoleritesRoute: AppEmpresaHoleritesRoute,
+  AppEmpresaImpactoFolhaRoute: AppEmpresaImpactoFolhaRoute,
   AppEmpresaJornadasRoute: AppEmpresaJornadasRoute,
   AppEmpresaJustificativasRoute: AppEmpresaJustificativasRoute,
+  AppEmpresaJustificativasHistoricoRoute:
+    AppEmpresaJustificativasHistoricoRoute,
   AppEmpresaJustificativasMassaRoute: AppEmpresaJustificativasMassaRoute,
   AppEmpresaJustificativasPendentesRoute:
     AppEmpresaJustificativasPendentesRoute,
@@ -788,3 +832,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
