@@ -98,6 +98,7 @@ export const criarFuncionario = createServerFn({ method: "POST" })
   });
 
 const ResetSchema = z.object({
+  token: z.string().min(10),
   usuario_id: z.string().uuid(),
   senha: z.string().min(6).max(64),
 });
@@ -105,7 +106,7 @@ const ResetSchema = z.object({
 export const resetarSenhaFuncionario = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ResetSchema.parse(d))
   .handler(async ({ data }) => {
-    const { admin, empresaId } = await requireAdmin();
+    const { admin, empresaId } = await requireAdmin(data.token);
     // Confirm funcionario belongs to admin's empresa
     const { data: f } = await admin
       .from("funcionarios")
