@@ -53,6 +53,201 @@ export type Database = {
         }
         Relationships: []
       }
+      beneficios: {
+        Row: {
+          created_at: string
+          dia_entrega: number
+          empresa_id: string
+          id: string
+          limite_alerta_minutos: number
+          limite_atraso_minutos: number
+          nome: string
+          regra_descricao: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          valor_maximo: number
+        }
+        Insert: {
+          created_at?: string
+          dia_entrega?: number
+          empresa_id: string
+          id?: string
+          limite_alerta_minutos?: number
+          limite_atraso_minutos?: number
+          nome: string
+          regra_descricao?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_maximo?: number
+        }
+        Update: {
+          created_at?: string
+          dia_entrega?: number
+          empresa_id?: string
+          id?: string
+          limite_alerta_minutos?: number
+          limite_atraso_minutos?: number
+          nome?: string
+          regra_descricao?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_maximo?: number
+        }
+        Relationships: []
+      }
+      beneficios_calculos: {
+        Row: {
+          ano_referencia: number
+          beneficio_id: string
+          calculado_em: string
+          created_at: string
+          dias_com_atraso: number
+          empresa_id: string
+          faltas_injustificadas: number
+          fechado_em: string | null
+          funcionario_id: string
+          horas_extras_minutos: number
+          id: string
+          mes_referencia: number
+          motivo_perda: string | null
+          status: string
+          tem_direito: boolean
+          total_atraso_minutos: number
+          updated_at: string
+          valor_estimado: number
+        }
+        Insert: {
+          ano_referencia: number
+          beneficio_id: string
+          calculado_em?: string
+          created_at?: string
+          dias_com_atraso?: number
+          empresa_id: string
+          faltas_injustificadas?: number
+          fechado_em?: string | null
+          funcionario_id: string
+          horas_extras_minutos?: number
+          id?: string
+          mes_referencia: number
+          motivo_perda?: string | null
+          status?: string
+          tem_direito?: boolean
+          total_atraso_minutos?: number
+          updated_at?: string
+          valor_estimado?: number
+        }
+        Update: {
+          ano_referencia?: number
+          beneficio_id?: string
+          calculado_em?: string
+          created_at?: string
+          dias_com_atraso?: number
+          empresa_id?: string
+          faltas_injustificadas?: number
+          fechado_em?: string | null
+          funcionario_id?: string
+          horas_extras_minutos?: number
+          id?: string
+          mes_referencia?: number
+          motivo_perda?: string | null
+          status?: string
+          tem_direito?: boolean
+          total_atraso_minutos?: number
+          updated_at?: string
+          valor_estimado?: number
+        }
+        Relationships: []
+      }
+      beneficios_entregas: {
+        Row: {
+          ano_referencia: number
+          beneficio_id: string
+          created_at: string
+          data_entrega: string | null
+          empresa_id: string
+          entregue: boolean
+          entregue_por: string | null
+          funcionario_id: string
+          id: string
+          mes_referencia: number
+          observacao: string | null
+          recibo_pdf_url: string | null
+          valor_estimado: number
+        }
+        Insert: {
+          ano_referencia: number
+          beneficio_id: string
+          created_at?: string
+          data_entrega?: string | null
+          empresa_id: string
+          entregue?: boolean
+          entregue_por?: string | null
+          funcionario_id: string
+          id?: string
+          mes_referencia: number
+          observacao?: string | null
+          recibo_pdf_url?: string | null
+          valor_estimado?: number
+        }
+        Update: {
+          ano_referencia?: number
+          beneficio_id?: string
+          created_at?: string
+          data_entrega?: string | null
+          empresa_id?: string
+          entregue?: boolean
+          entregue_por?: string | null
+          funcionario_id?: string
+          id?: string
+          mes_referencia?: number
+          observacao?: string | null
+          recibo_pdf_url?: string | null
+          valor_estimado?: number
+        }
+        Relationships: []
+      }
+      beneficios_logs: {
+        Row: {
+          acao: string
+          beneficio_id: string | null
+          created_at: string
+          empresa_id: string
+          funcionario_id: string | null
+          id: string
+          justificativa: string | null
+          status_anterior: string | null
+          status_novo: string | null
+          usuario_id: string
+        }
+        Insert: {
+          acao: string
+          beneficio_id?: string | null
+          created_at?: string
+          empresa_id: string
+          funcionario_id?: string | null
+          id?: string
+          justificativa?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+          usuario_id: string
+        }
+        Update: {
+          acao?: string
+          beneficio_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          funcionario_id?: string | null
+          id?: string
+          justificativa?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       cartoes_ponto: {
         Row: {
           ano_referencia: number
