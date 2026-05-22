@@ -282,11 +282,14 @@ export async function carregarCartao(
     const semRegistro = trabalha && regs.length === 0;
     let falta = semRegistro && setFaltas.has(data);
     let pendente = semRegistro && !falta && !aindaDentroDoExpediente;
+    const faltaRegistrada = falta;
+    const marcacaoNaoRegistrada = semRegistro && !aindaDentroDoExpediente;
     let bancoHorasMin = 0;
 
-    // Aplica regras da justificativa
-    const just = justPorDia.get(data) ?? null;
-    if (just) {
+    // Aplica regras das justificativas, mas mantém todas registradas para exibição no PDF
+    const justificativas = justPorDia.get(data) ?? [];
+    const just = justificativas[0] ?? null;
+    for (const just of justificativas) {
       const t = just.tipo;
       // Abona ocorrência: anula falta/pendente e zera atraso, salvo se tipo desconta
       if (t.abona_ocorrencia) {
@@ -330,9 +333,10 @@ export async function carregarCartao(
     totalExtras += extras;
     totalBancoHoras += bancoHorasMin;
 
+    const obsJustificativas = justificativas.map((j) => j.observacao).filter(Boolean).join(" · ");
     const obsFinal = foraVinculo
       ? null
-      : (just?.observacao ?? (falta ? (justFaltas.get(data) ?? obs) : obs));
+      : (obsJustificativas || (falta ? (justFaltas.get(data) ?? obs) : obs));
 
     result.push({
       data,
@@ -346,9 +350,12 @@ export async function carregarCartao(
       extrasMinutos: extras,
       falta,
       pendente,
+      faltaRegistrada,
+      marcacaoNaoRegistrada,
       foraVinculo,
       observacao: obsFinal,
       justificativa: just,
+      justificativas,
       bancoHorasMinutos: bancoHorasMin,
     });
   }
