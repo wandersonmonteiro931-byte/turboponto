@@ -1,26 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getHeader } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 const url = () => process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
-const anonKey = () =>
-  process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
 const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-async function requireAdmin() {
-  const auth = getHeader("authorization");
-  const token = auth?.replace(/^Bearer\s+/i, "");
+async function requireAdmin(token: string) {
   if (!token) throw new Error("Não autenticado");
-
-  const userClient = createClient(url(), anonKey(), {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-  const { data: ures, error: uerr } = await userClient.auth.getUser(token);
+  const admin = createClient(url(), serviceKey(), { auth: { persistSession: false } });
+  const { data: ures, error: uerr } = await admin.auth.getUser(token);
   if (uerr || !ures.user) throw new Error("Sessão inválida");
   const uid = ures.user.id;
 
-  const admin = createClient(url(), serviceKey(), { auth: { persistSession: false } });
   const [{ data: profile }, { data: roles }] = await Promise.all([
     admin.from("profiles").select("empresa_id").eq("id", uid).maybeSingle(),
     admin.from("user_roles").select("role").eq("user_id", uid),
