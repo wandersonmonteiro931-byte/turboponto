@@ -78,7 +78,12 @@ function BeneficiosPage() {
   );
 
   const carregar = async () => {
-    if (!empresaId || !beneficioId) return;
+    if (!empresaId) return;
+    if (!beneficioId) {
+      setCalculos([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase
       .from("beneficios_calculos")
@@ -282,6 +287,11 @@ function BeneficiosPage() {
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div>
+          ) : !beneficioId ? (
+            <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
+              <p>Nenhum benefício cadastrado ainda.</p>
+              {ehAdmin && <Button size="sm" onClick={() => setNovoOpen(true)}>Criar benefício</Button>}
+            </div>
           ) : linhasFiltradas.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
               <p>Nenhum cálculo para esse período.</p>
