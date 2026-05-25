@@ -78,7 +78,12 @@ function BeneficiosPage() {
   );
 
   const carregar = async () => {
-    if (!empresaId || !beneficioId) return;
+    if (!empresaId) return;
+    if (!beneficioId) {
+      setCalculos([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase
       .from("beneficios_calculos")
