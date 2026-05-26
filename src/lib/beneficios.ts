@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { carregarCartao } from "@/lib/cartao";
+
 
 export const STATUS_BENEFICIO: Record<string, { label: string; color: string }> = {
   em_calculo: { label: "Em cálculo", color: "bg-muted text-muted-foreground" },
