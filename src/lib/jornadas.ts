@@ -10,6 +10,49 @@ export const DIAS_SEMANA = [
   { v: 6, label: "Sáb", full: "Sábado" },
 ];
 
+const DIAS_CURTO = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+/**
+ * Resume dias trabalhados agrupando consecutivos com mesmo horário.
+ * Ex.: "seg-qui (17:00 às 23:50 int 21:30 às 22:00)".
+ */
+export function resumirDiasJornada(
+  dias: {
+    dia_semana: number;
+    trabalha: boolean;
+    horario_entrada: string | null;
+    horario_intervalo_saida: string | null;
+    horario_intervalo_retorno: string | null;
+    horario_saida: string | null;
+  }[],
+): string {
+  const trab = dias.filter((d) => d.trabalha).sort((a, b) => a.dia_semana - b.dia_semana);
+  if (!trab.length) return "Sem dias configurados";
+  type G = { ini: number; fim: number; e: string; s: string; isai: string; iret: string };
+  const grupos: G[] = [];
+  for (const d of trab) {
+    const e = d.horario_entrada?.slice(0, 5) ?? "--:--";
+    const s = d.horario_saida?.slice(0, 5) ?? "--:--";
+    const isai = d.horario_intervalo_saida?.slice(0, 5) ?? "";
+    const iret = d.horario_intervalo_retorno?.slice(0, 5) ?? "";
+    const ult = grupos[grupos.length - 1];
+    if (ult && ult.fim === d.dia_semana - 1 && ult.e === e && ult.s === s && ult.isai === isai && ult.iret === iret) {
+      ult.fim = d.dia_semana;
+    } else {
+      grupos.push({ ini: d.dia_semana, fim: d.dia_semana, e, s, isai, iret });
+    }
+  }
+  return grupos
+    .map((g) => {
+      const faixa = g.ini === g.fim ? DIAS_CURTO[g.ini] : `${DIAS_CURTO[g.ini]}-${DIAS_CURTO[g.fim]}`;
+      const intervalo = g.isai && g.iret ? ` int ${g.isai} às ${g.iret}` : "";
+      return `${faixa} (${g.e} às ${g.s}${intervalo})`;
+    })
+    .join(" · ");
+}
+
+
+
 export type Jornada = {
   id: string;
   empresa_id: string;
