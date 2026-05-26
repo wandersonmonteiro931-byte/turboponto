@@ -215,7 +215,7 @@ function BaterPontoPage() {
       }
 
       const label = tipoLabel(inferido.tipo);
-      if (status === "atrasado") toast.warning(`${label} registrada com atraso de ${atraso} min`);
+      if (status === "atrasado") toast.warning(`${label} registrada com atraso de ${fmtHorasMin(atraso)}`);
       else if (status === "hora_extra") toast.success(`${label} registrada — hora extra`);
       else if (status === "saida_antecipada") toast.warning(`${label} antecipada`);
       else if (status === "entrada_antecipada") toast.success(`${label} antecipada`);
