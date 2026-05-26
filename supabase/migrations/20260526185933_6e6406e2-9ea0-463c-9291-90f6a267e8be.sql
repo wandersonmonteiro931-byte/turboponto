@@ -1,0 +1,2 @@
+ALTER TABLE public.holerite_rubricas DROP CONSTRAINT IF EXISTS holerite_rubricas_tipo_calculo_check;
+ALTER TABLE public.holerite_rubricas ADD CONSTRAINT holerite_rubricas_tipo_calculo_check CHECK (tipo_calculo IN ('manual','valor_fixo','percentual_salario','salario_base','salario_dias_trabalhados','horas_extras_50','horas_extras_100','atrasos','faltas_dias','dsr_faltas'));
