@@ -6,6 +6,7 @@ import {
   type ResumoCartao,
   type DiaCartao,
 } from "@/lib/cartao";
+import { DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export type EmpresaInfo = {
   nome_fantasia: string;
