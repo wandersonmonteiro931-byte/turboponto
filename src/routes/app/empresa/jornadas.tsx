@@ -152,6 +152,7 @@ function JornadaDialog({
   empresaId, jornada, onDone,
 }: { empresaId: string; jornada: Jornada | null; onDone: () => void }) {
   const [nome, setNome] = useState(jornada?.nome ?? "");
+  const [codigo, setCodigo] = useState(jornada?.codigo ?? "");
   const [descricao, setDescricao] = useState(jornada?.descricao ?? "");
   const [entrada, setEntrada] = useState(jornada?.horario_entrada?.slice(0, 5) ?? "08:00");
   const [intSai, setIntSai] = useState(jornada?.horario_intervalo_saida?.slice(0, 5) ?? "12:00");
