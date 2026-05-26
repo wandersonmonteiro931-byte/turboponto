@@ -195,7 +195,35 @@ export async function recalcular(
     saldoBHMinutos = creditosMin - debitosMin;
   }
   const horasHE = minHE / 60;
-  const horasAtraso = minAtraso / 60;
+
+  // Atraso só desconta em folha quando houver aplicação da justificativa
+  // "FECHAMENTO_BANCO_DESC" no mês de referência. Caso contrário, o débito
+  // permanece apenas como saldo informativo do banco de horas (rubrica 28652).
+  let temFechamentoBancoDesc = false;
+  try {
+    const { data: tipoFech } = await supabase
+      .from("justificativas_tipos")
+      .select("id")
+      .eq("empresa_id", ctx.empresaId)
+      .eq("codigo", "FECHAMENTO_BANCO_DESC")
+      .maybeSingle();
+    if (tipoFech?.id) {
+      const { count } = await supabase
+        .from("justificativas_aplicadas")
+        .select("id", { count: "exact", head: true })
+        .eq("funcionario_id", ctx.funcionarioId)
+        .eq("tipo_id", tipoFech.id)
+        .gte("data", ini)
+        .lte("data", fim);
+      temFechamentoBancoDesc = (count ?? 0) > 0;
+    }
+  } catch (e) {
+    console.warn("[holerite] falha ao checar FECHAMENTO_BANCO_DESC", e);
+  }
+  // Horas de atraso elegíveis para desconto em folha: zero quando não há
+  // fechamento do banco autorizado.
+  const horasAtraso = temFechamentoBancoDesc ? minAtraso / 60 : 0;
+
 
   // Mantém linhas atuais; recalcula apenas as automáticas.
   const linhas: EngineLanc[] = linhasAtuais.map((l) => {
@@ -268,7 +296,13 @@ export async function recalcular(
   if (horasAtraso > 0 && porCodigo.has("07045") && !linhas.find((l) => l.codigo === "07045")) {
     const r = porCodigo.get("07045")!;
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+  } else if (!temFechamentoBancoDesc) {
+    // Remove desconto de atraso quando não há fechamento autorizado: o débito
+    // do banco de horas não pode reduzir o líquido sem a justificativa.
+    const idx7045 = linhas.findIndex((l) => l.codigo === "07045");
+    if (idx7045 >= 0) linhas.splice(idx7045, 1);
   }
+
   if (numFaltas > 0 && porCodigo.has("07035") && !linhas.find((l) => l.codigo === "07035")) {
     const r = porCodigo.get("07035")!;
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
@@ -310,14 +344,13 @@ export async function recalcular(
     linhas.splice(idxNeg, 1);
   }
 
-  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito que conta
-  // para a regra da cesta básica do mês de referência. Vem do cálculo do
-  // benefício "Cesta Básica" (beneficios_calculos.total_atraso_minutos),
-  // exatamente o mesmo número exibido em "QTDE HORAS BENEF" no cartão de ponto.
-  // Só exibe a rubrica se houver um cálculo de cesta básica e horas > 0.
+  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito (atrasos /
+  // saídas antecipadas) do mês que conta para a regra da cesta básica.
+  // Sempre puxa do total de débitos do cartão de ponto (mesma base usada
+  // pelo cálculo do benefício, mas independente da existência do benefício
+  // cadastrado) para refletir imediatamente o saldo do mês.
   if (porCodigo.has("18445")) {
-    // Garante que o cálculo do benefício "Cesta Básica" está fresco para o
-    // mês de referência antes de ler — caso ponto/falta tenham mudado.
+    // Mantém o cálculo do benefício "Cesta Básica" sincronizado, se existir.
     try {
       const { data: ben } = await supabase
         .from("beneficios")
@@ -332,18 +365,8 @@ export async function recalcular(
     } catch (e) {
       console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
     }
-    const { data: bcalcs } = await supabase
-      .from("beneficios_calculos")
-      .select("total_atraso_minutos,beneficios!inner(tipo)")
-      .eq("funcionario_id", ctx.funcionarioId)
-      .eq("ano_referencia", ctx.ano)
-      .eq("mes_referencia", ctx.mes);
-    const cesta = (bcalcs ?? []).find(
-      (b: { beneficios?: { tipo?: string } | null }) =>
-        b.beneficios?.tipo === "cesta_basica",
-    ) as { total_atraso_minutos?: number } | undefined;
-    const minutosBenef = Number(cesta?.total_atraso_minutos ?? 0);
-    const horasCB = round(minutosBenef / 60);
+    // Saldo de débito do mês em horas, vindo direto do cartão de ponto.
+    const horasCB = round(minAtraso / 60);
     const idxCB = linhas.findIndex((l) => l.codigo === "18445");
     if (horasCB > 0) {
       const r = porCodigo.get("18445")!;
@@ -359,6 +382,7 @@ export async function recalcular(
       linhas.splice(idxCB, 1);
     }
   }
+
 
 
   // ==== FASE 1: calcula tudo exceto INSS / IRRF (que precisam das bases) ====
