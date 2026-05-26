@@ -6,6 +6,7 @@ import {
   type ResumoCartao,
   type DiaCartao,
 } from "@/lib/cartao";
+import { DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export type EmpresaInfo = {
   nome_fantasia: string;
@@ -115,12 +116,13 @@ export function gerarPdfCartao(opts: {
   empresa: EmpresaInfo;
   funcionario: FuncionarioInfo;
   jornada?: JornadaInfo | null;
+  jornadas?: VinculoAtivoComDias[];
   ano: number;
   mes: number;
   resumo: ResumoCartao;
   status: string;
 }): jsPDF {
-  const { empresa, funcionario, jornada, ano, mes, resumo } = opts;
+  const { empresa, funcionario, jornada, jornadas, ano, mes, resumo } = opts;
   const tol = resumo.toleranciaMinutos ?? 5;
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pageW = 210,
@@ -167,10 +169,35 @@ export function gerarPdfCartao(opts: {
   y += 3.2;
   doc.text(`Func: ${funcionario.nome}  Cargo: ${funcionario.cargo ?? "-"}`, ML, y);
   y += 3.2;
-  const jornadaHdr = jornada
-    ? `${jornada.nome} [${jornada.entrada ?? "--:--"} as ${jornada.saida ?? "--:--"} Int: ${jornada.intervalo_saida ?? "--:--"} as ${jornada.intervalo_retorno ?? "--:--"}]`
-    : "-";
-  doc.text(`Hor.Trab: ${jornadaHdr}`, ML, y);
+  if (jornadas && jornadas.length > 0) {
+    doc.text("Hor.Trab:", ML, y);
+    let firstLine = true;
+    for (const v of jornadas) {
+      const diasTrab = v.dias
+        .filter((d) => d.trabalha)
+        .sort((a, b) => a.dia_semana - b.dia_semana);
+      const detalhe = diasTrab.length === 0
+        ? "Sem dias configurados"
+        : diasTrab.map((d) => {
+            const lbl = DIAS_SEMANA[d.dia_semana].label;
+            const e = d.horario_entrada?.slice(0, 5) ?? "--:--";
+            const s = d.horario_saida?.slice(0, 5) ?? "--:--";
+            const isai = d.horario_intervalo_saida?.slice(0, 5);
+            const iret = d.horario_intervalo_retorno?.slice(0, 5);
+            const intervalo = isai && iret ? ` (int ${isai}-${iret})` : "";
+            return `${lbl} ${e}-${s}${intervalo}`;
+          }).join(" · ");
+      const linha = `[${v.codigo}] ${v.nome}: ${detalhe}`;
+      if (!firstLine) y += 3.2;
+      doc.text(linha, ML + 16, y, { maxWidth: W - 16 });
+      firstLine = false;
+    }
+  } else {
+    const jornadaHdr = jornada
+      ? `${jornada.nome} [${jornada.entrada ?? "--:--"} as ${jornada.saida ?? "--:--"} Int: ${jornada.intervalo_saida ?? "--:--"} as ${jornada.intervalo_retorno ?? "--:--"}]`
+      : "-";
+    doc.text(`Hor.Trab: ${jornadaHdr}`, ML, y);
+  }
   if (resumo.dataAdmissao) {
     y += 3.2;
     doc.text(
@@ -187,6 +214,7 @@ export function gerarPdfCartao(opts: {
   const cols: { key: string; w: number; label: string; align?: "left" | "right" | "center" }[] = [
     { key: "dia", w: 8, label: "Dia" },
     { key: "data", w: 13, label: "Data" },
+    { key: "esc", w: 6, label: "Esc", align: "center" },
     { key: "entPrev", w: 11, label: "E.Prev", align: "center" },
     { key: "intSai", w: 11, label: "I.Sai", align: "center" },
     { key: "intRet", w: 11, label: "I.Ret", align: "center" },
@@ -195,7 +223,7 @@ export function gerarPdfCartao(opts: {
     { key: "saiReal", w: 11, label: "S.Real", align: "center" },
     { key: "irreg", w: 36, label: "Irregularidade" },
     { key: "qtde", w: 11, label: "QTDE", align: "center" },
-    { key: "just", w: 54, label: "Justificativa" },
+    { key: "just", w: 48, label: "Justificativa" },
     { key: "adic", w: 10, label: "Adic", align: "center" },
   ];
 
@@ -251,6 +279,7 @@ export function gerarPdfCartao(opts: {
       drawRow({
         dia: diaSem,
         data: dataStr,
+        esc: d.jornadaCodigo ?? "",
         irreg: "FORA DO VINCULO",
         just: j0 ? j0.tipo.nome : "",
         qtde: j0 && j0.quantidadeMinutos != null ? fmtMinHHMM(j0.quantidadeMinutos) : "",
@@ -286,6 +315,7 @@ export function gerarPdfCartao(opts: {
       drawRow({
         dia: diaSem,
         data: dataStr,
+        esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
         irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
@@ -402,6 +432,7 @@ export function gerarPdfCartao(opts: {
     drawRow({
       dia: diaSem,
       data: dataStr,
+      esc: d.jornadaCodigo ?? "",
       entPrev: d.programado.entrada ?? "",
       intSai: d.programado.saida_intervalo ?? "",
       intRet: d.programado.retorno_intervalo ?? "",
