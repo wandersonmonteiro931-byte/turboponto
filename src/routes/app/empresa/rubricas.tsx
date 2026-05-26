@@ -122,6 +122,7 @@ function RubricasPage() {
                       <th className="text-left p-2">Descrição</th>
                       <th className="text-left p-2 w-48">Grupo</th>
                       <th className="text-left p-2 w-28">Tipo</th>
+                      <th className="text-left p-2 w-20">Modo</th>
                       <th className="text-left p-2">Cálculo</th>
                       <th className="text-right p-2 w-28">Referência</th>
                       <th className="text-left p-2 w-20">Status</th>
@@ -131,6 +132,7 @@ function RubricasPage() {
                   <tbody className="divide-y">
                     {listaFiltrada.map((r) => {
                       const badge = TIPO_BADGE[r.tipo];
+                      const mb = MODO_BADGE[r.modo ?? "manual"];
                       return (
                         <tr key={r.id} className="hover:bg-muted/30">
                           <td className="p-2 font-mono">{r.codigo}</td>
@@ -138,6 +140,9 @@ function RubricasPage() {
                           <td className="p-2 text-xs text-muted-foreground">{r.grupo ?? "—"}</td>
                           <td className="p-2">
                             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${badge.cls}`}>{badge.label}</span>
+                          </td>
+                          <td className="p-2">
+                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${mb.cls}`}>{mb.label}</span>
                           </td>
                           <td className="p-2 text-xs">{TIPO_CALCULO_OPCOES.find((o) => o.value === r.tipo_calculo)?.label ?? r.tipo_calculo}</td>
                           <td className="p-2 text-right font-mono">{Number(r.valor_referencia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
