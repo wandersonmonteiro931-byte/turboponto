@@ -74,7 +74,24 @@ function FuncionarioHome() {
           horario_saida: escolha.dia?.horario_saida ?? null,
           tolerancia_atraso_minutos: escolha.vinculo.tolerancia_atraso_minutos,
         });
-        setDias(escolha.vinculo.dias);
+        // Combina dias de TODAS as jornadas ativas para o badge semanal.
+        const combinados: JornadaDia[] = [0,1,2,3,4,5,6].map((dow) => {
+          const todasDoDia = vincs.flatMap((v) => v.dias.filter((dd) => dd.dia_semana === dow));
+          const trabalha = todasDoDia.some((dd) => dd.trabalha);
+          const referencia = todasDoDia.find((dd) => dd.trabalha) ?? todasDoDia[0];
+          return {
+            id: referencia?.id ?? `dow-${dow}`,
+            jornada_id: referencia?.jornada_id ?? "",
+            dia_semana: dow,
+            trabalha,
+            horario_entrada: referencia?.horario_entrada ?? null,
+            horario_intervalo_saida: referencia?.horario_intervalo_saida ?? null,
+            horario_intervalo_retorno: referencia?.horario_intervalo_retorno ?? null,
+            horario_saida: referencia?.horario_saida ?? null,
+          };
+        });
+        setDias(combinados);
+
       } else {
         setJornada(null);
         setDias([]);
