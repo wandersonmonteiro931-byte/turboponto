@@ -274,7 +274,7 @@ function CartaoEmpresaPage() {
         </Card>
       )}
 
-
+      <Card>
         <CardContent className="p-0 overflow-x-auto">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div> :
            !resumo ? <div className="p-8 text-center text-sm text-muted-foreground">Selecione um funcionário.</div> :
