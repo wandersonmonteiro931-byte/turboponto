@@ -255,6 +255,66 @@ export async function recalcular(
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
   }
 
+  // ==== Informativos automáticos baseados no cartão de ponto ====
+  // Saldo do banco de horas do mês (em horas) = créditos - débitos
+  const saldoBHHoras = round((minHE - minAtraso) / 60);
+
+  // Adiciona/remove SALDO BANCO POSITIVO (28651)
+  const idxPos = linhas.findIndex((l) => l.codigo === "28651");
+  if (saldoBHHoras > 0 && porCodigo.has("28651")) {
+    const r = porCodigo.get("28651")!;
+    const payload: EngineLanc = {
+      _k: idxPos >= 0 ? linhas[idxPos]._k : crypto.randomUUID(),
+      id: idxPos >= 0 ? linhas[idxPos].id : undefined,
+      codigo: r.codigo, descricao: r.descricao,
+      qtde: saldoBHHoras, provento: 0, desconto: 0, resultado: saldoBHHoras,
+      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+    };
+    if (idxPos >= 0) linhas[idxPos] = payload; else linhas.push(payload);
+  } else if (idxPos >= 0) {
+    linhas.splice(idxPos, 1);
+  }
+
+  // Adiciona/remove SALDO BANCO NEGATIVO (28652)
+  const idxNeg = linhas.findIndex((l) => l.codigo === "28652");
+  if (saldoBHHoras < 0 && porCodigo.has("28652")) {
+    const r = porCodigo.get("28652")!;
+    const valor = round(Math.abs(saldoBHHoras));
+    const payload: EngineLanc = {
+      _k: idxNeg >= 0 ? linhas[idxNeg]._k : crypto.randomUUID(),
+      id: idxNeg >= 0 ? linhas[idxNeg].id : undefined,
+      codigo: r.codigo, descricao: r.descricao,
+      qtde: valor, provento: 0, desconto: 0, resultado: valor,
+      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+    };
+    if (idxNeg >= 0) linhas[idxNeg] = payload; else linhas.push(payload);
+  } else if (idxNeg >= 0) {
+    linhas.splice(idxNeg, 1);
+  }
+
+  // QTD HORAS CESTA BÁSICA (18445) - busca de beneficios_calculos ou usa HE do mês
+  if (porCodigo.has("18445")) {
+    const { data: bcalc } = await supabase
+      .from("beneficios_calculos")
+      .select("horas_extras_minutos,total_atraso_minutos")
+      .eq("funcionario_id", ctx.funcionarioId)
+      .eq("ano_referencia", ctx.ano)
+      .eq("mes_referencia", ctx.mes)
+      .maybeSingle();
+    const horasCB = round(((Number(bcalc?.horas_extras_minutos ?? minHE)) / 60));
+    const idxCB = linhas.findIndex((l) => l.codigo === "18445");
+    const r = porCodigo.get("18445")!;
+    const payload: EngineLanc = {
+      _k: idxCB >= 0 ? linhas[idxCB]._k : crypto.randomUUID(),
+      id: idxCB >= 0 ? linhas[idxCB].id : undefined,
+      codigo: r.codigo, descricao: r.descricao,
+      qtde: horasCB, provento: 0, desconto: 0, resultado: horasCB,
+      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+    };
+    if (idxCB >= 0) linhas[idxCB] = payload; else linhas.push(payload);
+  }
+
+
   // ==== FASE 1: calcula tudo exceto INSS / IRRF (que precisam das bases) ====
   for (const l of linhas) {
     const r = porCodigo.get(l.codigo);
