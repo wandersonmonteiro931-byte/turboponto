@@ -440,7 +440,7 @@ export async function recalcular(
         setLinha(r.codigo, { qtde: numFaltas, provento: 0, desconto: round(valorDia * numFaltas) });
         break;
       case "dsr_faltas":
-        setLinha(r.codigo, { qtde: numFaltas, provento: 0, desconto: round(valorDia * numFaltas) });
+        setLinha(r.codigo, { qtde: dsrPerdidos, provento: 0, desconto: round(valorDia * dsrPerdidos) });
         break;
       case "vt_automatico": {
         const baseSal = salarioProporcional > 0 ? salarioProporcional : salario;
