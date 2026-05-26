@@ -13,9 +13,11 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
-import { CheckCircle2, Download, Plus, Trash2, Pencil } from "lucide-react";
+import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown } from "lucide-react";
 import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 
