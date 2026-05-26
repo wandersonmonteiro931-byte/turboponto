@@ -71,7 +71,8 @@ function FuncionariosPage() {
       return (
         f.nome.toLowerCase().includes(s) ||
         (f.cpf ?? "").toLowerCase().includes(s) ||
-        (f.cargo ?? "").toLowerCase().includes(s)
+        (f.cargo ?? "").toLowerCase().includes(s) ||
+        (f.matricula ?? "").toLowerCase().includes(s)
       );
     });
   }, [list, search, statusFilter]);
