@@ -17,6 +17,7 @@ export const Route = createFileRoute("/app/empresa/rubricas")({
 });
 
 type TipoRubrica = "provento" | "desconto" | "informativo" | "resultado";
+type ModoRubrica = "automatico" | "semi_automatico" | "manual";
 type Rubrica = {
   id: string;
   codigo: string;
@@ -28,6 +29,8 @@ type Rubrica = {
   grupo: string | null;
   base_calculo: string | null;
   padrao_sistema: boolean;
+  modo: ModoRubrica;
+  editavel_manual: boolean;
 };
 
 const TIPO_BADGE: Record<TipoRubrica, { label: string; cls: string }> = {
@@ -35,6 +38,12 @@ const TIPO_BADGE: Record<TipoRubrica, { label: string; cls: string }> = {
   desconto: { label: "Desconto", cls: "bg-red-500/20 text-red-700" },
   informativo: { label: "Informativo", cls: "bg-blue-500/20 text-blue-700" },
   resultado: { label: "Resultado", cls: "bg-purple-500/20 text-purple-700" },
+};
+
+const MODO_BADGE: Record<ModoRubrica, { label: string; cls: string }> = {
+  automatico: { label: "Auto", cls: "bg-emerald-500/20 text-emerald-700" },
+  semi_automatico: { label: "Semi", cls: "bg-amber-500/20 text-amber-700" },
+  manual: { label: "Manual", cls: "bg-slate-500/20 text-slate-700" },
 };
 
 function RubricasPage() {
