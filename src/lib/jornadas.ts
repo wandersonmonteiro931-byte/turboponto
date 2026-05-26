@@ -14,6 +14,7 @@ export type Jornada = {
   id: string;
   empresa_id: string;
   nome: string;
+  codigo: string;
   descricao: string | null;
   horario_entrada: string | null;
   horario_intervalo_saida: string | null;
