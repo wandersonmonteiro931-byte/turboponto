@@ -624,6 +624,7 @@ export type Database = {
           id: string
           jornada_padrao_id: string | null
           lotacao: string | null
+          matricula: string | null
           motivo_desligamento: string | null
           nome: string
           num_dep_irrf: number
@@ -653,6 +654,7 @@ export type Database = {
           id?: string
           jornada_padrao_id?: string | null
           lotacao?: string | null
+          matricula?: string | null
           motivo_desligamento?: string | null
           nome: string
           num_dep_irrf?: number
@@ -682,6 +684,7 @@ export type Database = {
           id?: string
           jornada_padrao_id?: string | null
           lotacao?: string | null
+          matricula?: string | null
           motivo_desligamento?: string | null
           nome?: string
           num_dep_irrf?: number
