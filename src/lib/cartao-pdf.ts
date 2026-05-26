@@ -116,12 +116,13 @@ export function gerarPdfCartao(opts: {
   empresa: EmpresaInfo;
   funcionario: FuncionarioInfo;
   jornada?: JornadaInfo | null;
+  jornadas?: VinculoAtivoComDias[];
   ano: number;
   mes: number;
   resumo: ResumoCartao;
   status: string;
 }): jsPDF {
-  const { empresa, funcionario, jornada, ano, mes, resumo } = opts;
+  const { empresa, funcionario, jornada, jornadas, ano, mes, resumo } = opts;
   const tol = resumo.toleranciaMinutos ?? 5;
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pageW = 210,
