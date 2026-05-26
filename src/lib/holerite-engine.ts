@@ -298,12 +298,11 @@ export async function recalcular(
   const idxNeg = linhas.findIndex((l) => l.codigo === "28652");
   if (saldoBHHoras < 0 && porCodigo.has("28652")) {
     const r = porCodigo.get("28652")!;
-    const valor = round(Math.abs(saldoBHHoras));
     const payload: EngineLanc = {
       _k: idxNeg >= 0 ? linhas[idxNeg]._k : crypto.randomUUID(),
       id: idxNeg >= 0 ? linhas[idxNeg].id : undefined,
       codigo: r.codigo, descricao: r.descricao,
-      qtde: null, provento: 0, desconto: 0, resultado: valor,
+      qtde: null, provento: 0, desconto: 0, resultado: saldoBHHoras,
       modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
     };
     if (idxNeg >= 0) linhas[idxNeg] = payload; else linhas.push(payload);
