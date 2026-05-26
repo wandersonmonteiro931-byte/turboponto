@@ -323,6 +323,33 @@ function EditorDialog({
     { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
   ]);
   const [salvando, setSalvando] = useState(false);
+  const [rubricas, setRubricas] = useState<Array<{ id: string; codigo: string; descricao: string; tipo: "provento" | "desconto"; tipo_calculo: TipoCalculo; valor_referencia: number }>>([]);
+
+  useEffect(() => {
+    void supabase.from("holerite_rubricas")
+      .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia")
+      .eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
+      .then(({ data }) => setRubricas((data ?? []) as typeof rubricas));
+    // eslint-disable-next-line
+  }, [empresaId]);
+
+  const aplicarRubrica = async (k: string, rubricaId: string) => {
+    const r = rubricas.find((x) => x.id === rubricaId);
+    if (!r) return;
+    const f = funcs.find((x) => x.id === funcId);
+    const salario = Number(f?.salario ?? salarioContratual ?? 0);
+    const calc = await calcularRubrica(r.tipo, r.tipo_calculo, Number(r.valor_referencia), {
+      salario, funcionarioId: funcId, ano, mes,
+    });
+    updLinha(k, {
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: calc.qtde,
+      provento: calc.provento,
+      desconto: calc.desconto,
+      resultado: calc.resultado,
+    });
+  };
 
   // Carregar para edição
   useEffect(() => {
