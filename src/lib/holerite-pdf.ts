@@ -210,7 +210,7 @@ export function gerarHoleritePdf(
   doc.text("Qtde", cx + colsTab.qtde - 1, y + 4, { align: "right" }); cx += colsTab.qtde;
   doc.text("Provento", cx + colsTab.prov - 1, y + 4, { align: "right" }); cx += colsTab.prov;
   doc.text("Desconto", cx + colsTab.desc2 - 1, y + 4, { align: "right" }); cx += colsTab.desc2;
-  doc.text("Resultado (h)", cx + colsTab.res - 1, y + 4, { align: "right" });
+  doc.text("Resultado", cx + colsTab.res - 1, y + 4, { align: "right" });
   y += 6;
 
   doc.setFont("helvetica", "normal");
