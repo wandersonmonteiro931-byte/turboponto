@@ -475,7 +475,7 @@ function EditorDialog({
         await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
       } else {
         const { data: ins, error } = await supabase.from("holerites").upsert(payload, {
-          onConflict: "funcionario_id,mes_referencia,ano_referencia",
+          onConflict: "funcionario_id,mes_referencia,ano_referencia,folha_tipo",
         }).select("id").maybeSingle();
         if (error) throw error;
         hid = ins?.id ?? null;
