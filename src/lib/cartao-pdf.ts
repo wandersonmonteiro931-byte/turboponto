@@ -323,7 +323,6 @@ export function gerarPdfCartao(opts: {
       // Créditos de hora extra são somados pelo bancoHorasMinutos do dia,
       // para não duplicar o crédito automático no rodapé do PDF.
       if (i.debito) {
-        debitos += i.qtde;
         if (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA") {
           horasBenef += i.qtde;
         }
