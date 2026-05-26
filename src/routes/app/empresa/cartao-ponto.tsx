@@ -320,7 +320,12 @@ function CartaoEmpresaPage() {
                     <td className="p-2">{d.atrasoMinutos ? `${d.atrasoMinutos}m` : "—"}</td>
                     <td className="p-2">{d.trabalhadoMinutos ? formatMin(d.trabalhadoMinutos) : "—"}</td>
                     <td className="p-2 text-orange-600">{d.extrasMinutos ? formatMin(d.extrasMinutos) : "—"}</td>
-                    <td className="p-2 text-xs text-muted-foreground">{d.observacao ?? ""}</td>
+                    <td className="p-2 text-xs text-muted-foreground">
+                      {d.justificativa && (
+                        <div className="text-blue-700 font-semibold">{d.justificativa.tipo.nome}</div>
+                      )}
+                      {d.observacao && <div>{d.observacao}</div>}
+                    </td>
                     {podeEditar && (
                       <td className="p-2">
                         <Button
