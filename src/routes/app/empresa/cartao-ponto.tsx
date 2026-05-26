@@ -299,6 +299,17 @@ function CartaoEmpresaPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                 <tr>
+                  {podeEditar && (
+                    <th className="p-2 w-8">
+                      <Checkbox
+                        checked={resumo.dias.length > 0 && selecionados.size === resumo.dias.length}
+                        onCheckedChange={(c) => {
+                          if (c) setSelecionados(new Set(resumo.dias.map((x) => x.data)));
+                          else limparSel();
+                        }}
+                      />
+                    </th>
+                  )}
                   <th className="p-2 text-left">Dia</th>
                   <th className="p-2 text-left">Entrada</th>
                   <th className="p-2 text-left">Saída int.</th>
