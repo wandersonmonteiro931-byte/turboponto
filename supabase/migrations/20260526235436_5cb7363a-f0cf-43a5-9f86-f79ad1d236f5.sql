@@ -1,0 +1,2 @@
+UPDATE public.holerite_rubricas SET incide_inss=true, incide_fgts=true, incide_irrf=true, entra_dsr=true WHERE codigo='07035';
+UPDATE public.holerite_rubricas SET modo='automatico', automatico=true, tipo_calculo='dsr_faltas', incide_inss=true, incide_fgts=true, incide_irrf=true WHERE codigo='07040';
