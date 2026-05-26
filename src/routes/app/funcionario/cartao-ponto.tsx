@@ -27,6 +27,7 @@ function CartaoFuncPage() {
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<ResumoCartao | null>(null);
   const [cartao, setCartao] = useState<Cartao | null>(null);
+  const [vinculos, setVinculos] = useState<VinculoAtivoComDias[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
