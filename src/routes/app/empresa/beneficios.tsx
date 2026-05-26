@@ -111,6 +111,56 @@ function BeneficiosPage() {
     /* eslint-disable-next-line */
   }, [empresaId, beneficioId, beneficioAtual, mes, ano]);
 
+  // Realtime: recalcula automaticamente sempre que qualquer dado que
+  // influencia o cálculo do benefício mudar em outra seção do app
+  // (cartão de ponto, faltas, justificativas, jornada, holerite, etc.).
+  useEffect(() => {
+    if (!empresaId || !beneficioAtual) return;
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const trigger = () => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(async () => {
+        try {
+          await recalcularMes(empresaId, beneficioAtual, mes, ano);
+          await carregar();
+        } catch (e) {
+          console.warn("[beneficios] realtime recalc falhou", e);
+        }
+      }, 400);
+    };
+    const tables = [
+      "registros_ponto",
+      "dias_falta",
+      "justificativas_aplicadas",
+      "banco_horas_movimentos",
+      "jornadas_dias",
+      "funcionarios",
+      "beneficios",
+      "beneficios_calculos",
+      "beneficios_entregas",
+    ];
+    const channel = supabase.channel(`beneficios-rt-${empresaId}`);
+    for (const t of tables) {
+      channel.on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: t } as never,
+        trigger as never,
+      );
+    }
+    channel.subscribe();
+    const onFocus = () => trigger();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      if (pending) clearTimeout(pending);
+      void supabase.removeChannel(channel);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+    /* eslint-disable-next-line */
+  }, [empresaId, beneficioAtual, mes, ano]);
+
+
   const recalcular = async () => {
     if (!empresaId || !beneficioAtual) return;
     setRecalculando(true);
