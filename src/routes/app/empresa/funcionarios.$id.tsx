@@ -150,7 +150,22 @@ function FuncionarioDetail() {
               <Fld label="Conta"><Input value={v("conta")} onChange={(e) => upd("conta", e.target.value)} disabled={!isAdmin} /></Fld>
               <Fld label="Nº Dep. IRRF"><Input type="number" value={v("num_dep_irrf") || 0} onChange={(e) => upd("num_dep_irrf", Number(e.target.value))} disabled={!isAdmin} /></Fld>
               <Fld label="Nº Dep. Sal. Família"><Input type="number" value={v("num_dep_sal_fam") || 0} onChange={(e) => upd("num_dep_sal_fam", Number(e.target.value))} disabled={!isAdmin} /></Fld>
-              <Fld label="Lotação" full><Input value={v("lotacao")} onChange={(e) => upd("lotacao", e.target.value)} placeholder="Ex.: 5001000105 - FABRIL - ANAPOLIS-GO" disabled={!isAdmin} /></Fld>
+              <Fld label="Lotação" full>
+                <select
+                  className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+                  value={(v("lotacao") as string) || ""}
+                  onChange={(e) => upd("lotacao", e.target.value || null)}
+                  disabled={!isAdmin}
+                >
+                  <option value="">— Selecionar —</option>
+                  {lotacoes.map((l) => (
+                    <option key={l.id} value={`${l.codigo} - ${l.nome}`}>{l.codigo} - {l.nome}</option>
+                  ))}
+                  {v("lotacao") && !lotacoes.some((l) => `${l.codigo} - ${l.nome}` === v("lotacao")) && (
+                    <option value={v("lotacao") as string}>{v("lotacao") as string} (não cadastrada)</option>
+                  )}
+                </select>
+              </Fld>
               <Fld label="Observações" full>
                 <textarea className="w-full min-h-[80px] px-3 py-2 rounded-md border bg-background text-sm" value={v("observacoes")} onChange={(e) => upd("observacoes", e.target.value)} disabled={!isAdmin} />
               </Fld>
