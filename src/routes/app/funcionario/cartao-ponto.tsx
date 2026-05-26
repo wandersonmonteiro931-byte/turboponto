@@ -49,8 +49,10 @@ function CartaoFuncPage() {
       const { data: c } = await supabase.from("cartoes_ponto")
         .select("status,total_atraso_minutos,total_faltas,total_horas_trabalhadas_minutos,total_horas_extras_minutos")
         .eq("funcionario_id", funcionario.id).eq("ano_referencia", ano).eq("mes_referencia", mes).maybeSingle();
+      const v = await carregarVinculosAtivos(funcionario.id);
       setCartao((c ?? null) as Cartao | null);
       setResumo(r);
+      setVinculos(v);
       setLoading(false);
     })();
   }, [funcionario, ano, mes]);
