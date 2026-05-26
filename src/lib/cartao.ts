@@ -212,8 +212,10 @@ export async function carregarCartao(
   for (const data of datas) {
     const d = new Date(data + "T00:00");
     const dow = d.getDay();
-    const jd = dias.find((x) => x.dia_semana === dow);
+    const escolha = escolherJornadaParaData(vinculos, data);
+    const jd = escolha?.dia ?? null;
     let trabalha = !!jd?.trabalha;
+
 
     // Fora do vínculo: antes da admissão ou após desligamento
     const foraVinculo =
