@@ -6,7 +6,7 @@ import {
   type ResumoCartao,
   type DiaCartao,
 } from "@/lib/cartao";
-import { DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
+import { resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export type EmpresaInfo = {
   nome_fantasia: string;
@@ -173,21 +173,7 @@ export function gerarPdfCartao(opts: {
     doc.text("Hor.Trab:", ML, y);
     let firstLine = true;
     for (const v of jornadas) {
-      const diasTrab = v.dias
-        .filter((d) => d.trabalha)
-        .sort((a, b) => a.dia_semana - b.dia_semana);
-      const detalhe = diasTrab.length === 0
-        ? "Sem dias configurados"
-        : diasTrab.map((d) => {
-            const lbl = DIAS_SEMANA[d.dia_semana].label;
-            const e = d.horario_entrada?.slice(0, 5) ?? "--:--";
-            const s = d.horario_saida?.slice(0, 5) ?? "--:--";
-            const isai = d.horario_intervalo_saida?.slice(0, 5);
-            const iret = d.horario_intervalo_retorno?.slice(0, 5);
-            const intervalo = isai && iret ? ` (int ${isai}-${iret})` : "";
-            return `${lbl} ${e}-${s}${intervalo}`;
-          }).join(" · ");
-      const linha = `[${v.codigo}] ${v.nome}: ${detalhe}`;
+      const linha = `[${v.codigo}] ${v.nome}: ${resumirDiasJornada(v.dias)}`;
       if (!firstLine) y += 3.2;
       doc.text(linha, ML + 16, y, { maxWidth: W - 16 });
       firstLine = false;

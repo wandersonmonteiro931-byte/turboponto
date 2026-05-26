@@ -10,7 +10,7 @@ import { Download, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
-import { carregarVinculosAtivos, DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
+import { carregarVinculosAtivos, DIAS_SEMANA, resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export const Route = createFileRoute("/app/funcionario/cartao-ponto")({
   component: CartaoFuncPage,
@@ -162,30 +162,15 @@ function CartaoFuncPage() {
           <CardContent className="p-3">
             <div className="text-xs uppercase font-bold text-muted-foreground mb-2">Horário de trabalho · jornadas ativas</div>
             <div className="space-y-2">
-              {vinculos.map((v) => {
-                const diasTrab = v.dias.filter((d) => d.trabalha).sort((a, b) => a.dia_semana - b.dia_semana);
-                return (
-                  <div key={v.vinculoId} className="flex items-start gap-2 text-sm flex-wrap">
-                    <span className="inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded bg-primary/15 text-primary text-xs font-mono font-bold tracking-wider">
-                      {v.codigo}
-                    </span>
-                    <span className="font-semibold">{v.nome}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {diasTrab.length === 0
-                        ? "Sem dias configurados"
-                        : diasTrab.map((d) => {
-                            const lbl = DIAS_SEMANA[d.dia_semana].label;
-                            const e = d.horario_entrada?.slice(0, 5) ?? "--:--";
-                            const s = d.horario_saida?.slice(0, 5) ?? "--:--";
-                            const isai = d.horario_intervalo_saida?.slice(0, 5);
-                            const iret = d.horario_intervalo_retorno?.slice(0, 5);
-                            const intervalo = isai && iret ? ` (int ${isai}-${iret})` : "";
-                            return `${lbl} ${e}-${s}${intervalo}`;
-                          }).join(" · ")}
-                    </span>
-                  </div>
-                );
-              })}
+              {vinculos.map((v) => (
+                <div key={v.vinculoId} className="flex items-start gap-2 text-sm flex-wrap">
+                  <span className="inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded bg-primary/15 text-primary text-xs font-mono font-bold tracking-wider">
+                    {v.codigo}
+                  </span>
+                  <span className="font-semibold">{v.nome}</span>
+                  <span className="text-xs text-muted-foreground">{resumirDiasJornada(v.dias)}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

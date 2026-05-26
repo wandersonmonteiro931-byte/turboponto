@@ -90,6 +90,7 @@ function JornadasPage() {
               </Button>
             </DialogTrigger>
             <JornadaDialog
+              key={editing?.id ?? "novo"}
               empresaId={empresaId}
               jornada={editing}
               onDone={() => { setOpen(false); setEditing(null); reload(); }}
