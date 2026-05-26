@@ -344,6 +344,14 @@ function CartaoEmpresaPage() {
                     : !d.trabalha ? "bg-muted/30" : "";
                   return (
                   <tr key={d.data} className={rowBg}>
+                    {podeEditar && (
+                      <td className="p-2">
+                        <Checkbox
+                          checked={selecionados.has(d.data)}
+                          onCheckedChange={() => toggleSel(d.data)}
+                        />
+                      </td>
+                    )}
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
                       {d.jornadaCodigo && (
