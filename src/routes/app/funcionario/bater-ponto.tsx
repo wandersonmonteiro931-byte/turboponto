@@ -355,7 +355,7 @@ function BaterPontoPage() {
                 {previa && previa.status !== "no_horario" && (
                   <div className="text-orange-600 font-medium">
                     {statusLabel[previa.status]}
-                    {previa.atraso > 0 ? ` (${previa.atraso} min)` : ""}
+                    {previa.atraso > 0 ? ` (${fmtHorasMin(previa.atraso)})` : ""}
                   </div>
                 )}
                 <div className="text-muted-foreground">
