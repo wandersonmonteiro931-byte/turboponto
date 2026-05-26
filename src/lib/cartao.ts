@@ -117,41 +117,16 @@ export async function carregarCartao(
   const dataAdmissao = func?.data_admissao ?? null;
   const dataDeslig = func?.data_desligamento ?? null;
 
-  // jornada ativa atual (simplificação: usa jornada ativa do funcionário no momento)
-  const { data: vinc } = await supabase
-    .from("funcionarios_jornadas")
-    .select("jornada_id")
-    .eq("funcionario_id", funcionarioId)
-    .eq("ativo", true)
-    .order("data_inicio", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Carrega todos os vínculos ativos do funcionário (múltiplas jornadas suportadas:
+  // a aplicável a cada dia é escolhida pelo dia da semana / trabalha=true).
+  const { carregarVinculosAtivos, escolherJornadaParaData } = await import("@/lib/jornadas");
+  const vinculos = await carregarVinculosAtivos(funcionarioId);
 
-  let dias: Array<{
-    dia_semana: number;
-    trabalha: boolean;
-    horario_entrada: string | null;
-    horario_intervalo_saida: string | null;
-    horario_intervalo_retorno: string | null;
-    horario_saida: string | null;
-  }> = [];
+  // Tolerância: usa a maior tolerância entre as jornadas ativas (fallback 5).
+  const toleranciaMin = vinculos.length
+    ? Math.max(...vinculos.map((v) => v.tolerancia_atraso_minutos || 0), 0) || 5
+    : 5;
 
-  let toleranciaMin = 5;
-  if (vinc?.jornada_id) {
-    const { data: jd } = await supabase
-      .from("jornadas_dias")
-      .select(
-        "dia_semana,trabalha,horario_entrada,horario_intervalo_saida,horario_intervalo_retorno,horario_saida",
-      )
-      .eq("jornada_id", vinc.jornada_id);
-    dias = jd ?? [];
-    const { data: j } = await supabase
-      .from("jornadas")
-      .select("tolerancia_atraso_minutos")
-      .eq("id", vinc.jornada_id)
-      .maybeSingle();
-    toleranciaMin = j?.tolerancia_atraso_minutos ?? 5;
-  }
 
   const { data: registros } = await supabase
     .from("registros_ponto")
