@@ -529,7 +529,7 @@ function EditorDialog({
         linhas,
       );
       const blob = doc.output("blob");
-      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2,"0")}.pdf`;
+      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2,"0")}-${folhaTipo}.pdf`;
       const { error: upErr } = await supabase.storage.from("holerites").upload(path, blob, {
         upsert: true, contentType: "application/pdf",
       });
