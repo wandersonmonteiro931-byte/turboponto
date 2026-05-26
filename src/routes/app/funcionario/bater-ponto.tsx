@@ -277,7 +277,7 @@ function BaterPontoPage() {
               {previa && previa.status !== "no_horario" && (
                 <span className={`mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}>
                   {statusLabel[previa.status]}
-                  {previa.atraso > 0 ? ` · ${previa.atraso} min` : ""}
+                  {previa.atraso > 0 ? ` · ${fmtHorasMin(previa.atraso)}` : ""}
                 </span>
               )}
               <Button
