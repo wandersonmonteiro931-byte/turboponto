@@ -429,7 +429,7 @@ function Alerta({ tone, icon, texto }: { tone: "amber" | "blue" | "red"; icon: R
 
 function NovoBeneficioDialog({
   open, onClose, empresaId, onSaved,
-}: { open: boolean; onClose: () => void; empresaId: string; onSaved: () => void }) {
+}: { open: boolean; onClose: () => void; empresaId: string; onSaved: (id: string) => void }) {
   const [nome, setNome] = useState("");
   const [valor, setValor] = useState(300);
   const [dia, setDia] = useState(5);
@@ -441,7 +441,7 @@ function NovoBeneficioDialog({
   const salvar = async () => {
     if (!nome) return toast.error("Informe o nome");
     setSalvando(true);
-    const { error } = await supabase.from("beneficios").insert({
+    const { data, error } = await supabase.from("beneficios").insert({
       empresa_id: empresaId,
       nome, tipo: "outro",
       valor_maximo: valor,
@@ -449,11 +449,11 @@ function NovoBeneficioDialog({
       limite_atraso_minutos: limite,
       limite_alerta_minutos: alerta,
       regra_descricao: regra,
-    });
+    }).select("id").single();
     setSalvando(false);
-    if (error) return toast.error(error.message);
+    if (error || !data) return toast.error(error?.message ?? "Erro ao salvar");
     toast.success("Benefício criado");
-    onSaved(); onClose();
+    onSaved(data.id); onClose();
   };
 
   return (
