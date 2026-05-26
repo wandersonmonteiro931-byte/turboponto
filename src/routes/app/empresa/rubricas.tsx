@@ -178,7 +178,7 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
         <DialogHeader><DialogTitle>{rubrica ? "Editar rubrica" : "Nova rubrica"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><Label className="text-xs">Código</Label><Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="0001" /></div>
+            <div><Label className="text-xs">Código (5 dígitos)</Label><Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="00005" maxLength={5} /></div>
             <div>
               <Label className="text-xs">Tipo</Label>
               <Select value={tipo} onValueChange={(v: TipoRubrica) => setTipo(v)}>
