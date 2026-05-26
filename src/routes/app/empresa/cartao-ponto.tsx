@@ -12,7 +12,7 @@ import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type DiaCartao
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
 import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
 import { AplicarJustificativaDialog } from "@/components/AplicarJustificativaDialog";
-import { carregarVinculosAtivos, DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
+import { carregarVinculosAtivos, DIAS_SEMANA, resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 import type { TipoPonto } from "@/lib/ponto";
 
 export const Route = createFileRoute("/app/empresa/cartao-ponto")({
