@@ -579,6 +579,7 @@ function EditorDialog({
               <table className="w-full text-xs">
                 <thead className="bg-muted/50 text-[10px] uppercase">
                   <tr>
+                    <th className="p-1 text-left w-40">Rubrica</th>
                     <th className="p-1 text-left w-20">Código</th>
                     <th className="p-1 text-left">Descrição</th>
                     <th className="p-1 text-right w-20">Qtde</th>
@@ -591,6 +592,19 @@ function EditorDialog({
                 <tbody>
                   {lancamentos.map((l) => (
                     <tr key={l._k} className="border-t">
+                      <td className="p-1">
+                        <Select value="" onValueChange={(v) => void aplicarRubrica(l._k, v)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                          <SelectContent>
+                            {rubricas.length === 0 && <div className="p-2 text-xs text-muted-foreground">Nenhuma rubrica cadastrada</div>}
+                            {rubricas.map((r) => (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.codigo} · {r.descricao} ({r.tipo === "provento" ? "P" : "D"})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
                       <td className="p-1"><Input className="h-7 text-xs" value={l.codigo} onChange={(e) => updLinha(l._k, { codigo: e.target.value })} /></td>
                       <td className="p-1"><Input className="h-7 text-xs" value={l.descricao} onChange={(e) => updLinha(l._k, { descricao: e.target.value })} /></td>
                       <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.qtde ?? ""} onChange={(e) => updLinha(l._k, { qtde: e.target.value === "" ? null : Number(e.target.value) })} /></td>
@@ -603,7 +617,7 @@ function EditorDialog({
                 </tbody>
                 <tfoot className="bg-muted/30 font-bold text-xs">
                   <tr>
-                    <td colSpan={3} className="p-2 text-right">Totais:</td>
+                    <td colSpan={4} className="p-2 text-right">Totais:</td>
                     <td className="p-2 text-right font-mono">{totalProv.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                     <td className="p-2 text-right font-mono">{totalDesc.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                     <td className="p-2 text-right font-mono text-green-700">{totalLiq.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
