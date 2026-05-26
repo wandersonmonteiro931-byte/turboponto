@@ -494,9 +494,11 @@ function EditorDialog({
           nome_fantasia: emp?.nome_fantasia ?? "",
           razao_social: emp?.razao_social,
           cnpj: emp?.cnpj, endereco: emp?.endereco,
+          logoDataUrl,
         },
         {
-          nome: f.nome, cpf: f.cpf, cargo: f.cargo,
+          nome: f.nome, cpf: f.cpf, rg: f.rg, endereco: f.endereco,
+          cargo: f.cargo,
           data_admissao: f.data_admissao, matricula: f.matricula,
         },
         {
