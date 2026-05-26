@@ -54,6 +54,14 @@ const fmtNum = (v: number | null | undefined, dec = 2): string => {
   if (v == null || v === 0) return "";
   return v.toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
 };
+const fmtHoras = (v: number | null | undefined): string => {
+  if (v == null || v === 0) return "";
+  const sinal = v < 0 ? "-" : "";
+  const abs = Math.abs(v);
+  const horas = Math.floor(abs);
+  const minutos = Math.round((abs - horas) * 60);
+  return `${sinal}${horas}h${String(minutos).padStart(2, "0")}`;
+};
 const fmtData = (d?: string | null): string => {
   if (!d) return "";
   const [y, m, day] = d.split("-");
@@ -219,7 +227,7 @@ export function gerarHoleritePdf(
     doc.text(fmtNum(l.qtde, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" }); cx += colsTab.qtde;
     doc.text(fmtNum(l.provento), cx + colsTab.prov - 1, y + 4, { align: "right" }); cx += colsTab.prov;
     doc.text(fmtNum(l.desconto), cx + colsTab.desc2 - 1, y + 4, { align: "right" }); cx += colsTab.desc2;
-    doc.text(isInformativo ? fmtNum(l.resultado) : "", cx + colsTab.res - 1, y + 4, { align: "right" });
+    doc.text(isInformativo ? fmtHoras(l.resultado) : "", cx + colsTab.res - 1, y + 4, { align: "right" });
     y += 5;
   }
 
