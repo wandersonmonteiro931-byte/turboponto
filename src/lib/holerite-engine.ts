@@ -257,8 +257,8 @@ export async function recalcular(
   };
 
   // Aplica cálculo para cada rubrica automática já presente, e para algumas "sempre presentes"
-  // (00005, INSS, FGTS, IRRF) que devem aparecer sempre que houver salário.
-  const sempre = ["00005", "07000", "07005", "07010"];
+  // (00005, 07065 ADIANTAMENTO, INSS, FGTS, IRRF) que devem aparecer sempre que houver salário.
+  const sempre = ["00005", "07065", "07000", "07005", "07010"];
   for (const cod of sempre) {
     if (porCodigo.has(cod) && !linhas.find((l) => l.codigo === cod)) {
       const r = porCodigo.get(cod)!;
