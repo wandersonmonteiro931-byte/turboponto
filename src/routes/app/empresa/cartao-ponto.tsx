@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Lock, Unlock, CheckCircle2, FileText } from "lucide-react";
+import { Download, Lock, Unlock, CheckCircle2, FileText, Trash2, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type DiaCartao, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
 import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
 import { AplicarJustificativaDialog } from "@/components/AplicarJustificativaDialog";
+import { BulkJustificarDialog } from "@/components/BulkJustificarDialog";
 import { carregarVinculosAtivos, DIAS_SEMANA, resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 import type { TipoPonto } from "@/lib/ponto";
 
