@@ -97,19 +97,21 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     let totalAtraso = 0;
     let diasComAtraso = 0;
     let faltas = 0;
+    let debito = 0;
     try {
       const cartao = await carregarCartao(f.id, ano, mes);
       totalAtraso = cartao.totalAtraso;
       diasComAtraso = cartao.dias.filter((d) => d.atrasoMinutos > 0).length;
       faltas = cartao.totalFaltas;
+      debito = cartao.totalBancoHoras < 0 ? -cartao.totalBancoHoras : 0;
     } catch {
       // Se falhar (ex.: sem jornada), assume zero para não bloquear o cálculo
     }
 
-    const aval = avaliarDireito(beneficio, totalAtraso, faltas);
+    const aval = avaliarDireito(beneficio, debito, faltas);
     calculos.push({
       funcionario_id: f.id,
-      total_atraso_minutos: totalAtraso,
+      total_atraso_minutos: debito,
       dias_com_atraso: diasComAtraso,
       faltas_injustificadas: faltas,
       horas_extras_minutos: 0,
