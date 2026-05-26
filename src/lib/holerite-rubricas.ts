@@ -17,7 +17,7 @@ export const TIPO_CALCULO_OPCOES: Array<{ value: TipoCalculo; label: string; hel
   { value: "valor_fixo", label: "Valor fixo", help: "Usa o valor de referência. Qtde = 1." },
   { value: "percentual_salario", label: "% do salário", help: "Valor = salário × (referência / 100)." },
   { value: "salario_base", label: "Salário base (30 dias cheios)", help: "Valor = salário contratual. Qtde = 30. Ignora cartão de ponto." },
-  { value: "salario_dias_trabalhados", label: "Salário proporcional (cartão de ponto)", help: "Qtde = dias trabalhados no cartão (30 - faltas, considera admissão/desligamento). Valor = (salário/30) × dias." },
+  { value: "salario_dias_trabalhados", label: "Salário proporcional (dias de vínculo)", help: "Qtde = dias corridos de vínculo dentro da competência (considera admissão/desligamento). Valor = (salário/30) × dias. Faltas/atrasos NÃO reduzem esta rubrica." },
   { value: "horas_extras_50", label: "Horas extras 50%", help: "Qtde = horas extras do mês (cartão). Valor = (salário/220) × 1,5 × horas." },
   { value: "horas_extras_100", label: "Horas extras 100%", help: "Qtde = horas extras do mês × 2. Valor = (salário/220) × 2 × horas." },
   { value: "atrasos", label: "Atrasos (horas)", help: "Qtde = horas de atraso no mês. Valor = (salário/220) × horas." },
@@ -76,22 +76,25 @@ async function totalFaltasMes(funcionarioId: string, ano: number, mes: number): 
 }
 
 async function diasTrabalhadosCartao(funcionarioId: string, ano: number, mes: number): Promise<number> {
-  const { carregarCartao } = await import("@/lib/cartao");
-  const resumo = await carregarCartao(funcionarioId, ano, mes);
   const diasMes = new Date(ano, mes, 0).getDate();
   const mesIni = new Date(ano, mes - 1, 1);
   const mesFim = new Date(ano, mes - 1, diasMes);
-  const adm = resumo.dataAdmissao ? new Date(resumo.dataAdmissao + "T00:00:00") : null;
-  const des = resumo.dataDesligamento ? new Date(resumo.dataDesligamento + "T00:00:00") : null;
+  const { data: func } = await supabase
+    .from("funcionarios")
+    .select("data_admissao,data_desligamento")
+    .eq("id", funcionarioId)
+    .maybeSingle();
+  const adm = func?.data_admissao ? new Date(func.data_admissao + "T00:00:00") : null;
+  const des = func?.data_desligamento ? new Date(func.data_desligamento + "T00:00:00") : null;
   const ini = adm && adm > mesIni ? adm : mesIni;
   const fim = des && des < mesFim ? des : mesFim;
   if (fim < ini) return 0;
-  const diasPeriodo = Math.round((fim.getTime() - ini.getTime()) / 86400000) + 1;
-  const considerados = Math.max(0, diasPeriodo - (resumo.totalFaltas || 0));
-  // Proporcional sobre base 30 (CLT)
-  const dias = (considerados * 30) / diasMes;
-  return Math.round(dias * 100) / 100;
+  const diasVinculo = Math.round((fim.getTime() - ini.getTime()) / 86400000) + 1;
+  // Se vínculo cobre o mês inteiro, retorna 30 (base CLT); senão retorna os dias corridos de vínculo.
+  if (diasVinculo >= diasMes) return 30;
+  return diasVinculo;
 }
+
 
 export async function calcularRubrica(
   tipo: "provento" | "desconto",
