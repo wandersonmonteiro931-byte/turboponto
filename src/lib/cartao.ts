@@ -494,6 +494,8 @@ export async function carregarCartao(
       justificativa: just,
       justificativas,
       bancoHorasMinutos: bancoHorasMin,
+      jornadaCodigo: foraVinculo ? null : jornadaCodigo,
+      jornadaNome: foraVinculo ? null : jornadaNome,
     });
   }
 
