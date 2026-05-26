@@ -323,6 +323,10 @@ export async function recalcular(
     const r = porCodigo.get("07035")!;
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
   }
+  if (dsrPerdidos > 0 && porCodigo.has("07040") && !linhas.find((l) => l.codigo === "07040")) {
+    const r = porCodigo.get("07040")!;
+    linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+  }
 
   // ==== Informativos automáticos baseados no cartão de ponto ====
   // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
