@@ -800,6 +800,45 @@ export type Database = {
           },
         ]
       }
+      holerite_rubricas: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          tipo: string
+          tipo_calculo: string
+          updated_at: string
+          valor_referencia: number
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          id?: string
+          tipo: string
+          tipo_calculo?: string
+          updated_at?: string
+          valor_referencia?: number
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          tipo?: string
+          tipo_calculo?: string
+          updated_at?: string
+          valor_referencia?: number
+        }
+        Relationships: []
+      }
       holerites: {
         Row: {
           acessado_em: string | null
