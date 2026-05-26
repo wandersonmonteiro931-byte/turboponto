@@ -372,9 +372,20 @@ function BeneficiosPage() {
       </Card>
 
       {ehAdmin && <NovoBeneficioDialog open={novoOpen} onClose={() => setNovoOpen(false)} empresaId={empresaId}
-        onSaved={async () => {
+        onSaved={async (novoId) => {
           const { data } = await supabase.from("beneficios").select("*").eq("empresa_id", empresaId).order("created_at");
-          setBeneficios((data ?? []) as Beneficio[]);
+          const lista = (data ?? []) as Beneficio[];
+          setBeneficios(lista);
+          const novo = lista.find((b) => b.id === novoId) ?? lista[lista.length - 1];
+          if (novo) {
+            setBeneficioId(novo.id);
+            try {
+              const r = await recalcularMes(empresaId, novo, mes, ano);
+              toast.success(`Benefício disponibilizado para ${r.atualizados} funcionário(s)`);
+            } catch (e: unknown) {
+              toast.error(e instanceof Error ? e.message : "Erro ao calcular benefício");
+            }
+          }
         }} />}
     </div>
   );
