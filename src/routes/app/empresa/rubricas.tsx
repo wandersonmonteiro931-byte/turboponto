@@ -16,14 +16,25 @@ export const Route = createFileRoute("/app/empresa/rubricas")({
   component: RubricasPage,
 });
 
+type TipoRubrica = "provento" | "desconto" | "informativo" | "resultado";
 type Rubrica = {
   id: string;
   codigo: string;
   descricao: string;
-  tipo: "provento" | "desconto";
+  tipo: TipoRubrica;
   tipo_calculo: TipoCalculo;
   valor_referencia: number;
   ativo: boolean;
+  grupo: string | null;
+  base_calculo: string | null;
+  padrao_sistema: boolean;
+};
+
+const TIPO_BADGE: Record<TipoRubrica, { label: string; cls: string }> = {
+  provento: { label: "Provento", cls: "bg-green-500/20 text-green-700" },
+  desconto: { label: "Desconto", cls: "bg-red-500/20 text-red-700" },
+  informativo: { label: "Informativo", cls: "bg-blue-500/20 text-blue-700" },
+  resultado: { label: "Resultado", cls: "bg-purple-500/20 text-purple-700" },
 };
 
 function RubricasPage() {
