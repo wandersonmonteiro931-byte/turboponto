@@ -13,9 +13,11 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
-import { CheckCircle2, Download, Plus, Trash2, Pencil } from "lucide-react";
+import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown } from "lucide-react";
 import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 
@@ -598,17 +600,35 @@ function EditorDialog({
                   {lancamentos.map((l) => (
                     <tr key={l._k} className="border-t">
                       <td className="p-1">
-                        <Select value="" onValueChange={(v) => void aplicarRubrica(l._k, v)}>
-                          <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                          <SelectContent>
-                            {rubricas.length === 0 && <div className="p-2 text-xs text-muted-foreground">Nenhuma rubrica cadastrada</div>}
-                            {rubricas.map((r) => (
-                              <SelectItem key={r.id} value={r.id}>
-                                {r.codigo} · {r.descricao} ({r.tipo === "provento" ? "P" : "D"})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7 w-full justify-between text-xs font-normal">
+                              <span className="truncate">{l.codigo ? `${l.codigo} · ${l.descricao}` : "Selecionar..."}</span>
+                              <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="p-0 w-[360px]" align="start">
+                            <Command>
+                              <CommandInput placeholder="Buscar por código ou descrição..." />
+                              <CommandList>
+                                <CommandEmpty>Nenhuma rubrica encontrada.</CommandEmpty>
+                                <CommandGroup>
+                                  {rubricas.map((r) => (
+                                    <CommandItem
+                                      key={r.id}
+                                      value={`${r.codigo} ${r.descricao}`}
+                                      onSelect={() => void aplicarRubrica(l._k, r.id)}
+                                    >
+                                      <span className="font-mono mr-2">{r.codigo}</span>
+                                      <span className="truncate flex-1">{r.descricao}</span>
+                                      <span className="text-[10px] uppercase ml-2 opacity-70">{r.tipo === "provento" ? "P" : "D"}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </td>
                       <td className="p-1"><Input className="h-7 text-xs" value={l.codigo} onChange={(e) => updLinha(l._k, { codigo: e.target.value })} /></td>
                       <td className="p-1"><Input className="h-7 text-xs" value={l.descricao} onChange={(e) => updLinha(l._k, { descricao: e.target.value })} /></td>

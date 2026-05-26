@@ -44,6 +44,18 @@ function RubricasPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Rubrica | null>(null);
+  const [busca, setBusca] = useState("");
+
+  const listaFiltrada = (() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return lista;
+    return lista.filter((r) =>
+      r.codigo.toLowerCase().includes(q) ||
+      r.descricao.toLowerCase().includes(q) ||
+      (r.grupo ?? "").toLowerCase().includes(q) ||
+      r.tipo.toLowerCase().includes(q),
+    );
+  })();
 
   const carregar = async () => {
     if (!empresaId) return;
@@ -79,9 +91,19 @@ function RubricasPage() {
       </div>
 
       <Card>
+        <CardContent className="p-3">
+          <Input
+            placeholder="Buscar por código, descrição, grupo ou tipo..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent className="p-0">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div>
-            : lista.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma rubrica cadastrada.</div>
+            : listaFiltrada.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">{busca ? "Nenhuma rubrica encontrada para a busca." : "Nenhuma rubrica cadastrada."}</div>
             : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -98,7 +120,7 @@ function RubricasPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {lista.map((r) => {
+                    {listaFiltrada.map((r) => {
                       const badge = TIPO_BADGE[r.tipo];
                       return (
                         <tr key={r.id} className="hover:bg-muted/30">
