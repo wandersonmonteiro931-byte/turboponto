@@ -37,29 +37,33 @@ export type CalculoBeneficio = {
   valor_estimado: number;
 };
 
-/** Calcula direito ao benefício considerando regra: atraso ≤ limite. */
+/** Regra: perde direito se débito de horas do mês > 60 min OU qualquer falta injustificada. */
 export function avaliarDireito(
   beneficio: Pick<Beneficio, "limite_atraso_minutos" | "limite_alerta_minutos" | "valor_maximo">,
-  totalAtraso: number,
+  debitoMinutos: number,
   faltas: number,
 ): { tem_direito: boolean; status: string; motivo: string | null; valor: number; proximoLimite: boolean } {
-  const proximoLimite = totalAtraso >= beneficio.limite_alerta_minutos && totalAtraso <= beneficio.limite_atraso_minutos;
-  if (totalAtraso > beneficio.limite_atraso_minutos) {
-    return {
-      tem_direito: false,
-      status: "nao_tem_direito",
-      motivo: `Ultrapassou ${beneficio.limite_atraso_minutos} min de atraso no mês (${totalAtraso} min acumulados).`,
-      valor: 0,
-      proximoLimite: false,
-    };
-  }
+  const LIMITE = 60;
+  const ALERTA = 45;
+  const proximoLimite = debitoMinutos >= ALERTA && debitoMinutos <= LIMITE;
   if (faltas > 0) {
     return {
       tem_direito: false,
       status: "nao_tem_direito",
       motivo: `Possui ${faltas} falta(s) injustificada(s) no mês.`,
       valor: 0,
-      proximoLimite,
+      proximoLimite: false,
+    };
+  }
+  if (debitoMinutos > LIMITE) {
+    const h = Math.floor(debitoMinutos / 60);
+    const m = debitoMinutos % 60;
+    return {
+      tem_direito: false,
+      status: "nao_tem_direito",
+      motivo: `Débito de ${h}h${String(m).padStart(2, "0")} no mês (limite: 1h).`,
+      valor: 0,
+      proximoLimite: false,
     };
   }
   return { tem_direito: true, status: "tem_direito", motivo: null, valor: beneficio.valor_maximo, proximoLimite };
