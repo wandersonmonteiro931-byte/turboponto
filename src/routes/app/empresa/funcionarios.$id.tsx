@@ -98,7 +98,7 @@ function FuncionarioDetail() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-bold">{v("nome")}</h2>
-            <p className="text-sm text-muted-foreground">{v("cargo") || "—"}</p>
+            <p className="text-sm text-muted-foreground">{v("cargo") || "—"}{v("matricula") ? ` · Matrícula ${v("matricula")}` : ""}</p>
             <p className="text-xs text-muted-foreground capitalize mt-1">Status: {v("status")}</p>
           </div>
           {isAdmin && (
