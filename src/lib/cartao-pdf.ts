@@ -432,6 +432,7 @@ export function gerarPdfCartao(opts: {
     drawRow({
       dia: diaSem,
       data: dataStr,
+      esc: d.jornadaCodigo ?? "",
       entPrev: d.programado.entrada ?? "",
       intSai: d.programado.saida_intervalo ?? "",
       intRet: d.programado.retorno_intervalo ?? "",
