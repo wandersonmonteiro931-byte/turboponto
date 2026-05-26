@@ -30,6 +30,7 @@ type Funcionario = {
   status: string;
   foto_url: string | null;
   usuario_id: string | null;
+  matricula: string | null;
 };
 
 const statusColor: Record<string, string> = {
