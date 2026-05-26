@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
 import { CheckCircle2, Download, Plus, Trash2, Pencil } from "lucide-react";
-import { gerarHoleritePdf, type HolerLancamento } from "@/lib/holerite-pdf";
+import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 
 export const Route = createFileRoute("/app/empresa/holerites")({
