@@ -54,6 +54,7 @@ function FuncionarioDetail() {
       lotacao: f.lotacao || null,
       num_dep_irrf: Number(f.num_dep_irrf ?? 0),
       num_dep_sal_fam: Number(f.num_dep_sal_fam ?? 0),
+      matricula: f.matricula || null,
     };
     const { error } = await supabase.from("funcionarios").update(payload as never).eq("id", id);
     setSaving(false);
