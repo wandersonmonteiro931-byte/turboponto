@@ -97,7 +97,19 @@ function BeneficiosPage() {
     setLoading(false);
   };
 
-  useEffect(() => { void carregar(); /* eslint-disable-next-line */ }, [empresaId, beneficioId, mes, ano]);
+  useEffect(() => {
+    if (!empresaId || !beneficioAtual) { void carregar(); return; }
+    void (async () => {
+      setLoading(true);
+      try {
+        await recalcularMes(empresaId, beneficioAtual, mes, ano);
+      } catch (e) {
+        console.warn("[beneficios] auto recalc falhou", e);
+      }
+      await carregar();
+    })();
+    /* eslint-disable-next-line */
+  }, [empresaId, beneficioId, beneficioAtual, mes, ano]);
 
   const recalcular = async () => {
     if (!empresaId || !beneficioAtual) return;
