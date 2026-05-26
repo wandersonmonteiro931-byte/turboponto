@@ -60,7 +60,7 @@ function HoleritesPage() {
 
   useEffect(() => {
     if (!empresaId) return;
-    void supabase.from("funcionarios").select("id,nome,cargo,cpf,data_admissao,salario")
+    void supabase.from("funcionarios").select("id,nome,cargo,cpf,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam")
       .eq("empresa_id", empresaId).eq("status", "ativo").order("nome")
       .then(({ data }) => setFuncs((data ?? []) as Func[]));
   }, [empresaId]);
