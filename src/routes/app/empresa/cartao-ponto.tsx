@@ -137,10 +137,12 @@ function CartaoEmpresaPage() {
           intervalo_retorno: refDia?.horario_intervalo_retorno?.slice(0, 5) ?? null,
         };
       }
+      const vincs = await carregarVinculosAtivos(f.id);
       const doc = gerarPdfCartao({
         empresa: emp,
         funcionario: f,
         jornada,
+        jornadas: vincs,
         ano, mes,
         resumo: resumoAtual,
         status: cartao?.status ?? "aberto",
