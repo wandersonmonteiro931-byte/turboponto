@@ -1,5 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { BaterPontoButton } from "@/components/BaterPontoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, CreditCard, Gift, FileText, CalendarClock, Bell, TrendingDown } from "lucide-react";
@@ -35,7 +36,6 @@ type JornadaAtual = {
 function FuncionarioHome() {
   const { nome, user } = useAuth();
   const userId = user?.id;
-  const navigate = useNavigate();
   const [now, setNow] = useState(new Date());
   const [jornada, setJornada] = useState<JornadaAtual | null>(null);
   const [dias, setDias] = useState<JornadaDia[]>([]);
@@ -175,14 +175,8 @@ function FuncionarioHome() {
           <p className="text-sm text-muted-foreground mb-4">
             {jornada ? "Toque no botão abaixo para registrar sua marcação" : "Você não pode bater ponto sem uma jornada ativa"}
           </p>
-          <Button
-            size="lg"
-            className="px-10 py-6 text-lg font-bold"
-            disabled={!jornada}
-            onClick={() => navigate({ to: "/app/funcionario/bater-ponto" })}
-          >
-            Bater Ponto
-          </Button>
+          <BaterPontoButton />
+
         </CardContent>
       </Card>
 
