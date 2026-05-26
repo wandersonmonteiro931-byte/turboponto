@@ -195,7 +195,35 @@ export async function recalcular(
     saldoBHMinutos = creditosMin - debitosMin;
   }
   const horasHE = minHE / 60;
-  const horasAtraso = minAtraso / 60;
+
+  // Atraso só desconta em folha quando houver aplicação da justificativa
+  // "FECHAMENTO_BANCO_DESC" no mês de referência. Caso contrário, o débito
+  // permanece apenas como saldo informativo do banco de horas (rubrica 28652).
+  let temFechamentoBancoDesc = false;
+  try {
+    const { data: tipoFech } = await supabase
+      .from("justificativas_tipos")
+      .select("id")
+      .eq("empresa_id", ctx.empresaId)
+      .eq("codigo", "FECHAMENTO_BANCO_DESC")
+      .maybeSingle();
+    if (tipoFech?.id) {
+      const { count } = await supabase
+        .from("justificativas_aplicadas")
+        .select("id", { count: "exact", head: true })
+        .eq("funcionario_id", ctx.funcionarioId)
+        .eq("tipo_id", tipoFech.id)
+        .gte("data", ini)
+        .lte("data", fim);
+      temFechamentoBancoDesc = (count ?? 0) > 0;
+    }
+  } catch (e) {
+    console.warn("[holerite] falha ao checar FECHAMENTO_BANCO_DESC", e);
+  }
+  // Horas de atraso elegíveis para desconto em folha: zero quando não há
+  // fechamento do banco autorizado.
+  const horasAtraso = temFechamentoBancoDesc ? minAtraso / 60 : 0;
+
 
   // Mantém linhas atuais; recalcula apenas as automáticas.
   const linhas: EngineLanc[] = linhasAtuais.map((l) => {
