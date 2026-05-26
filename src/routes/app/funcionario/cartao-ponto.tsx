@@ -10,7 +10,7 @@ import { Download, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
-import { carregarVinculosAtivos, DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
+import { carregarVinculosAtivos, DIAS_SEMANA, resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export const Route = createFileRoute("/app/funcionario/cartao-ponto")({
   component: CartaoFuncPage,
