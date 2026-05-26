@@ -23,12 +23,19 @@ function FuncionarioDetail() {
   const [f, setF] = useState<Record<string, unknown> | null>(null);
   const [saving, setSaving] = useState(false);
   const [newPass, setNewPass] = useState("");
+  const [lotacoes, setLotacoes] = useState<Array<{ id: string; codigo: string; nome: string }>>([]);
 
   const load = async () => {
     const { data } = await supabase.from("funcionarios").select("*").eq("id", id).maybeSingle();
     setF(data);
   };
   useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    if (!empresaId) return;
+    void supabase.from("lotacoes").select("id,codigo,nome").eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
+      .then(({ data }) => setLotacoes((data ?? []) as typeof lotacoes));
+    // eslint-disable-next-line
+  }, [empresaId]);
 
   if (!f) return <div className="text-sm text-muted-foreground">Carregando...</div>;
 
