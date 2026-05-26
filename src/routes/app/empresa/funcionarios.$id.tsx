@@ -42,6 +42,11 @@ function FuncionarioDetail() {
       salario: f.salario, data_admissao: f.data_admissao || null, status: f.status,
       observacoes: f.observacoes, permite_bater_ponto: f.permite_bater_ponto,
       data_desligamento: f.data_desligamento || null, motivo_desligamento: f.motivo_desligamento,
+      banco_agencia: f.banco_agencia || null,
+      conta: f.conta || null,
+      lotacao: f.lotacao || null,
+      num_dep_irrf: Number(f.num_dep_irrf ?? 0),
+      num_dep_sal_fam: Number(f.num_dep_sal_fam ?? 0),
     };
     const { error } = await supabase.from("funcionarios").update(payload as never).eq("id", id);
     setSaving(false);
