@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
-import { STATUS_BENEFICIO, fmtBRL, mesNome, type Beneficio } from "@/lib/beneficios";
+import { STATUS_BENEFICIO, avaliarDireito, fmtBRL, mesNome, type Beneficio } from "@/lib/beneficios";
+import { carregarCartao } from "@/lib/cartao";
 import { AlertTriangle, CheckCircle2, Gift, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/app/funcionario/beneficios")({
