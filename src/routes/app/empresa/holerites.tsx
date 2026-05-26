@@ -25,6 +25,7 @@ export const Route = createFileRoute("/app/empresa/holerites")({
 
 type Func = {
   id: string; nome: string; cargo: string | null; cpf: string | null;
+  rg: string | null; endereco: string | null;
   data_admissao: string | null; salario: number | null;
   banco_agencia: string | null; conta: string | null; lotacao: string | null;
   num_dep_irrf: number | null; num_dep_sal_fam: number | null;
