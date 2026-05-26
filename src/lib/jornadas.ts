@@ -58,13 +58,18 @@ export function formatMin(min: number): string {
 }
 
 export async function ativarVinculo(funcionarioId: string, jornadaId: string, dataInicio: string) {
-  // Encerra vínculos ativos
-  await (supabase.from("funcionarios_jornadas") as never as {
-    update: (v: object) => { eq: (a: string, b: unknown) => { eq: (a: string, b: unknown) => Promise<unknown> } };
-  })
-    .update({ ativo: false, data_fim: dataInicio })
+  // Permite múltiplas jornadas ativas simultaneamente (cada uma cobre dias diferentes da semana).
+  // Não encerra vínculos anteriores; apenas evita duplicar a mesma jornada já ativa.
+  const { data: existente } = await supabase
+    .from("funcionarios_jornadas")
+    .select("id")
     .eq("funcionario_id", funcionarioId)
-    .eq("ativo", true);
+    .eq("jornada_id", jornadaId)
+    .eq("ativo", true)
+    .maybeSingle();
+  if (existente) {
+    throw new Error("Esta jornada já está ativa para o colaborador.");
+  }
   const { error } = await supabase.from("funcionarios_jornadas").insert({
     funcionario_id: funcionarioId,
     jornada_id: jornadaId,
@@ -73,3 +78,76 @@ export async function ativarVinculo(funcionarioId: string, jornadaId: string, da
   } as never);
   if (error) throw new Error(error.message);
 }
+
+// ---------------- Múltiplas jornadas por colaborador ----------------
+
+export type VinculoAtivoComDias = {
+  vinculoId: string;
+  jornadaId: string;
+  nome: string;
+  tolerancia_atraso_minutos: number;
+  data_inicio: string;
+  data_fim: string | null;
+  dias: JornadaDia[];
+};
+
+export async function carregarVinculosAtivos(funcionarioId: string): Promise<VinculoAtivoComDias[]> {
+  const { data: vincs } = await supabase
+    .from("funcionarios_jornadas")
+    .select("id,jornada_id,data_inicio,data_fim,jornadas(nome,tolerancia_atraso_minutos)")
+    .eq("funcionario_id", funcionarioId)
+    .eq("ativo", true)
+    .order("data_inicio", { ascending: false });
+  const rows = (vincs ?? []) as Array<{
+    id: string;
+    jornada_id: string;
+    data_inicio: string;
+    data_fim: string | null;
+    jornadas: { nome: string; tolerancia_atraso_minutos: number } | null;
+  }>;
+  if (!rows.length) return [];
+  const jornadaIds = Array.from(new Set(rows.map((r) => r.jornada_id)));
+  const { data: dias } = await supabase
+    .from("jornadas_dias")
+    .select("*")
+    .in("jornada_id", jornadaIds);
+  const diasPorJornada = new Map<string, JornadaDia[]>();
+  for (const d of (dias ?? []) as JornadaDia[]) {
+    const arr = diasPorJornada.get(d.jornada_id) ?? [];
+    arr.push(d);
+    diasPorJornada.set(d.jornada_id, arr);
+  }
+  return rows.map((r) => ({
+    vinculoId: r.id,
+    jornadaId: r.jornada_id,
+    nome: r.jornadas?.nome ?? "Jornada",
+    tolerancia_atraso_minutos: r.jornadas?.tolerancia_atraso_minutos ?? 0,
+    data_inicio: r.data_inicio,
+    data_fim: r.data_fim,
+    dias: diasPorJornada.get(r.jornada_id) ?? [],
+  }));
+}
+
+/**
+ * Escolhe a jornada aplicável a uma data específica.
+ * Regra: dentre os vínculos cujo intervalo cobre a data, prefere aquela cuja
+ * configuração tem trabalha=true para o dia da semana. Se nenhuma trabalhar
+ * nesse dia, retorna a primeira aplicável (folga).
+ */
+export function escolherJornadaParaData(
+  vinculos: VinculoAtivoComDias[],
+  dataISO: string,
+): { vinculo: VinculoAtivoComDias; dia: JornadaDia | null } | null {
+  const dow = new Date(dataISO + "T12:00:00").getDay();
+  const aplicaveis = vinculos.filter(
+    (v) => v.data_inicio <= dataISO && (!v.data_fim || v.data_fim >= dataISO),
+  );
+  if (!aplicaveis.length) return null;
+  const comTrabalha = aplicaveis
+    .map((v) => ({ vinculo: v, dia: v.dias.find((d) => d.dia_semana === dow) ?? null }))
+    .filter((x) => x.dia?.trabalha);
+  if (comTrabalha.length > 0) return comTrabalha[0];
+  const primeiro = aplicaveis[0];
+  return { vinculo: primeiro, dia: primeiro.dias.find((d) => d.dia_semana === dow) ?? null };
+}
+
