@@ -17,6 +17,7 @@ export const Route = createFileRoute("/app/empresa/rubricas")({
 });
 
 type TipoRubrica = "provento" | "desconto" | "informativo" | "resultado";
+type ModoRubrica = "automatico" | "semi_automatico" | "manual";
 type Rubrica = {
   id: string;
   codigo: string;
@@ -28,6 +29,8 @@ type Rubrica = {
   grupo: string | null;
   base_calculo: string | null;
   padrao_sistema: boolean;
+  modo: ModoRubrica;
+  editavel_manual: boolean;
 };
 
 const TIPO_BADGE: Record<TipoRubrica, { label: string; cls: string }> = {
@@ -35,6 +38,12 @@ const TIPO_BADGE: Record<TipoRubrica, { label: string; cls: string }> = {
   desconto: { label: "Desconto", cls: "bg-red-500/20 text-red-700" },
   informativo: { label: "Informativo", cls: "bg-blue-500/20 text-blue-700" },
   resultado: { label: "Resultado", cls: "bg-purple-500/20 text-purple-700" },
+};
+
+const MODO_BADGE: Record<ModoRubrica, { label: string; cls: string }> = {
+  automatico: { label: "Auto", cls: "bg-emerald-500/20 text-emerald-700" },
+  semi_automatico: { label: "Semi", cls: "bg-amber-500/20 text-amber-700" },
+  manual: { label: "Manual", cls: "bg-slate-500/20 text-slate-700" },
 };
 
 function RubricasPage() {
@@ -113,6 +122,7 @@ function RubricasPage() {
                       <th className="text-left p-2">Descrição</th>
                       <th className="text-left p-2 w-48">Grupo</th>
                       <th className="text-left p-2 w-28">Tipo</th>
+                      <th className="text-left p-2 w-20">Modo</th>
                       <th className="text-left p-2">Cálculo</th>
                       <th className="text-right p-2 w-28">Referência</th>
                       <th className="text-left p-2 w-20">Status</th>
@@ -122,6 +132,7 @@ function RubricasPage() {
                   <tbody className="divide-y">
                     {listaFiltrada.map((r) => {
                       const badge = TIPO_BADGE[r.tipo];
+                      const mb = MODO_BADGE[r.modo ?? "manual"];
                       return (
                         <tr key={r.id} className="hover:bg-muted/30">
                           <td className="p-2 font-mono">{r.codigo}</td>
@@ -129,6 +140,9 @@ function RubricasPage() {
                           <td className="p-2 text-xs text-muted-foreground">{r.grupo ?? "—"}</td>
                           <td className="p-2">
                             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${badge.cls}`}>{badge.label}</span>
+                          </td>
+                          <td className="p-2">
+                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${mb.cls}`}>{mb.label}</span>
                           </td>
                           <td className="p-2 text-xs">{TIPO_CALCULO_OPCOES.find((o) => o.value === r.tipo_calculo)?.label ?? r.tipo_calculo}</td>
                           <td className="p-2 text-right font-mono">{Number(r.valor_referencia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
@@ -170,6 +184,8 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
   const [tipoCalculo, setTipoCalculo] = useState<TipoCalculo>(rubrica?.tipo_calculo ?? "manual");
   const [valorRef, setValorRef] = useState(rubrica?.valor_referencia ?? 0);
   const [ativo, setAtivo] = useState(rubrica?.ativo ?? true);
+  const [modo, setModo] = useState<ModoRubrica>(rubrica?.modo ?? "manual");
+  const [editavelManual, setEditavelManual] = useState(rubrica?.editavel_manual ?? true);
   const [salvando, setSalvando] = useState(false);
 
   const salvar = async () => {
@@ -182,7 +198,7 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
       descricao: descricao.trim(),
       tipo, tipo_calculo: tipoCalculo,
       valor_referencia: Number(valorRef) || 0,
-      ativo,
+      ativo, modo, editavel_manual: editavelManual,
     };
     const q = rubrica
       ? supabase.from("holerite_rubricas").update(payload).eq("id", rubrica.id)
@@ -230,6 +246,23 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
           <div>
             <Label className="text-xs">Valor de referência</Label>
             <Input type="number" step="0.01" value={valorRef} onChange={(e) => setValorRef(Number(e.target.value))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Modo</Label>
+              <Select value={modo} onValueChange={(v: ModoRubrica) => setModo(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="automatico">Automático (sistema calcula)</SelectItem>
+                  <SelectItem value="semi_automatico">Semi-automático (sugere, admin confirma)</SelectItem>
+                  <SelectItem value="manual">Manual (operador digita)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-end gap-2 text-sm pb-2">
+              <input type="checkbox" checked={editavelManual} onChange={(e) => setEditavelManual(e.target.checked)} />
+              Permitir edição manual
+            </label>
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />

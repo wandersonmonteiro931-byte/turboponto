@@ -1,94 +1,68 @@
-## Módulo de Justificativas de Irregularidade
+# Motor de Cálculo da Folha — Rubricas Automáticas
 
-Sistema completo para tratar faltas, atrasos, ausências e divergências de ponto com regras configuráveis por tipo de justificativa. Cada justificativa governa desconto, banco de horas, DSR, cesta básica e exigência de marcação.
+Implementação do engine que substitui o "tudo manual" por rubricas automáticas, semi-automáticas e manuais, com cálculo de INSS, FGTS, IRRF, VT, atrasos, faltas, HE e DSR.
 
-A entrega é dividida em **5 fases**. Cada fase é independente, testável e já gera valor — você pode pausar entre elas, mudar prioridade ou pedir ajustes antes de avançar.
+## 1. Banco de dados (migração)
 
----
+Expandir `holerite_rubricas`:
+- Adicionar/normalizar `tipo_calculo` para suportar os 34 tipos (CHECK constraint atualizado).
+- Garantir flags já existentes: `automatico`, `depende_ponto`, `incide_inss`, `incide_fgts`, `incide_irrf`, `entra_dsr`, `entra_medias`, `entra_liquido`, `aparece_pdf`.
+- Adicionar `modo` (`automatico` | `semi_automatico` | `manual`) e `editavel_manual` (bool).
+- Reseed das rubricas padrão (`seed_rubricas_padrao`) marcando corretamente:
+  - 00005, 00090, 00110, 00120, 00820, 07030, 07000, 07005, 07010, 07035, 07045, 07050, 07060, 07070 como **automáticas** com `tipo_calculo` adequado.
+  - 00020, 00030, 00035, 00040, 00045, 00055, 00060, 00065, 07075, 07080, 07085, 07125, 07130, 07135, 07900, 07905, 07910 como **manuais**.
+- Tabela nova `holerite_tabelas_legais` (INSS/IRRF/Salário-família) com vigência por ano/mês, para administrador editar quando mudar tabela. Seed com tabelas vigentes (2025/2026).
+- Tabela nova `funcionario_vale_transporte` (valor mensal concedido por funcionário, opcional). Se ausente → VT = 0.
 
-### Fase 1 — Cadastro de tipos de justificativa
+## 2. Engine de cálculo (`src/lib/holerite-engine.ts`)
 
-Base do módulo. Tudo nas fases seguintes depende disso.
+Função única `recalcularHolerite(holeriteId)` que:
+1. Carrega funcionário, salário, admissão/desligamento, dependentes IRRF/sal-fam, VT cadastrado.
+2. Carrega rubricas da empresa.
+3. Carrega ponto do mês (HE, atrasos, faltas, banco de horas).
+4. Para cada rubrica **automática** já presente no holerite (ou adicionada), calcula qtde/provento/desconto conforme `tipo_calculo`:
+   - `salario_proporcional` (00005), `salario_mensal` (00010)
+   - `he_50/60/70/80/100`, `dsr_he`, `adicional_noturno`, `dsr_noturno`
+   - `valor_fixo`, `valor_diario`, `valor_hora`, `pct_salario_base`, `pct_salario_bruto`, `pct_base_config`
+   - `vt_automatico` (menor entre VT concedido e 6% do salário base proporcional)
+   - `inss_automatico` (tabela progressiva sobre base com `incide_inss`)
+   - `fgts_automatico` (8% sobre base com `incide_fgts`, **não desconta líquido** — atualiza `base_fgts` e `fgts_mes`)
+   - `irrf_automatico` (tabela progressiva sobre base tributável − INSS − dedução por dependente)
+   - `faltas_auto`, `atraso_auto`, `saida_antec_auto`, `bh_negativo`, `bh_positivo_pago`
+   - `adto_quinzenal_auto` (% do salário proporcional)
+   - `cesta_basica_auto`, `vale_alim_auto`, `vale_ref_auto`
+   - `salario_familia_auto`
+   - `relatorio_ponto`, `resultado_auto`
+5. Recalcula bases e grava em `holerites`: `sal_contrib_inss`, `base_fgts`, `fgts_mes`, `base_irpf`, `total_proventos`, `total_descontos`, `total_liquido` (informativos não entram no líquido).
+6. Persiste lançamentos em `holerite_lancamentos` (mantém manuais como estão).
 
-- Nova tabela `justificativas_tipos` com as 20 justificativas padrão pré-cadastradas (FALTA INJUSTIF - DESC, ATESTADO MED, AFAST DOENÇA, LIBERAÇÃO DA COMPANHIA, ABONO, TROCA, ADMISSÃO, DESLIGAMENTO, FOLGA, INTEGRAÇÃO, TREINAMENTO, DEBITO BC HORA, CREDITO BC HORA, FERIAS NORMAIS, FERIAS, LIBERACAO SUPERVISAO, ABONO SUPERVISAO, FERIAS COLETIVAS, FECHADO, LIBERACAO COLETIVA SUPERV).
-- Campos por tipo: nome, código, categoria (falta/abono/afastamento/banco_horas/ferias/folga/admissao_desligamento), desconta_salario, desconta_dsr, abona_ocorrencia, exige_aprovacao, exige_anexo, exige_observacao, movimenta_banco_horas (nenhum/credito/debito), conta_dia_trabalhado, exige_marcacao_ponto, afeta_assiduidade (sim/nao/configuravel), pode_aplicar_individual, pode_aplicar_massa, ativo.
-- Tela admin **Configurações → Justificativas**: listar, editar regras dos padrão, criar customizados, ativar/desativar.
+## 3. UI — Rubricas (`src/routes/app/empresa/rubricas.tsx`)
 
-### Fase 2 — Aplicação individual + exibição no cartão de ponto
+- Coluna "Cálculo" passa a mostrar `tipo_calculo` legível + badge "AUTO / SEMI / MANUAL".
+- Editor: novo select para `modo` e ampliação da lista `TIPO_CALCULO_OPCOES` em `src/lib/holerite-rubricas.ts` com os 34 tipos.
 
-A peça mais útil no dia a dia. Após esta fase você já consegue justificar qualquer dia.
+## 4. UI — Holerites (`src/routes/app/empresa/holerites.tsx`)
 
-- Tabela `justificativas_aplicadas` (funcionario, data, tipo_id, observacao, anexo_url, aplicado_por, status, data_inicio, data_fim para afastamentos).
-- Substitui a tabela atual `dias_falta` (migração de dados).
-- Diálogo "Aplicar justificativa" ao clicar em dia do cartão de ponto (admin/gerente): seleciona tipo, observação, anexo opcional.
-- Cartão de ponto e PDF passam a mostrar a justificativa em vez de "MARCAÇÃO NÃO REGISTRADA" quando aplicada.
-- Recálculo automático de totais (faltas, trabalhado, extras) respeitando flags do tipo (ex.: FOLGA não conta falta, ATESTADO abona).
+- Botão **"Recalcular holerite"** que chama `recalcularHolerite()` e recarrega lançamentos + totais.
+- Ao adicionar rubrica automática no combobox: dispara cálculo imediato para aquela linha (qtde/prov/desc preenchidos).
+- Campos qtde/provento/desconto ficam **read-only** quando a rubrica é automática e `editavel_manual=false`.
+- Painel mostra bases atualizadas: Sal. contrib. INSS, Base FGTS, FGTS mês, Base IRPF.
 
-### Fase 3 — Banco de horas + impacto financeiro
+## 5. Cadastro do VT por funcionário
 
-Ativa as justificativas que mexem em saldo e desconto.
+Pequeno campo `vale_transporte_mensal` (numeric) em `funcionarios` + input em `funcionarios.$id.tsx`. Usado pelo `vt_automatico`.
 
-- Nova tabela `banco_horas_movimentos` (funcionario, data, tipo: credito/debito, minutos, origem: justificativa_id ou automatico, saldo_apos).
-- DEBITO BC HORA / CREDITO BC HORA passam a movimentar saldo real, exibido no cartão de ponto e PDF.
-- Coluna "Desconto em folha" no relatório, calculada a partir de FALTA INJUSTIF - DESC (com regra de DSR opcional).
-- Tela **Banco de Horas** por funcionário com extrato de movimentos.
+## Detalhes técnicos
 
-### Fase 4 — Aplicação em massa + admissão/desligamento
+- Tabelas INSS/IRRF ficam em SQL seed e carregadas pelo engine (cache na sessão). Vigência atual: INSS 2025 (faixas 7,5% até 1.518,00; 9% até 2.793,88; 12% até 4.190,83; 14% até 8.157,41). IRRF 2025 (isento até 2.428,80; até 33,75% conforme tabela vigente; dedução por dependente R$ 189,59).
+- Cálculo respeita admissão/desligamento (dias de vínculo, igual à rubrica `salario_dias_trabalhados` já existente).
+- Faltas: usa `dias_falta` + justificativas com `desconta_salario`.
+- Atrasos e HE: usa `banco_horas_movimentos` (débito = atraso, crédito = HE) somente para o mês.
+- DSR sobre HE: usa proporção `domingos+feriados / dias úteis` do mês.
+- Engine é client-side TypeScript (mesma stack das outras libs `holerite-*`). Sem servidor adicional.
 
-Atende FERIAS COLETIVAS, FECHADO, LIBERACAO COLETIVA SUPERV, ADMISSÃO, DESLIGAMENTO.
+## Fora do escopo desta iteração
 
-- Tela "Aplicar em massa": escolhe tipo, período (data inicial/final), funcionários (todos / por cargo / seleção manual). Cria N registros em `justificativas_aplicadas`.
-- ADMISSÃO/DESLIGAMENTO param de gerar falta antes/depois das datas no cartão de ponto (consulta `funcionarios.data_admissao` / `data_desligamento`).
-- TROCA: dialog que vincula dia ausente a dia compensado, gera 2 movimentos no banco de horas se houver diferença.
-
-### Fase 5 — Aprovação, anexos e cesta básica
-
-Camada de governança e integração com benefícios.
-
-- Fluxo de aprovação: tipos com `exige_aprovacao` ficam status `pendente` até admin/supervisor aprovar; tela "Justificativas pendentes".
-- Upload de anexo (atestado médico, etc.) para Supabase Storage, bucket privado `justificativas`.
-- Integração com `beneficios_calculos`: justificativas com `afeta_assiduidade=false` não retiram cesta básica; configurável para ATESTADO MED e AFAST DOENÇA.
-- Filtros completos no relatório: por funcionário, período, tipo, status, com/sem desconto, com/sem impacto em cesta.
-- Coluna "Responsável" + "Aprovado em" no relatório.
-
----
-
-### Detalhes técnicos
-
-```
-justificativas_tipos
-  id, empresa_id, nome, codigo, categoria,
-  desconta_salario, desconta_dsr, abona_ocorrencia,
-  exige_aprovacao, exige_anexo, exige_observacao,
-  movimenta_banco_horas, conta_dia_trabalhado,
-  exige_marcacao_ponto, afeta_assiduidade,
-  pode_aplicar_individual, pode_aplicar_massa,
-  ativo, padrao_sistema, created_at
-
-justificativas_aplicadas
-  id, empresa_id, funcionario_id, tipo_id,
-  data, data_inicio, data_fim,
-  observacao, anexo_url,
-  aplicado_por, aprovado_por, aprovado_em,
-  status (pendente/aprovado/reprovado),
-  banco_horas_minutos, created_at
-
-banco_horas_movimentos
-  id, empresa_id, funcionario_id,
-  data, tipo (credito/debito), minutos,
-  origem (justificativa/automatico/ajuste),
-  justificativa_aplicada_id, saldo_apos_minutos,
-  created_by, created_at
-```
-
-RLS: admin/gerente gerenciam; funcionário lê apenas seus dados aprovados.
-
-Cálculo do cartão de ponto (`src/lib/cartao.ts`) passa a consultar `justificativas_aplicadas` + `banco_horas_movimentos` e decidir status do dia conforme flags do tipo aplicado, em vez da lógica atual `pendente / falta`.
-
-PDF (`src/lib/cartao-pdf.ts`) ganha coluna "Justificativa" preenchida com o nome do tipo + observação.
-
----
-
-### Como prosseguir
-
-Posso começar **Fase 1** agora mesmo. Me diga "ok fase 1" ou indique outra ordem se preferir começar por outra parte (ex.: pular cadastro editável e ir direto para aplicação individual com tipos hardcoded).
+- Tela administrativa para editar as tabelas INSS/IRRF (vão por seed; admin pode alterar via SQL/migração futura).
+- Cálculo de adicional noturno e periculosidade/insalubridade fica como `manual` por enquanto (depende de configurações por funcionário ainda inexistentes).
+- Sales/comissões automáticas (sem módulo de vendas).

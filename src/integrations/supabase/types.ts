@@ -637,6 +637,7 @@ export type Database = {
           telefone: string | null
           updated_at: string
           usuario_id: string | null
+          vale_transporte_mensal: number
         }
         Insert: {
           banco_agencia?: string | null
@@ -667,6 +668,7 @@ export type Database = {
           telefone?: string | null
           updated_at?: string
           usuario_id?: string | null
+          vale_transporte_mensal?: number
         }
         Update: {
           banco_agencia?: string | null
@@ -697,6 +699,7 @@ export type Database = {
           telefone?: string | null
           updated_at?: string
           usuario_id?: string | null
+          vale_transporte_mensal?: number
         }
         Relationships: [
           {
@@ -814,6 +817,7 @@ export type Database = {
           depende_justificativa: boolean
           depende_ponto: boolean
           descricao: string
+          editavel_manual: boolean
           empresa_id: string
           entra_dsr: boolean
           entra_liquido: boolean
@@ -823,6 +827,7 @@ export type Database = {
           incide_fgts: boolean
           incide_inss: boolean
           incide_irrf: boolean
+          modo: string
           padrao_sistema: boolean
           soma_descontos: boolean
           soma_proventos: boolean
@@ -841,6 +846,7 @@ export type Database = {
           depende_justificativa?: boolean
           depende_ponto?: boolean
           descricao: string
+          editavel_manual?: boolean
           empresa_id: string
           entra_dsr?: boolean
           entra_liquido?: boolean
@@ -850,6 +856,7 @@ export type Database = {
           incide_fgts?: boolean
           incide_inss?: boolean
           incide_irrf?: boolean
+          modo?: string
           padrao_sistema?: boolean
           soma_descontos?: boolean
           soma_proventos?: boolean
@@ -868,6 +875,7 @@ export type Database = {
           depende_justificativa?: boolean
           depende_ponto?: boolean
           descricao?: string
+          editavel_manual?: boolean
           empresa_id?: string
           entra_dsr?: boolean
           entra_liquido?: boolean
@@ -877,6 +885,7 @@ export type Database = {
           incide_fgts?: boolean
           incide_inss?: boolean
           incide_irrf?: boolean
+          modo?: string
           padrao_sistema?: boolean
           soma_descontos?: boolean
           soma_proventos?: boolean
@@ -884,6 +893,45 @@ export type Database = {
           tipo_calculo?: string
           updated_at?: string
           valor_referencia?: number
+        }
+        Relationships: []
+      }
+      holerite_tabelas_legais: {
+        Row: {
+          created_at: string
+          empresa_id: string | null
+          fgts_aliquota: number
+          id: string
+          inss_faixas: Json
+          irrf_deducao_dependente: number
+          irrf_faixas: Json
+          salario_familia_teto: number
+          salario_familia_valor: number
+          vigencia_inicio: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id?: string | null
+          fgts_aliquota?: number
+          id?: string
+          inss_faixas?: Json
+          irrf_deducao_dependente?: number
+          irrf_faixas?: Json
+          salario_familia_teto?: number
+          salario_familia_valor?: number
+          vigencia_inicio: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string | null
+          fgts_aliquota?: number
+          id?: string
+          inss_faixas?: Json
+          irrf_deducao_dependente?: number
+          irrf_faixas?: Json
+          salario_familia_teto?: number
+          salario_familia_valor?: number
+          vigencia_inicio?: string
         }
         Relationships: []
       }

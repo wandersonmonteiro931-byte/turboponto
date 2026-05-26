@@ -20,6 +20,7 @@ import { mesNome } from "@/lib/beneficios";
 import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown } from "lucide-react";
 import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
+import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
 
 export const Route = createFileRoute("/app/empresa/holerites")({
   component: HoleritesPage,
@@ -578,9 +579,31 @@ function EditorDialog({
           </div>
 
           <div className="border rounded-md">
-            <div className="flex items-center justify-between p-3 border-b">
+            <div className="flex items-center justify-between p-3 border-b gap-2 flex-wrap">
               <h3 className="font-semibold text-sm">Lançamentos</h3>
-              <Button size="sm" variant="outline" onClick={addLinha}><Plus className="h-3 w-3 mr-1" />Adicionar linha</Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="default" onClick={async () => {
+                  if (!funcId) return toast.error("Selecione o funcionário");
+                  try {
+                    const out = await engineRecalcular(
+                      { empresaId, funcionarioId: funcId, ano, mes },
+                      lancamentos.map((l) => ({ ...l, qtde: l.qtde ?? null, provento: l.provento ?? 0, desconto: l.desconto ?? 0, resultado: l.resultado ?? 0 })),
+                    );
+                    setLancamentos(out.linhas.map((l) => ({
+                      _k: l._k, id: l.id, codigo: l.codigo, descricao: l.descricao,
+                      qtde: l.qtde, provento: l.provento, desconto: l.desconto, resultado: l.resultado,
+                    })));
+                    setSalContribInss(out.salContribInss);
+                    setBaseFgts(out.baseFgts);
+                    setFgtsMes(out.fgtsMes);
+                    setBaseIrpf(out.baseIrpf);
+                    toast.success("Holerite recalculado");
+                  } catch (e: unknown) {
+                    toast.error(e instanceof Error ? e.message : "Erro ao recalcular");
+                  }
+                }}>Recalcular holerite</Button>
+                <Button size="sm" variant="outline" onClick={addLinha}><Plus className="h-3 w-3 mr-1" />Adicionar linha</Button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
