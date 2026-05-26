@@ -25,6 +25,8 @@ export const Route = createFileRoute("/app/empresa/holerites")({
 type Func = {
   id: string; nome: string; cargo: string | null; cpf: string | null;
   data_admissao: string | null; salario: number | null;
+  banco_agencia: string | null; conta: string | null; lotacao: string | null;
+  num_dep_irrf: number | null; num_dep_sal_fam: number | null;
 };
 type Holerite = {
   id: string;
@@ -58,7 +60,7 @@ function HoleritesPage() {
 
   useEffect(() => {
     if (!empresaId) return;
-    void supabase.from("funcionarios").select("id,nome,cargo,cpf,data_admissao,salario")
+    void supabase.from("funcionarios").select("id,nome,cargo,cpf,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam")
       .eq("empresa_id", empresaId).eq("status", "ativo").order("nome")
       .then(({ data }) => setFuncs((data ?? []) as Func[]));
   }, [empresaId]);
@@ -120,9 +122,16 @@ function HoleritesPage() {
     if (!h.pdf_url) return toast.error("PDF ainda não foi gerado");
     const path = h.pdf_url.split(`/holerites/`)[1];
     if (!path) return;
-    const { data, error } = await supabase.storage.from("holerites").createSignedUrl(path, 60);
-    if (error || !data) return toast.error(error?.message ?? "Erro");
-    window.open(data.signedUrl, "_blank");
+    const { data, error } = await supabase.storage.from("holerites").download(path);
+    if (error || !data) return toast.error(error?.message ?? "Erro ao baixar PDF");
+    const blobUrl = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `holerite-${h.funcionarios?.nome ?? "funcionario"}-${h.mes_referencia}-${h.ano_referencia}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
   };
 
   const totais = useMemo(() => ({
@@ -360,6 +369,11 @@ function EditorDialog({
     const f = funcs.find((x) => x.id === funcId);
     if (!f) return;
     setSalarioContratual(Number(f.salario ?? 0));
+    setBancoAg(f.banco_agencia ?? "");
+    setConta(f.conta ?? "");
+    setLotacao(f.lotacao ?? "");
+    setNumDepIrrf(Number(f.num_dep_irrf ?? 0));
+    setNumDepSalFam(Number(f.num_dep_sal_fam ?? 0));
   }, [funcId, funcs, holeriteId]);
 
   const totalProv = useMemo(() => lancamentos.reduce((s, l) => s + Number(l.provento || 0), 0), [lancamentos]);

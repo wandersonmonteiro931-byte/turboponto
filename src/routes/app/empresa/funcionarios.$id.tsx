@@ -42,6 +42,11 @@ function FuncionarioDetail() {
       salario: f.salario, data_admissao: f.data_admissao || null, status: f.status,
       observacoes: f.observacoes, permite_bater_ponto: f.permite_bater_ponto,
       data_desligamento: f.data_desligamento || null, motivo_desligamento: f.motivo_desligamento,
+      banco_agencia: f.banco_agencia || null,
+      conta: f.conta || null,
+      lotacao: f.lotacao || null,
+      num_dep_irrf: Number(f.num_dep_irrf ?? 0),
+      num_dep_sal_fam: Number(f.num_dep_sal_fam ?? 0),
     };
     const { error } = await supabase.from("funcionarios").update(payload as never).eq("id", id);
     setSaving(false);
@@ -134,6 +139,11 @@ function FuncionarioDetail() {
                   <Fld label="Motivo" full><Input value={v("motivo_desligamento")} onChange={(e) => upd("motivo_desligamento", e.target.value)} disabled={!isAdmin} /></Fld>
                 </>
               )}
+              <Fld label="Banco / Agência"><Input value={v("banco_agencia")} onChange={(e) => upd("banco_agencia", e.target.value)} placeholder="237/02402" disabled={!isAdmin} /></Fld>
+              <Fld label="Conta"><Input value={v("conta")} onChange={(e) => upd("conta", e.target.value)} disabled={!isAdmin} /></Fld>
+              <Fld label="Nº Dep. IRRF"><Input type="number" value={v("num_dep_irrf") || 0} onChange={(e) => upd("num_dep_irrf", Number(e.target.value))} disabled={!isAdmin} /></Fld>
+              <Fld label="Nº Dep. Sal. Família"><Input type="number" value={v("num_dep_sal_fam") || 0} onChange={(e) => upd("num_dep_sal_fam", Number(e.target.value))} disabled={!isAdmin} /></Fld>
+              <Fld label="Lotação" full><Input value={v("lotacao")} onChange={(e) => upd("lotacao", e.target.value)} placeholder="Ex.: 5001000105 - FABRIL - ANAPOLIS-GO" disabled={!isAdmin} /></Fld>
               <Fld label="Observações" full>
                 <textarea className="w-full min-h-[80px] px-3 py-2 rounded-md border bg-background text-sm" value={v("observacoes")} onChange={(e) => upd("observacoes", e.target.value)} disabled={!isAdmin} />
               </Fld>

@@ -609,7 +609,9 @@ export type Database = {
       }
       funcionarios: {
         Row: {
+          banco_agencia: string | null
           cargo: string | null
+          conta: string | null
           cpf: string | null
           created_at: string
           data_admissao: string | null
@@ -621,8 +623,11 @@ export type Database = {
           foto_url: string | null
           id: string
           jornada_padrao_id: string | null
+          lotacao: string | null
           motivo_desligamento: string | null
           nome: string
+          num_dep_irrf: number
+          num_dep_sal_fam: number
           observacoes: string | null
           permite_bater_ponto: boolean
           rg: string | null
@@ -633,7 +638,9 @@ export type Database = {
           usuario_id: string | null
         }
         Insert: {
+          banco_agencia?: string | null
           cargo?: string | null
+          conta?: string | null
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
@@ -645,8 +652,11 @@ export type Database = {
           foto_url?: string | null
           id?: string
           jornada_padrao_id?: string | null
+          lotacao?: string | null
           motivo_desligamento?: string | null
           nome: string
+          num_dep_irrf?: number
+          num_dep_sal_fam?: number
           observacoes?: string | null
           permite_bater_ponto?: boolean
           rg?: string | null
@@ -657,7 +667,9 @@ export type Database = {
           usuario_id?: string | null
         }
         Update: {
+          banco_agencia?: string | null
           cargo?: string | null
+          conta?: string | null
           cpf?: string | null
           created_at?: string
           data_admissao?: string | null
@@ -669,8 +681,11 @@ export type Database = {
           foto_url?: string | null
           id?: string
           jornada_padrao_id?: string | null
+          lotacao?: string | null
           motivo_desligamento?: string | null
           nome?: string
+          num_dep_irrf?: number
+          num_dep_sal_fam?: number
           observacoes?: string | null
           permite_bater_ponto?: boolean
           rg?: string | null
