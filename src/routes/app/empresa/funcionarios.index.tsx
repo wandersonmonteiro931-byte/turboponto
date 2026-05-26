@@ -53,7 +53,7 @@ function FuncionariosPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("funcionarios")
-      .select("id,nome,cpf,email,cargo,status,foto_url,usuario_id")
+      .select("id,nome,cpf,email,cargo,status,foto_url,usuario_id,matricula")
       .eq("empresa_id", empresaId)
       .order("nome");
     if (error) toast.error(error.message);
