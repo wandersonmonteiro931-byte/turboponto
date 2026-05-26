@@ -479,7 +479,19 @@ export async function recalcular(
   if (porCodigo.has("07010")) setLinha("07010", { qtde: null, provento: 0, desconto: 0 }); // FGTS é informativo
   if (porCodigo.has("07005")) setLinha("07005", { qtde: null, provento: 0, desconto: irrf });
 
+  // Remove linhas sem dados (provento=0, desconto=0 e resultado=0). Mantém
+  // informativos quando têm resultado (ex.: saldo banco de horas, cesta básica).
+  for (let i = linhas.length - 1; i >= 0; i--) {
+    const l = linhas[i];
+    const semDados =
+      (!l.provento || l.provento === 0) &&
+      (!l.desconto || l.desconto === 0) &&
+      (!l.resultado || l.resultado === 0);
+    if (semDados) linhas.splice(i, 1);
+  }
+
   // Totais (informativos não entram no líquido)
+
   let totalProv = 0;
   let totalDesc = 0;
   for (const l of linhas) {
