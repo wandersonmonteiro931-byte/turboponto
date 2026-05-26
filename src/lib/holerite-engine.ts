@@ -77,11 +77,12 @@ async function carregarTabela(): Promise<TabelaLegal> {
     };
   }
   return {
+    // Tabela INSS 2026
     inss_faixas: [
-      { ate: 1518, aliquota: 7.5, deducao: 0 },
-      { ate: 2793.88, aliquota: 9, deducao: 22.77 },
-      { ate: 4190.83, aliquota: 12, deducao: 106.59 },
-      { ate: 8157.41, aliquota: 14, deducao: 190.4 },
+      { ate: 1621.00, aliquota: 7.5, deducao: 0 },
+      { ate: 2902.84, aliquota: 9, deducao: 24.32 },
+      { ate: 4354.27, aliquota: 12, deducao: 111.40 },
+      { ate: 8475.55, aliquota: 14, deducao: 198.49 },
     ],
     irrf_faixas: [
       { ate: 2428.8, aliquota: 0, deducao: 0 },
