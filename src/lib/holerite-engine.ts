@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { recalcularMes as recalcularBeneficioMes, type Beneficio } from "@/lib/beneficios";
+import { carregarCartao } from "@/lib/cartao";
 
 // Motor de cálculo automático da folha.
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
@@ -165,17 +166,34 @@ export async function recalcular(
   const rubricas = ((rubsData ?? []) as unknown) as Rubrica[];
   const porCodigo = new Map(rubricas.map((r) => [r.codigo, r]));
 
-  // Ponto do mês: HE (créditos), atrasos (débitos), faltas.
+  // Ponto do mês: usa o mesmo resumo do cartão de ponto para manter banco de
+  // horas e benefício alinhados ao que é exibido no mês de referência.
   const ini = `${ctx.ano}-${String(ctx.mes).padStart(2, "0")}-01`;
   const fim = new Date(ctx.ano, ctx.mes, 0).toISOString().slice(0, 10);
-  const [creditos, debitos, faltas] = await Promise.all([
-    supabase.from("banco_horas_movimentos").select("minutos").eq("funcionario_id", ctx.funcionarioId).eq("tipo", "credito").gte("data", ini).lte("data", fim),
-    supabase.from("banco_horas_movimentos").select("minutos").eq("funcionario_id", ctx.funcionarioId).eq("tipo", "debito").gte("data", ini).lte("data", fim),
-    supabase.from("dias_falta").select("id", { count: "exact", head: true }).eq("funcionario_id", ctx.funcionarioId).gte("data", ini).lte("data", fim),
-  ]);
-  const minHE = (creditos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
-  const minAtraso = (debitos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
-  const numFaltas = faltas.count ?? 0;
+  let minHE = 0;
+  let minAtraso = 0;
+  let numFaltas = 0;
+  let saldoBHMinutos = 0;
+  try {
+    const cartao = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
+    minHE = cartao.totalExtras;
+    minAtraso = cartao.dias.reduce((s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s), 0);
+    numFaltas = cartao.totalFaltas;
+    saldoBHMinutos = cartao.totalBancoHoras;
+  } catch (e) {
+    console.warn("[holerite] falha ao carregar cartão de ponto; usando fallback", e);
+    const [creditos, debitos, faltas] = await Promise.all([
+      supabase.from("banco_horas_movimentos").select("minutos").eq("funcionario_id", ctx.funcionarioId).eq("tipo", "credito").gte("data", ini).lte("data", fim),
+      supabase.from("banco_horas_movimentos").select("minutos").eq("funcionario_id", ctx.funcionarioId).eq("tipo", "debito").gte("data", ini).lte("data", fim),
+      supabase.from("dias_falta").select("id", { count: "exact", head: true }).eq("funcionario_id", ctx.funcionarioId).gte("data", ini).lte("data", fim),
+    ]);
+    const creditosMin = (creditos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
+    const debitosMin = (debitos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
+    minHE = creditosMin;
+    minAtraso = debitosMin;
+    numFaltas = faltas.count ?? 0;
+    saldoBHMinutos = creditosMin - debitosMin;
+  }
   const horasHE = minHE / 60;
   const horasAtraso = minAtraso / 60;
 
@@ -257,8 +275,8 @@ export async function recalcular(
   }
 
   // ==== Informativos automáticos baseados no cartão de ponto ====
-  // Saldo do banco de horas do mês (em horas) = créditos - débitos
-  const saldoBHHoras = round((minHE - minAtraso) / 60);
+  // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
+  const saldoBHHoras = round(saldoBHMinutos / 60);
 
   // Adiciona/remove SALDO BANCO POSITIVO (28651)
   const idxPos = linhas.findIndex((l) => l.codigo === "28651");
@@ -268,7 +286,7 @@ export async function recalcular(
       _k: idxPos >= 0 ? linhas[idxPos]._k : crypto.randomUUID(),
       id: idxPos >= 0 ? linhas[idxPos].id : undefined,
       codigo: r.codigo, descricao: r.descricao,
-      qtde: saldoBHHoras, provento: 0, desconto: 0, resultado: saldoBHHoras,
+      qtde: null, provento: 0, desconto: 0, resultado: saldoBHHoras,
       modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
     };
     if (idxPos >= 0) linhas[idxPos] = payload; else linhas.push(payload);
@@ -285,7 +303,7 @@ export async function recalcular(
       _k: idxNeg >= 0 ? linhas[idxNeg]._k : crypto.randomUUID(),
       id: idxNeg >= 0 ? linhas[idxNeg].id : undefined,
       codigo: r.codigo, descricao: r.descricao,
-      qtde: valor, provento: 0, desconto: 0, resultado: valor,
+      qtde: null, provento: 0, desconto: 0, resultado: valor,
       modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
     };
     if (idxNeg >= 0) linhas[idxNeg] = payload; else linhas.push(payload);
@@ -334,7 +352,7 @@ export async function recalcular(
         _k: idxCB >= 0 ? linhas[idxCB]._k : crypto.randomUUID(),
         id: idxCB >= 0 ? linhas[idxCB].id : undefined,
         codigo: r.codigo, descricao: r.descricao,
-        qtde: horasCB, provento: 0, desconto: 0, resultado: horasCB,
+        qtde: null, provento: 0, desconto: 0, resultado: horasCB,
         modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
       };
       if (idxCB >= 0) linhas[idxCB] = payload; else linhas.push(payload);
