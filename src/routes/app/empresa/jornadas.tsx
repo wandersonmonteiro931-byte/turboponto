@@ -249,7 +249,18 @@ function JornadaDialog({
       </DialogHeader>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="md:col-span-2">
+          <div>
+            <Label className="mb-1 block text-xs">Código * (3 letras/números)</Label>
+            <Input
+              required
+              maxLength={3}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3))}
+              placeholder="Ex.: 001, ADM, T01"
+              className="font-mono uppercase tracking-widest"
+            />
+          </div>
+          <div>
             <Label className="mb-1 block text-xs">Nome *</Label>
             <Input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Jornada Padrão Turbo Lanches" />
           </div>
