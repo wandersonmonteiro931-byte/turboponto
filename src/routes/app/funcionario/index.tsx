@@ -1,5 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { BaterPontoButton } from "@/components/BaterPontoButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, CreditCard, Gift, FileText, CalendarClock, Bell, TrendingDown } from "lucide-react";
