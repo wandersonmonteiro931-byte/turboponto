@@ -338,14 +338,13 @@ export async function recalcular(
     linhas.splice(idxNeg, 1);
   }
 
-  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito que conta
-  // para a regra da cesta básica do mês de referência. Vem do cálculo do
-  // benefício "Cesta Básica" (beneficios_calculos.total_atraso_minutos),
-  // exatamente o mesmo número exibido em "QTDE HORAS BENEF" no cartão de ponto.
-  // Só exibe a rubrica se houver um cálculo de cesta básica e horas > 0.
+  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito (atrasos /
+  // saídas antecipadas) do mês que conta para a regra da cesta básica.
+  // Sempre puxa do total de débitos do cartão de ponto (mesma base usada
+  // pelo cálculo do benefício, mas independente da existência do benefício
+  // cadastrado) para refletir imediatamente o saldo do mês.
   if (porCodigo.has("18445")) {
-    // Garante que o cálculo do benefício "Cesta Básica" está fresco para o
-    // mês de referência antes de ler — caso ponto/falta tenham mudado.
+    // Mantém o cálculo do benefício "Cesta Básica" sincronizado, se existir.
     try {
       const { data: ben } = await supabase
         .from("beneficios")
@@ -360,18 +359,8 @@ export async function recalcular(
     } catch (e) {
       console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
     }
-    const { data: bcalcs } = await supabase
-      .from("beneficios_calculos")
-      .select("total_atraso_minutos,beneficios!inner(tipo)")
-      .eq("funcionario_id", ctx.funcionarioId)
-      .eq("ano_referencia", ctx.ano)
-      .eq("mes_referencia", ctx.mes);
-    const cesta = (bcalcs ?? []).find(
-      (b: { beneficios?: { tipo?: string } | null }) =>
-        b.beneficios?.tipo === "cesta_basica",
-    ) as { total_atraso_minutos?: number } | undefined;
-    const minutosBenef = Number(cesta?.total_atraso_minutos ?? 0);
-    const horasCB = round(minutosBenef / 60);
+    // Saldo de débito do mês em horas, vindo direto do cartão de ponto.
+    const horasCB = round(minAtraso / 60);
     const idxCB = linhas.findIndex((l) => l.codigo === "18445");
     if (horasCB > 0) {
       const r = porCodigo.get("18445")!;
@@ -387,6 +376,7 @@ export async function recalcular(
       linhas.splice(idxCB, 1);
     }
   }
+
 
 
   // ==== FASE 1: calcula tudo exceto INSS / IRRF (que precisam das bases) ====
