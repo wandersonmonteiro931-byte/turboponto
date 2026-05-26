@@ -279,6 +279,14 @@ function CartaoEmpresaPage() {
                   <tr key={d.data} className={rowBg}>
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
+                      {d.jornadaCodigo && (
+                        <span
+                          className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[10px] font-bold tracking-wider align-middle"
+                          title={d.jornadaNome ?? ""}
+                        >
+                          {d.jornadaCodigo}
+                        </span>
+                      )}
                     </td>
                     <td className={cellClass(d.registrado.entrada)} onClick={() => abrirCelula(d, "entrada")}>{d.registrado.entrada ?? renderEmpty()}</td>
                     <td className={cellClass(d.registrado.saida_intervalo)} onClick={() => abrirCelula(d, "saida_intervalo")}>{d.registrado.saida_intervalo ?? "—"}</td>
