@@ -120,7 +120,7 @@ function RubricasPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {lista.map((r) => {
+                    {listaFiltrada.map((r) => {
                       const badge = TIPO_BADGE[r.tipo];
                       return (
                         <tr key={r.id} className="hover:bg-muted/30">
