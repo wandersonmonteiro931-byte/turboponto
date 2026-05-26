@@ -296,7 +296,13 @@ export async function recalcular(
   if (horasAtraso > 0 && porCodigo.has("07045") && !linhas.find((l) => l.codigo === "07045")) {
     const r = porCodigo.get("07045")!;
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+  } else if (!temFechamentoBancoDesc) {
+    // Remove desconto de atraso quando não há fechamento autorizado: o débito
+    // do banco de horas não pode reduzir o líquido sem a justificativa.
+    const idx7045 = linhas.findIndex((l) => l.codigo === "07045");
+    if (idx7045 >= 0) linhas.splice(idx7045, 1);
   }
+
   if (numFaltas > 0 && porCodigo.has("07035") && !linhas.find((l) => l.codigo === "07035")) {
     const r = porCodigo.get("07035")!;
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
