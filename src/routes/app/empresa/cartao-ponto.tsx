@@ -161,7 +161,7 @@ function CartaoEmpresaPage() {
     const bh = resumo.totalBancoHoras;
     const bhLabel = bh === 0 ? "—" : `${bh > 0 ? "+" : "-"}${formatMin(Math.abs(bh))}`;
     return {
-      atraso: `${resumo.totalAtraso} min`,
+      atraso: formatMin(resumo.totalAtraso),
       faltas: resumo.totalFaltas,
       trab: formatMin(resumo.totalTrabalhado),
       ext: formatMin(resumo.totalExtras),

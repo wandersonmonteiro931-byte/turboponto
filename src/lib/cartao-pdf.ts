@@ -154,7 +154,7 @@ export function gerarPdfCartao(opts: {
   hr(y);
   y += 3.5;
   doc.text(`Emissao: ${emissao}`, ML, y);
-  doc.text(`Tol: ${tol}min`, pageW / 2, y, { align: "center" });
+  doc.text(`Tol: ${fmtMinHHMM(Number(tol) || 0)}`, pageW / 2, y, { align: "center" });
   doc.text(`Pag: 0001`, ML + W, y, { align: "right" });
   y += 1.5;
   hr(y);
@@ -450,7 +450,7 @@ export function gerarPdfCartao(opts: {
   hr(y);
   y += 3.5;
   doc.text(
-    `Saldo BH: ${creditos - debitos < 0 ? "-" : ""}${fmtMinHHMM(creditos - debitos)}   Creditos: ${fmtMinHHMM(creditos)}   Debitos: ${fmtMinHHMM(debitos)}   Tol: ${tol}min`,
+    `Saldo BH: ${creditos - debitos < 0 ? "-" : ""}${fmtMinHHMM(creditos - debitos)}   Creditos: ${fmtMinHHMM(creditos)}   Debitos: ${fmtMinHHMM(debitos)}   Tol: ${fmtMinHHMM(Number(tol) || 0)}`,
     ML,
     y,
   );

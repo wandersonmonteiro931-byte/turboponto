@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
+import { formatMinutos } from "@/lib/format";
 import { Download, FileText, Printer } from "lucide-react";
 
 export const Route = createFileRoute("/app/empresa/relatorios")({
@@ -72,7 +73,7 @@ function RelatoriosPage() {
           entrada: "Entrada", saida_intervalo: "Saída intervalo",
           retorno_intervalo: "Retorno intervalo", saida_final: "Saída final",
         }[t] ?? t);
-        r.cols = ["Data","Funcionário","Cargo","Tipo","Programado","Registrado","Atraso (min)","Status"];
+        r.cols = ["Data","Funcionário","Cargo","Tipo","Programado","Registrado","Atraso","Status"];
         r.rows = (data ?? []).map((x: { data_referencia: string; tipo_ponto: string; horario_programado: string | null; horario_registrado: string; atraso_minutos: number; status: string; funcionarios: { nome: string; cargo: string | null } | null }) => ({
           Data: new Date(x.data_referencia + "T00:00").toLocaleDateString("pt-BR"),
           Funcionário: x.funcionarios?.nome ?? "",
@@ -80,7 +81,7 @@ function RelatoriosPage() {
           Tipo: tipo(x.tipo_ponto),
           Programado: x.horario_programado?.slice(0, 5) ?? "—",
           Registrado: new Date(x.horario_registrado).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-          "Atraso (min)": x.atraso_minutos || 0,
+          Atraso: formatMinutos(x.atraso_minutos || 0),
           Status: x.status,
         }));
       } else if (rel === "faltas") {
@@ -102,12 +103,12 @@ function RelatoriosPage() {
           .select("total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,valor_estimado,funcionarios(nome,cargo),beneficios(nome)")
           .eq("empresa_id", empresaId).eq("mes_referencia", mes).eq("ano_referencia", ano);
         if (error) throw error;
-        r.cols = ["Funcionário","Cargo","Benefício","Atraso (min)","Dias c/ atraso","Faltas","Tem direito","Status","Valor","Motivo"];
+        r.cols = ["Funcionário","Cargo","Benefício","Atraso","Dias c/ atraso","Faltas","Tem direito","Status","Valor","Motivo"];
         r.rows = (data ?? []).map((x: { total_atraso_minutos: number; dias_com_atraso: number; faltas_injustificadas: number; tem_direito: boolean; status: string; motivo_perda: string | null; valor_estimado: number; funcionarios: { nome: string; cargo: string | null } | null; beneficios: { nome: string } | null }) => ({
           Funcionário: x.funcionarios?.nome ?? "",
           Cargo: x.funcionarios?.cargo ?? "",
           Benefício: x.beneficios?.nome ?? "",
-          "Atraso (min)": x.total_atraso_minutos,
+          Atraso: formatMinutos(x.total_atraso_minutos),
           "Dias c/ atraso": x.dias_com_atraso,
           Faltas: x.faltas_injustificadas,
           "Tem direito": x.tem_direito ? "Sim" : "Não",

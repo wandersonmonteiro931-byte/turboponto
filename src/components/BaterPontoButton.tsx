@@ -12,6 +12,7 @@ import {
   TipoPonto, tipoLabel, statusLabel, statusColor,
   inferirTipo, avaliar, diaComercialISO,
 } from "@/lib/ponto";
+import { formatMinutos } from "@/lib/format";
 
 type Props = {
   size?: "default" | "lg";
@@ -157,7 +158,7 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
         }
       }
       const label = tipoLabel(inferido.tipo);
-      if (status === "atrasado") toast.warning(`${label} registrada com atraso de ${atraso} min`);
+      if (status === "atrasado") toast.warning(`${label} registrada com atraso de ${formatMinutos(atraso)}`);
       else if (status === "hora_extra") toast.success(`${label} registrada — hora extra`);
       else if (status === "saida_antecipada") toast.warning(`${label} antecipada`);
       else if (status === "entrada_antecipada") toast.success(`${label} antecipada`);
@@ -208,7 +209,7 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
                 {previa && previa.status !== "no_horario" && (
                   <span className={`inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}>
                     {statusLabel[previa.status]}
-                    {previa.atraso > 0 ? ` · ${previa.atraso} min` : ""}
+                    {previa.atraso > 0 ? ` · ${formatMinutos(previa.atraso)}` : ""}
                   </span>
                 )}
                 <div className="text-muted-foreground">Após confirmar, o registro não poderá ser alterado por você.</div>
