@@ -735,50 +735,154 @@ export type Database = {
           },
         ]
       }
+      holerite_lancamentos: {
+        Row: {
+          codigo: string
+          created_at: string
+          desconto: number
+          descricao: string
+          empresa_id: string
+          holerite_id: string
+          id: string
+          ordem: number
+          provento: number
+          qtde: number | null
+          resultado: number
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          desconto?: number
+          descricao: string
+          empresa_id: string
+          holerite_id: string
+          id?: string
+          ordem?: number
+          provento?: number
+          qtde?: number | null
+          resultado?: number
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          desconto?: number
+          descricao?: string
+          empresa_id?: string
+          holerite_id?: string
+          id?: string
+          ordem?: number
+          provento?: number
+          qtde?: number | null
+          resultado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holerite_lancamentos_holerite_id_fkey"
+            columns: ["holerite_id"]
+            isOneToOne: false
+            referencedRelation: "holerites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       holerites: {
         Row: {
           acessado_em: string | null
           ano_referencia: number
+          banco_agencia: string | null
+          base_fgts: number
+          base_irpf: number
+          conta: string | null
           created_at: string
+          data_pagamento: string | null
           empresa_id: string
+          fgts_mes: number
+          folha_tipo: string
           funcionario_id: string
           id: string
           liberado: boolean
           liberado_em: string | null
           liberado_por: string | null
+          lotacao: string | null
           mes_referencia: number
-          pdf_url: string
+          num_dep_irrf: number
+          num_dep_sal_fam: number
+          observacoes: string | null
+          pdf_url: string | null
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          sal_contrib_inss: number
+          salario_contratual: number
           status: string
+          total_descontos: number
+          total_liquido: number
+          total_proventos: number
           updated_at: string
         }
         Insert: {
           acessado_em?: string | null
           ano_referencia: number
+          banco_agencia?: string | null
+          base_fgts?: number
+          base_irpf?: number
+          conta?: string | null
           created_at?: string
+          data_pagamento?: string | null
           empresa_id: string
+          fgts_mes?: number
+          folha_tipo?: string
           funcionario_id: string
           id?: string
           liberado?: boolean
           liberado_em?: string | null
           liberado_por?: string | null
+          lotacao?: string | null
           mes_referencia: number
-          pdf_url: string
+          num_dep_irrf?: number
+          num_dep_sal_fam?: number
+          observacoes?: string | null
+          pdf_url?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          sal_contrib_inss?: number
+          salario_contratual?: number
           status?: string
+          total_descontos?: number
+          total_liquido?: number
+          total_proventos?: number
           updated_at?: string
         }
         Update: {
           acessado_em?: string | null
           ano_referencia?: number
+          banco_agencia?: string | null
+          base_fgts?: number
+          base_irpf?: number
+          conta?: string | null
           created_at?: string
+          data_pagamento?: string | null
           empresa_id?: string
+          fgts_mes?: number
+          folha_tipo?: string
           funcionario_id?: string
           id?: string
           liberado?: boolean
           liberado_em?: string | null
           liberado_por?: string | null
+          lotacao?: string | null
           mes_referencia?: number
-          pdf_url?: string
+          num_dep_irrf?: number
+          num_dep_sal_fam?: number
+          observacoes?: string | null
+          pdf_url?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          sal_contrib_inss?: number
+          salario_contratual?: number
           status?: string
+          total_descontos?: number
+          total_liquido?: number
+          total_proventos?: number
           updated_at?: string
         }
         Relationships: [
