@@ -298,6 +298,15 @@ function Stat({ label, value, color }: { label: string; value: string | number; 
 
 type LancEdit = HolerLancamento & { id?: string; _k: string };
 
+const formatHorasDecimais = (v: number | null | undefined) => {
+  if (v == null || Number(v) === 0) return "";
+  const sinal = Number(v) < 0 ? "-" : "";
+  const abs = Math.abs(Number(v));
+  const horas = Math.floor(abs);
+  const minutos = Math.round((abs - horas) * 60);
+  return `${sinal}${horas}h${String(minutos).padStart(2, "0")}`;
+};
+
 function EditorDialog({
   empresaId, holeriteId, funcs, defaultMes, defaultAno, onClose, onSaved,
 }: {
@@ -615,7 +624,7 @@ function EditorDialog({
                     <th className="p-1 text-right w-20">Qtde</th>
                     <th className="p-1 text-right w-24">Provento</th>
                     <th className="p-1 text-right w-24">Desconto</th>
-                    <th className="p-1 text-right w-24">Resultado</th>
+                      <th className="p-1 text-right w-24">Resultado (h)</th>
                     <th className="p-1 w-8"></th>
                   </tr>
                 </thead>
@@ -660,7 +669,7 @@ function EditorDialog({
                       <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.desconto ?? 0} onChange={(e) => updLinha(l._k, { desconto: Number(e.target.value) })} /></td>
                       <td className="p-1">
                         {(!Number(l.provento || 0) && !Number(l.desconto || 0))
-                          ? <Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.resultado ?? 0} onChange={(e) => updLinha(l._k, { resultado: Number(e.target.value) })} />
+                          ? <Input className="h-7 text-xs text-right" readOnly value={formatHorasDecimais(l.resultado)} />
                           : <div className="h-7" />}
                       </td>
                       <td className="p-1 text-center"><Button size="sm" variant="ghost" onClick={() => removerLinha(l._k)}><Trash2 className="h-3 w-3 text-red-600" /></Button></td>
