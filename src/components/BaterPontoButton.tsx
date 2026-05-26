@@ -209,7 +209,7 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
                 {previa && previa.status !== "no_horario" && (
                   <span className={`inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}>
                     {statusLabel[previa.status]}
-                    {previa.atraso > 0 ? ` · ${previa.atraso} min` : ""}
+                    {previa.atraso > 0 ? ` · ${formatMinutos(previa.atraso)}` : ""}
                   </span>
                 )}
                 <div className="text-muted-foreground">Após confirmar, o registro não poderá ser alterado por você.</div>
