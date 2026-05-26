@@ -315,6 +315,7 @@ export function gerarPdfCartao(opts: {
       drawRow({
         dia: diaSem,
         data: dataStr,
+        esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
         irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
