@@ -7,6 +7,13 @@ import { STATUS_BENEFICIO, avaliarDireito, fmtBRL, mesNome, type Beneficio } fro
 import { carregarCartao } from "@/lib/cartao";
 import { AlertTriangle, CheckCircle2, Gift, XCircle } from "lucide-react";
 
+const fmtHorasMin = (minutos: number | null | undefined) => {
+  const min = Math.max(0, Math.round(Number(minutos ?? 0)));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h}h${String(m).padStart(2, "0")}`;
+};
+
 export const Route = createFileRoute("/app/funcionario/beneficios")({
   component: MeusBeneficios,
 });
