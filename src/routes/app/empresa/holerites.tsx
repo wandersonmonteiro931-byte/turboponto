@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
 import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown } from "lucide-react";
 import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
+import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
 
