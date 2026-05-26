@@ -301,9 +301,9 @@ type LancEdit = HolerLancamento & { id?: string; _k: string };
 const formatHorasDecimais = (v: number | null | undefined) => {
   if (v == null || Number(v) === 0) return "";
   const sinal = Number(v) < 0 ? "-" : "";
-  const abs = Math.abs(Number(v));
-  const horas = Math.floor(abs);
-  const minutos = Math.round((abs - horas) * 60);
+  const totalMinutos = Math.round(Math.abs(Number(v)) * 60);
+  const horas = Math.floor(totalMinutos / 60);
+  const minutos = totalMinutos % 60;
   return `${sinal}${horas}h${String(minutos).padStart(2, "0")}`;
 };
 
