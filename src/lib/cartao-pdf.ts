@@ -304,7 +304,7 @@ export function gerarPdfCartao(opts: {
         esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temReg ? "TRABALHO EM FOLGA" : "FOLGA",
+        irreg: temReg ? "TRABALHO EM FOLGA" : justs.length > 0 ? "" : "FOLGA",
         just: j0 ? j0.tipo.nome : "",
         qtde: qtdePrimeira,
       });
