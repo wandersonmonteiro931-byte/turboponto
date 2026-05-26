@@ -103,9 +103,15 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
       totalAtraso = cartao.totalAtraso;
       diasComAtraso = cartao.dias.filter((d) => d.atrasoMinutos > 0).length;
       faltas = cartao.totalFaltas;
-      debito = cartao.totalBancoHoras < 0 ? -cartao.totalBancoHoras : 0;
-    } catch {
+      // Débito real do mês: soma dos débitos diários (sem netting contra créditos).
+      // Mesma lógica do total "Debitos" exibido no cartão de ponto / PDF.
+      debito = cartao.dias.reduce(
+        (s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s),
+        0,
+      );
+    } catch (err) {
       // Se falhar (ex.: sem jornada), assume zero para não bloquear o cálculo
+      console.warn("[beneficios] falha ao carregar cartão", f.id, err);
     }
 
     const aval = avaliarDireito(beneficio, debito, faltas);
