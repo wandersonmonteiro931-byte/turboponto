@@ -181,11 +181,13 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
             <div><Label className="text-xs">Código</Label><Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="0001" /></div>
             <div>
               <Label className="text-xs">Tipo</Label>
-              <Select value={tipo} onValueChange={(v: "provento" | "desconto") => setTipo(v)}>
+              <Select value={tipo} onValueChange={(v: TipoRubrica) => setTipo(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="provento">Provento (soma)</SelectItem>
                   <SelectItem value="desconto">Desconto (subtrai)</SelectItem>
+                  <SelectItem value="informativo">Informativo (não altera líquido)</SelectItem>
+                  <SelectItem value="resultado">Resultado (calculado pelo sistema)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
