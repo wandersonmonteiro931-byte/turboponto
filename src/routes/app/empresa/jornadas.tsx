@@ -111,7 +111,10 @@ function JornadasPage() {
               {list.map((j) => (
                 <li key={j.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold flex items-center gap-2">
+                    <div className="font-semibold flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded bg-primary/15 text-primary text-xs font-mono font-bold tracking-wider">
+                        {j.codigo}
+                      </span>
                       <Clock className="h-4 w-4 text-primary" />
                       {j.nome}
                       <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${j.status === "ativa" ? "bg-green-500/20 text-green-700" : "bg-muted text-muted-foreground"}`}>
