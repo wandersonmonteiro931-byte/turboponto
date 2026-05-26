@@ -122,9 +122,16 @@ function HoleritesPage() {
     if (!h.pdf_url) return toast.error("PDF ainda não foi gerado");
     const path = h.pdf_url.split(`/holerites/`)[1];
     if (!path) return;
-    const { data, error } = await supabase.storage.from("holerites").createSignedUrl(path, 60);
-    if (error || !data) return toast.error(error?.message ?? "Erro");
-    window.open(data.signedUrl, "_blank");
+    const { data, error } = await supabase.storage.from("holerites").download(path);
+    if (error || !data) return toast.error(error?.message ?? "Erro ao baixar PDF");
+    const blobUrl = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `holerite-${h.funcionarios?.nome ?? "funcionario"}-${h.mes_referencia}-${h.ano_referencia}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
   };
 
   const totais = useMemo(() => ({
