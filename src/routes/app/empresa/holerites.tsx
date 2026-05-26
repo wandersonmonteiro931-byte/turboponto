@@ -435,7 +435,7 @@ function EditorDialog({
     try {
       const { data: emp } = await supabase.from("empresas")
         .select("nome_fantasia,razao_social,cnpj,endereco,logo_url").eq("id", empresaId).maybeSingle();
-      const logoDataUrl = await carregarLogoComoDataUrl(emp?.logo_url ?? null);
+      const logoDataUrl = (await carregarLogoComoDataUrl(turboLogoHolerite)) ?? (await carregarLogoComoDataUrl(emp?.logo_url ?? null));
 
       const now = new Date().toISOString();
       const { data: u } = await supabase.auth.getUser();
