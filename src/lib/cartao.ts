@@ -433,7 +433,7 @@ export async function carregarCartao(
     // Trabalho em dia de folga nunca pode virar débito. Se não for marcado como
     // HORA EXTRA - PAGAR, entra como crédito de banco de horas pelo período trabalhado.
     if (!trabalha && trabalhado > 0) {
-      if (temHoraExtraPagar) {
+      if (justHoraExtraPagar) {
         extras = Math.max(extras, justHoraExtraPagar.quantidadeMinutos ?? trabalhado);
       } else if (!temCreditoManualBH && !justHoraExtraCredito) {
         bancoHorasMin += trabalhado;
