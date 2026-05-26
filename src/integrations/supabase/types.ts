@@ -805,36 +805,81 @@ export type Database = {
       }
       holerite_rubricas: {
         Row: {
+          aparece_pdf: boolean
           ativo: boolean
+          automatico: boolean
+          base_calculo: string | null
           codigo: string
           created_at: string
+          depende_justificativa: boolean
+          depende_ponto: boolean
           descricao: string
           empresa_id: string
+          entra_dsr: boolean
+          entra_liquido: boolean
+          entra_medias: boolean
+          grupo: string | null
           id: string
+          incide_fgts: boolean
+          incide_inss: boolean
+          incide_irrf: boolean
+          padrao_sistema: boolean
+          soma_descontos: boolean
+          soma_proventos: boolean
           tipo: string
           tipo_calculo: string
           updated_at: string
           valor_referencia: number
         }
         Insert: {
+          aparece_pdf?: boolean
           ativo?: boolean
+          automatico?: boolean
+          base_calculo?: string | null
           codigo: string
           created_at?: string
+          depende_justificativa?: boolean
+          depende_ponto?: boolean
           descricao: string
           empresa_id: string
+          entra_dsr?: boolean
+          entra_liquido?: boolean
+          entra_medias?: boolean
+          grupo?: string | null
           id?: string
+          incide_fgts?: boolean
+          incide_inss?: boolean
+          incide_irrf?: boolean
+          padrao_sistema?: boolean
+          soma_descontos?: boolean
+          soma_proventos?: boolean
           tipo: string
           tipo_calculo?: string
           updated_at?: string
           valor_referencia?: number
         }
         Update: {
+          aparece_pdf?: boolean
           ativo?: boolean
+          automatico?: boolean
+          base_calculo?: string | null
           codigo?: string
           created_at?: string
+          depende_justificativa?: boolean
+          depende_ponto?: boolean
           descricao?: string
           empresa_id?: string
+          entra_dsr?: boolean
+          entra_liquido?: boolean
+          entra_medias?: boolean
+          grupo?: string | null
           id?: string
+          incide_fgts?: boolean
+          incide_inss?: boolean
+          incide_irrf?: boolean
+          padrao_sistema?: boolean
+          soma_descontos?: boolean
+          soma_proventos?: boolean
           tipo?: string
           tipo_calculo?: string
           updated_at?: string
@@ -1477,6 +1522,10 @@ export type Database = {
         Returns: undefined
       }
       seed_justificativas_padrao: {
+        Args: { _empresa_id: string }
+        Returns: undefined
+      }
+      seed_rubricas_padrao: {
         Args: { _empresa_id: string }
         Returns: undefined
       }

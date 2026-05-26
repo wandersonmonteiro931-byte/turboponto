@@ -16,14 +16,25 @@ export const Route = createFileRoute("/app/empresa/rubricas")({
   component: RubricasPage,
 });
 
+type TipoRubrica = "provento" | "desconto" | "informativo" | "resultado";
 type Rubrica = {
   id: string;
   codigo: string;
   descricao: string;
-  tipo: "provento" | "desconto";
+  tipo: TipoRubrica;
   tipo_calculo: TipoCalculo;
   valor_referencia: number;
   ativo: boolean;
+  grupo: string | null;
+  base_calculo: string | null;
+  padrao_sistema: boolean;
+};
+
+const TIPO_BADGE: Record<TipoRubrica, { label: string; cls: string }> = {
+  provento: { label: "Provento", cls: "bg-green-500/20 text-green-700" },
+  desconto: { label: "Desconto", cls: "bg-red-500/20 text-red-700" },
+  informativo: { label: "Informativo", cls: "bg-blue-500/20 text-blue-700" },
+  resultado: { label: "Resultado", cls: "bg-purple-500/20 text-purple-700" },
 };
 
 function RubricasPage() {
@@ -78,7 +89,8 @@ function RubricasPage() {
                     <tr>
                       <th className="text-left p-2 w-20">Código</th>
                       <th className="text-left p-2">Descrição</th>
-                      <th className="text-left p-2 w-24">Tipo</th>
+                      <th className="text-left p-2 w-48">Grupo</th>
+                      <th className="text-left p-2 w-28">Tipo</th>
                       <th className="text-left p-2">Cálculo</th>
                       <th className="text-right p-2 w-28">Referência</th>
                       <th className="text-left p-2 w-20">Status</th>
@@ -86,26 +98,28 @@ function RubricasPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {lista.map((r) => (
-                      <tr key={r.id} className="hover:bg-muted/30">
-                        <td className="p-2 font-mono">{r.codigo}</td>
-                        <td className="p-2">{r.descricao}</td>
-                        <td className="p-2">
-                          {r.tipo === "provento"
-                            ? <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-700">Provento</span>
-                            : <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-700">Desconto</span>}
-                        </td>
-                        <td className="p-2 text-xs">{TIPO_CALCULO_OPCOES.find((o) => o.value === r.tipo_calculo)?.label ?? r.tipo_calculo}</td>
-                        <td className="p-2 text-right font-mono">{Number(r.valor_referencia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-                        <td className="p-2 text-xs">{r.ativo ? "Ativa" : "Inativa"}</td>
-                        {podeEditar && (
-                          <td className="p-2 text-right whitespace-nowrap space-x-1">
-                            <Button size="sm" variant="ghost" onClick={() => { setEdit(r); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => remover(r)}><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                    {lista.map((r) => {
+                      const badge = TIPO_BADGE[r.tipo];
+                      return (
+                        <tr key={r.id} className="hover:bg-muted/30">
+                          <td className="p-2 font-mono">{r.codigo}</td>
+                          <td className="p-2">{r.descricao}</td>
+                          <td className="p-2 text-xs text-muted-foreground">{r.grupo ?? "—"}</td>
+                          <td className="p-2">
+                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${badge.cls}`}>{badge.label}</span>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td className="p-2 text-xs">{TIPO_CALCULO_OPCOES.find((o) => o.value === r.tipo_calculo)?.label ?? r.tipo_calculo}</td>
+                          <td className="p-2 text-right font-mono">{Number(r.valor_referencia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                          <td className="p-2 text-xs">{r.ativo ? "Ativa" : "Inativa"}</td>
+                          {podeEditar && (
+                            <td className="p-2 text-right whitespace-nowrap space-x-1">
+                              <Button size="sm" variant="ghost" onClick={() => { setEdit(r); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
+                              <Button size="sm" variant="ghost" onClick={() => remover(r)} disabled={r.padrao_sistema}><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -130,7 +144,7 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
 }) {
   const [codigo, setCodigo] = useState(rubrica?.codigo ?? "");
   const [descricao, setDescricao] = useState(rubrica?.descricao ?? "");
-  const [tipo, setTipo] = useState<"provento" | "desconto">(rubrica?.tipo ?? "provento");
+  const [tipo, setTipo] = useState<TipoRubrica>(rubrica?.tipo ?? "provento");
   const [tipoCalculo, setTipoCalculo] = useState<TipoCalculo>(rubrica?.tipo_calculo ?? "manual");
   const [valorRef, setValorRef] = useState(rubrica?.valor_referencia ?? 0);
   const [ativo, setAtivo] = useState(rubrica?.ativo ?? true);
@@ -138,6 +152,7 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
 
   const salvar = async () => {
     if (!codigo.trim() || !descricao.trim()) return toast.error("Preencha código e descrição");
+    if (!/^[0-9]{5}$/.test(codigo.trim())) return toast.error("O código deve ter exatamente 5 dígitos numéricos");
     setSalvando(true);
     const payload = {
       empresa_id: empresaId,
@@ -163,14 +178,16 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
         <DialogHeader><DialogTitle>{rubrica ? "Editar rubrica" : "Nova rubrica"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><Label className="text-xs">Código</Label><Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="0001" /></div>
+            <div><Label className="text-xs">Código (5 dígitos)</Label><Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="00005" maxLength={5} /></div>
             <div>
               <Label className="text-xs">Tipo</Label>
-              <Select value={tipo} onValueChange={(v: "provento" | "desconto") => setTipo(v)}>
+              <Select value={tipo} onValueChange={(v: TipoRubrica) => setTipo(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="provento">Provento (soma)</SelectItem>
                   <SelectItem value="desconto">Desconto (subtrai)</SelectItem>
+                  <SelectItem value="informativo">Informativo (não altera líquido)</SelectItem>
+                  <SelectItem value="resultado">Resultado (calculado pelo sistema)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
