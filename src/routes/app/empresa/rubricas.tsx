@@ -184,6 +184,8 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
   const [tipoCalculo, setTipoCalculo] = useState<TipoCalculo>(rubrica?.tipo_calculo ?? "manual");
   const [valorRef, setValorRef] = useState(rubrica?.valor_referencia ?? 0);
   const [ativo, setAtivo] = useState(rubrica?.ativo ?? true);
+  const [modo, setModo] = useState<ModoRubrica>(rubrica?.modo ?? "manual");
+  const [editavelManual, setEditavelManual] = useState(rubrica?.editavel_manual ?? true);
   const [salvando, setSalvando] = useState(false);
 
   const salvar = async () => {
@@ -196,7 +198,7 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
       descricao: descricao.trim(),
       tipo, tipo_calculo: tipoCalculo,
       valor_referencia: Number(valorRef) || 0,
-      ativo,
+      ativo, modo, editavel_manual: editavelManual,
     };
     const q = rubrica
       ? supabase.from("holerite_rubricas").update(payload).eq("id", rubrica.id)
