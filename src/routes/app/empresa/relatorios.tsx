@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
+import { formatMinutos } from "@/lib/format";
 import { Download, FileText, Printer } from "lucide-react";
 
 export const Route = createFileRoute("/app/empresa/relatorios")({
