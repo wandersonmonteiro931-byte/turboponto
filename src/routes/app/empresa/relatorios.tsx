@@ -103,12 +103,12 @@ function RelatoriosPage() {
           .select("total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,valor_estimado,funcionarios(nome,cargo),beneficios(nome)")
           .eq("empresa_id", empresaId).eq("mes_referencia", mes).eq("ano_referencia", ano);
         if (error) throw error;
-        r.cols = ["Funcionário","Cargo","Benefício","Atraso (min)","Dias c/ atraso","Faltas","Tem direito","Status","Valor","Motivo"];
+        r.cols = ["Funcionário","Cargo","Benefício","Atraso","Dias c/ atraso","Faltas","Tem direito","Status","Valor","Motivo"];
         r.rows = (data ?? []).map((x: { total_atraso_minutos: number; dias_com_atraso: number; faltas_injustificadas: number; tem_direito: boolean; status: string; motivo_perda: string | null; valor_estimado: number; funcionarios: { nome: string; cargo: string | null } | null; beneficios: { nome: string } | null }) => ({
           Funcionário: x.funcionarios?.nome ?? "",
           Cargo: x.funcionarios?.cargo ?? "",
           Benefício: x.beneficios?.nome ?? "",
-          "Atraso (min)": x.total_atraso_minutos,
+          Atraso: formatMinutos(x.total_atraso_minutos),
           "Dias c/ atraso": x.dias_com_atraso,
           Faltas: x.faltas_injustificadas,
           "Tem direito": x.tem_direito ? "Sim" : "Não",
