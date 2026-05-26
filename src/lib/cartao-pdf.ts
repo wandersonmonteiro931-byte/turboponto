@@ -223,7 +223,7 @@ export function gerarPdfCartao(opts: {
     { key: "saiReal", w: 11, label: "S.Real", align: "center" },
     { key: "irreg", w: 36, label: "Irregularidade" },
     { key: "qtde", w: 11, label: "QTDE", align: "center" },
-    { key: "just", w: 54, label: "Justificativa" },
+    { key: "just", w: 48, label: "Justificativa" },
     { key: "adic", w: 10, label: "Adic", align: "center" },
   ];
 
