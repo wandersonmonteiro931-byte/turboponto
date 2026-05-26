@@ -44,6 +44,18 @@ function RubricasPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Rubrica | null>(null);
+  const [busca, setBusca] = useState("");
+
+  const listaFiltrada = (() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return lista;
+    return lista.filter((r) =>
+      r.codigo.toLowerCase().includes(q) ||
+      r.descricao.toLowerCase().includes(q) ||
+      (r.grupo ?? "").toLowerCase().includes(q) ||
+      r.tipo.toLowerCase().includes(q),
+    );
+  })();
 
   const carregar = async () => {
     if (!empresaId) return;
