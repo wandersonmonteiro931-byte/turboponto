@@ -292,6 +292,26 @@ function CartaoEmpresaPage() {
         </Card>
       )}
 
+      {podeEditar && selecionados.size > 0 && (
+        <div className="sticky top-2 z-10 flex items-center gap-2 flex-wrap bg-primary text-primary-foreground rounded-md px-3 py-2 shadow">
+          <span className="text-sm font-semibold">{selecionados.size} dia(s) selecionado(s)</span>
+          <div className="flex gap-2 ml-auto flex-wrap">
+            <Button size="sm" variant="secondary" onClick={() => setBulkJustOpen(true)}>
+              <FileText className="h-4 w-4 mr-1" />Aplicar justificativa
+            </Button>
+            <Button size="sm" variant="secondary" onClick={removerJustificativasSel}>
+              <X className="h-4 w-4 mr-1" />Remover justificativa
+            </Button>
+            <Button size="sm" variant="destructive" onClick={excluirMarcacoesSel}>
+              <Trash2 className="h-4 w-4 mr-1" />Excluir marcações
+            </Button>
+            <Button size="sm" variant="ghost" onClick={limparSel} className="text-primary-foreground hover:bg-primary-foreground/10">
+              Limpar
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div> :
