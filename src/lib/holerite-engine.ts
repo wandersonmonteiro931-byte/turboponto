@@ -174,11 +174,27 @@ export async function recalcular(
   let minAtraso = 0;
   let numFaltas = 0;
   let saldoBHMinutos = 0;
+  let dsrPerdidos = 0;
+  const datasFalta: string[] = [];
   try {
     const cartao = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
     minHE = cartao.totalExtras;
     minAtraso = cartao.dias.reduce((s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s), 0);
     numFaltas = cartao.totalFaltas;
+    for (const d of cartao.dias) {
+      if ((d as { falta?: boolean }).falta) datasFalta.push((d as { data: string }).data);
+    }
+    // DSR perdido: 1 por semana (seg-dom) que contenha ao menos 1 falta injustificada.
+    const semanas = new Set<string>();
+    for (const data of datasFalta) {
+      const dt = new Date(data + "T00:00:00");
+      const dow = dt.getDay(); // 0=dom..6=sab
+      const diffToMonday = (dow + 6) % 7;
+      const monday = new Date(dt);
+      monday.setDate(dt.getDate() - diffToMonday);
+      semanas.add(monday.toISOString().slice(0, 10));
+    }
+    dsrPerdidos = semanas.size;
     saldoBHMinutos = cartao.totalBancoHoras;
   } catch (e) {
     console.warn("[holerite] falha ao carregar cartão de ponto; usando fallback", e);
