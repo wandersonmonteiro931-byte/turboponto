@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Lock, Unlock, CheckCircle2, FileText } from "lucide-react";
+import { Download, Lock, Unlock, CheckCircle2, FileText, Trash2, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type DiaCartao, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
 import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
 import { AplicarJustificativaDialog } from "@/components/AplicarJustificativaDialog";
+import { BulkJustificarDialog } from "@/components/BulkJustificarDialog";
 import { carregarVinculosAtivos, DIAS_SEMANA, resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 import type { TipoPonto } from "@/lib/ponto";
 
@@ -40,6 +42,35 @@ function CartaoEmpresaPage() {
   const [inserirOpen, setInserirOpen] = useState(false);
   const [prefill, setPrefill] = useState<{ funcionarioId?: string; data?: string; tipo?: string; hora?: string } | undefined>();
   const [justDia, setJustDia] = useState<DiaCartao | null>(null);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [bulkJustOpen, setBulkJustOpen] = useState(false);
+
+  const toggleSel = (data: string) => {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(data)) next.delete(data); else next.add(data);
+      return next;
+    });
+  };
+  const limparSel = () => setSelecionados(new Set());
+
+  const removerJustificativasSel = async () => {
+    if (selecionados.size === 0 || !funcId) return;
+    if (!window.confirm(`Remover justificativas de ${selecionados.size} dia(s) selecionado(s)?`)) return;
+    const { error } = await supabase.from("justificativas_aplicadas")
+      .delete().eq("funcionario_id", funcId).in("data", Array.from(selecionados));
+    if (error) toast.error(error.message);
+    else { toast.success("Justificativas removidas."); limparSel(); carregar(); }
+  };
+
+  const excluirMarcacoesSel = async () => {
+    if (selecionados.size === 0 || !funcId) return;
+    if (!window.confirm(`Excluir TODAS as marcações de ponto dos ${selecionados.size} dia(s) selecionado(s)?`)) return;
+    const { error } = await supabase.from("registros_ponto")
+      .delete().eq("funcionario_id", funcId).in("data_referencia", Array.from(selecionados));
+    if (error) toast.error(error.message);
+    else { toast.success("Marcações excluídas."); limparSel(); carregar(); }
+  };
 
   const abrirCelula = async (d: DiaCartao, tipo: TipoPonto) => {
     if (!podeEditar || !empresaId) return;
@@ -83,7 +114,7 @@ function CartaoEmpresaPage() {
     setLoading(false);
   };
 
-  useEffect(() => { if (funcId) carregar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [funcId, ano, mes]);
+  useEffect(() => { limparSel(); if (funcId) carregar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [funcId, ano, mes]);
 
   const persistir = async (status: "aberto" | "fechado" | "liberado") => {
     if (!empresaId || !resumo || !funcId) return;
@@ -261,6 +292,26 @@ function CartaoEmpresaPage() {
         </Card>
       )}
 
+      {podeEditar && selecionados.size > 0 && (
+        <div className="sticky top-2 z-10 flex items-center gap-2 flex-wrap bg-primary text-primary-foreground rounded-md px-3 py-2 shadow">
+          <span className="text-sm font-semibold">{selecionados.size} dia(s) selecionado(s)</span>
+          <div className="flex gap-2 ml-auto flex-wrap">
+            <Button size="sm" variant="secondary" onClick={() => setBulkJustOpen(true)}>
+              <FileText className="h-4 w-4 mr-1" />Aplicar justificativa
+            </Button>
+            <Button size="sm" variant="secondary" onClick={removerJustificativasSel}>
+              <X className="h-4 w-4 mr-1" />Remover justificativa
+            </Button>
+            <Button size="sm" variant="destructive" onClick={excluirMarcacoesSel}>
+              <Trash2 className="h-4 w-4 mr-1" />Excluir marcações
+            </Button>
+            <Button size="sm" variant="ghost" onClick={limparSel} className="text-primary-foreground hover:bg-primary-foreground/10">
+              Limpar
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div> :
@@ -268,6 +319,17 @@ function CartaoEmpresaPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                 <tr>
+                  {podeEditar && (
+                    <th className="p-2 w-8">
+                      <Checkbox
+                        checked={resumo.dias.length > 0 && selecionados.size === resumo.dias.length}
+                        onCheckedChange={(c) => {
+                          if (c) setSelecionados(new Set(resumo.dias.map((x) => x.data)));
+                          else limparSel();
+                        }}
+                      />
+                    </th>
+                  )}
                   <th className="p-2 text-left">Dia</th>
                   <th className="p-2 text-left">Entrada</th>
                   <th className="p-2 text-left">Saída int.</th>
@@ -302,6 +364,14 @@ function CartaoEmpresaPage() {
                     : !d.trabalha ? "bg-muted/30" : "";
                   return (
                   <tr key={d.data} className={rowBg}>
+                    {podeEditar && (
+                      <td className="p-2">
+                        <Checkbox
+                          checked={selecionados.has(d.data)}
+                          onCheckedChange={() => toggleSel(d.data)}
+                        />
+                      </td>
+                    )}
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
                       {d.jornadaCodigo && (
@@ -373,6 +443,16 @@ function CartaoEmpresaPage() {
           data={justDia.data}
           justificativaAtualId={justDia.justificativa?.id ?? null}
           onSaved={carregar}
+        />
+      )}
+      {empresaId && funcId && (
+        <BulkJustificarDialog
+          open={bulkJustOpen}
+          onClose={() => setBulkJustOpen(false)}
+          empresaId={empresaId}
+          funcionarioId={funcId}
+          datas={Array.from(selecionados).sort()}
+          onSaved={() => { limparSel(); carregar(); }}
         />
       )}
     </div>
