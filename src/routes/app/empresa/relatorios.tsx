@@ -73,7 +73,7 @@ function RelatoriosPage() {
           entrada: "Entrada", saida_intervalo: "Saída intervalo",
           retorno_intervalo: "Retorno intervalo", saida_final: "Saída final",
         }[t] ?? t);
-        r.cols = ["Data","Funcionário","Cargo","Tipo","Programado","Registrado","Atraso (min)","Status"];
+        r.cols = ["Data","Funcionário","Cargo","Tipo","Programado","Registrado","Atraso","Status"];
         r.rows = (data ?? []).map((x: { data_referencia: string; tipo_ponto: string; horario_programado: string | null; horario_registrado: string; atraso_minutos: number; status: string; funcionarios: { nome: string; cargo: string | null } | null }) => ({
           Data: new Date(x.data_referencia + "T00:00").toLocaleDateString("pt-BR"),
           Funcionário: x.funcionarios?.nome ?? "",
@@ -81,7 +81,7 @@ function RelatoriosPage() {
           Tipo: tipo(x.tipo_ponto),
           Programado: x.horario_programado?.slice(0, 5) ?? "—",
           Registrado: new Date(x.horario_registrado).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-          "Atraso (min)": x.atraso_minutos || 0,
+          Atraso: formatMinutos(x.atraso_minutos || 0),
           Status: x.status,
         }));
       } else if (rel === "faltas") {
