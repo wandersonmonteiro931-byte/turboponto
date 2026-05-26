@@ -91,9 +91,19 @@ function RubricasPage() {
       </div>
 
       <Card>
+        <CardContent className="p-3">
+          <Input
+            placeholder="Buscar por código, descrição, grupo ou tipo..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent className="p-0">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div>
-            : lista.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma rubrica cadastrada.</div>
+            : listaFiltrada.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">{busca ? "Nenhuma rubrica encontrada para a busca." : "Nenhuma rubrica cadastrada."}</div>
             : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
