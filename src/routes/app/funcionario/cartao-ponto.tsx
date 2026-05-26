@@ -68,7 +68,9 @@ function CartaoFuncPage() {
       const { data: vinc } = await supabase
         .from("funcionarios_jornadas")
         .select("jornadas(nome), jornada_id")
-        .eq("funcionario_id", funcionario.id).eq("ativo", true).maybeSingle();
+        .eq("funcionario_id", funcionario.id).eq("ativo", true)
+        .order("data_inicio", { ascending: false }).limit(1).maybeSingle();
+
       const v = vinc as { jornadas: { nome: string } | null; jornada_id: string } | null;
       let jornada: { nome: string; entrada: string | null; saida: string | null; intervalo_saida: string | null; intervalo_retorno: string | null } | null = null;
       if (v?.jornada_id) {
