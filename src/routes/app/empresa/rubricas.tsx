@@ -144,7 +144,7 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
 }) {
   const [codigo, setCodigo] = useState(rubrica?.codigo ?? "");
   const [descricao, setDescricao] = useState(rubrica?.descricao ?? "");
-  const [tipo, setTipo] = useState<"provento" | "desconto">(rubrica?.tipo ?? "provento");
+  const [tipo, setTipo] = useState<TipoRubrica>(rubrica?.tipo ?? "provento");
   const [tipoCalculo, setTipoCalculo] = useState<TipoCalculo>(rubrica?.tipo_calculo ?? "manual");
   const [valorRef, setValorRef] = useState(rubrica?.valor_referencia ?? 0);
   const [ativo, setAtivo] = useState(rubrica?.ativo ?? true);
