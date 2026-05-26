@@ -75,23 +75,23 @@ function BaterPontoPage() {
     setFuncStatus(f.status);
     setPermitePonto(f.permite_bater_ponto);
 
-    const { data: vinc } = await supabase
-      .from("funcionarios_jornadas")
-      .select("jornada_id, jornadas(id,nome,tolerancia_atraso_minutos)")
-      .eq("funcionario_id", f.id).eq("ativo", true).maybeSingle();
-    const j = (vinc as { jornadas: JornadaInfo | null } | null)?.jornadas ?? null;
-    setJornada(j);
-
     // Dia comercial: madrugada (< 06:00) conta como dia anterior
     const dataComercial = diaComercialISO(new Date());
-    const diaSemanaComercial = new Date(`${dataComercial}T12:00:00`).getDay();
 
-    if (j) {
-      const { data: dias } = await supabase
-        .from("jornadas_dias").select("*").eq("jornada_id", j.id);
-      const hoje = (dias ?? []).find((d) => (d as JornadaDia).dia_semana === diaSemanaComercial) as JornadaDia | undefined;
-      setDia(hoje ?? null);
-    }
+    // Carrega TODAS as jornadas ativas e escolhe a aplicável ao dia (suporta múltiplas jornadas).
+    const { carregarVinculosAtivos, escolherJornadaParaData } = await import("@/lib/jornadas");
+    const vincs = await carregarVinculosAtivos(f.id);
+    const escolha = escolherJornadaParaData(vincs, dataComercial);
+    const j: JornadaInfo | null = escolha
+      ? {
+          id: escolha.vinculo.jornadaId,
+          nome: escolha.vinculo.nome,
+          tolerancia_atraso_minutos: escolha.vinculo.tolerancia_atraso_minutos,
+        }
+      : null;
+    setJornada(j);
+    setDia(escolha?.dia ?? null);
+
 
     const { data: regs } = await supabase
       .from("registros_ponto")
