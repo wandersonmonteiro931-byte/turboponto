@@ -658,7 +658,11 @@ function EditorDialog({
                       <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.qtde ?? ""} onChange={(e) => updLinha(l._k, { qtde: e.target.value === "" ? null : Number(e.target.value) })} /></td>
                       <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.provento ?? 0} onChange={(e) => updLinha(l._k, { provento: Number(e.target.value) })} /></td>
                       <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.desconto ?? 0} onChange={(e) => updLinha(l._k, { desconto: Number(e.target.value) })} /></td>
-                      <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.resultado ?? 0} onChange={(e) => updLinha(l._k, { resultado: Number(e.target.value) })} /></td>
+                      <td className="p-1">
+                        {(!Number(l.provento || 0) && !Number(l.desconto || 0))
+                          ? <Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.resultado ?? 0} onChange={(e) => updLinha(l._k, { resultado: Number(e.target.value) })} />
+                          : <div className="h-7" />}
+                      </td>
                       <td className="p-1 text-center"><Button size="sm" variant="ghost" onClick={() => removerLinha(l._k)}><Trash2 className="h-3 w-3 text-red-600" /></Button></td>
                     </tr>
                   ))}
@@ -668,13 +672,14 @@ function EditorDialog({
                     <td colSpan={4} className="p-2 text-right">Totais:</td>
                     <td className="p-2 text-right font-mono">{totalProv.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                     <td className="p-2 text-right font-mono">{totalDesc.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-                    <td className="p-2 text-right font-mono text-green-700">{totalLiq.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                    <td className="p-2 text-right font-mono text-base bg-primary/10 text-primary">{totalLiq.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                     <td></td>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
+
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Fld label="Sal. contrib. INSS"><Input type="number" step="0.01" value={salContribInss} onChange={(e) => setSalContribInss(Number(e.target.value))} /></Fld>
