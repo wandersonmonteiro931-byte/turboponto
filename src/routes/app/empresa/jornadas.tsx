@@ -189,11 +189,16 @@ function JornadaDialog({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) return toast.error("Informe o nome");
+    const codigoUp = codigo.trim().toUpperCase();
+    if (!/^[A-Z0-9]{3}$/.test(codigoUp)) {
+      return toast.error("Código deve ter exatamente 3 letras ou números.");
+    }
     setSaving(true);
     try {
       const payload = {
         empresa_id: empresaId,
         nome: nome.trim(),
+        codigo: codigoUp,
         descricao: descricao || null,
         horario_entrada: entrada,
         horario_intervalo_saida: intSai || null,
