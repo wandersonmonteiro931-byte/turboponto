@@ -7,6 +7,13 @@ import { STATUS_BENEFICIO, avaliarDireito, fmtBRL, mesNome, type Beneficio } fro
 import { carregarCartao } from "@/lib/cartao";
 import { AlertTriangle, CheckCircle2, Gift, XCircle } from "lucide-react";
 
+const fmtHorasMin = (minutos: number | null | undefined) => {
+  const min = Math.max(0, Math.round(Number(minutos ?? 0)));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h}h${String(m).padStart(2, "0")}`;
+};
+
 export const Route = createFileRoute("/app/funcionario/beneficios")({
   component: MeusBeneficios,
 });
@@ -211,8 +218,8 @@ function BeneficioCard({ beneficio, calc, mes, ano }: { beneficio: Beneficio; ca
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-          <Info label="Atraso acumulado" value={`${atraso} min`} />
-          <Info label="Limite permitido" value={`${limite} min`} />
+          <Info label="Atraso acumulado" value={fmtHorasMin(atraso)} />
+          <Info label="Limite permitido" value={fmtHorasMin(limite)} />
           <Info label="Valor previsto" value={fmtBRL(perdeu ? 0 : beneficio.valor_maximo)} />
           <Info label="Data prevista" value={dataPrev} />
         </div>
@@ -220,7 +227,7 @@ function BeneficioCard({ beneficio, calc, mes, ano }: { beneficio: Beneficio; ca
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>Uso do limite de atraso</span>
-            <span>{atraso}/{limite} min</span>
+            <span>{fmtHorasMin(atraso)} / {fmtHorasMin(limite)}</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
