@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  STATUS_BENEFICIO, fmtBRL, mesNome, recalcularMes,
+  STATUS_BENEFICIO, mesNome, recalcularMes,
   type Beneficio,
 } from "@/lib/beneficios";
 import { AlertCircle, CheckCircle2, FileText, RefreshCw, Truck } from "lucide-react";
@@ -37,6 +37,13 @@ type LinhaCalc = {
   motivo_perda: string | null;
   valor_estimado: number;
   funcionarios: { nome: string; cargo: string | null } | null;
+};
+
+const fmtHorasMin = (minutos: number | null | undefined) => {
+  const min = Math.max(0, Math.round(Number(minutos ?? 0)));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h}h${String(m).padStart(2, "0")}`;
 };
 
 function BeneficiosPage() {
@@ -309,7 +316,7 @@ function BeneficiosPage() {
         <Card>
           <CardContent className="p-4 grid sm:grid-cols-4 gap-3">
             <Resumo label="Limite de atraso" value={`${beneficioAtual.limite_atraso_minutos} min`} hint={`Alerta: ${beneficioAtual.limite_alerta_minutos} min`} />
-            <Resumo label="Valor máximo" value={fmtBRL(beneficioAtual.valor_maximo)} />
+            <Resumo label="Horas apuradas" value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))} />
             <Resumo label="Data prevista" value={diaEntrega} hint={`Dia ${beneficioAtual.dia_entrega} do mês`} />
             <div className="flex items-end">
               <Button onClick={recalcular} disabled={recalculando} variant="outline" className="w-full">
@@ -366,11 +373,10 @@ function BeneficiosPage() {
                   <tr>
                     <th className="text-left p-2">Funcionário</th>
                     <th className="text-left p-2">Cargo</th>
-                    <th className="text-left p-2">Atraso (min)</th>
+                    <th className="text-left p-2">Horas benefício</th>
                     <th className="text-left p-2">Dias c/ atraso</th>
                     <th className="text-left p-2">Faltas inj.</th>
                     <th className="text-left p-2">Status</th>
-                    <th className="text-left p-2">Valor</th>
                     <th className="text-left p-2">Motivo</th>
                     {podeEditar && <th className="text-right p-2">Ações</th>}
                   </tr>
@@ -384,7 +390,7 @@ function BeneficiosPage() {
                         <td className="p-2 font-medium">{c.funcionarios?.nome ?? "—"}</td>
                         <td className="p-2 text-muted-foreground">{c.funcionarios?.cargo ?? "—"}</td>
                         <td className={`p-2 font-mono ${proxLimite ? "text-amber-600 font-bold" : ""}`}>
-                          {c.total_atraso_minutos}
+                          {fmtHorasMin(c.total_atraso_minutos)}
                           {proxLimite && <span className="ml-1 text-[10px]">⚠</span>}
                         </td>
                         <td className="p-2">{c.dias_com_atraso}</td>
@@ -392,7 +398,6 @@ function BeneficiosPage() {
                         <td className="p-2">
                           <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
                         </td>
-                        <td className="p-2 font-mono">{fmtBRL(c.valor_estimado)}</td>
                         <td className="p-2 text-xs text-muted-foreground">{c.motivo_perda ?? "—"}</td>
                         {podeEditar && (
                           <td className="p-2 text-right space-x-1 whitespace-nowrap">
