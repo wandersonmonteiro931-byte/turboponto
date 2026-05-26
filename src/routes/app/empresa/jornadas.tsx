@@ -111,7 +111,10 @@ function JornadasPage() {
               {list.map((j) => (
                 <li key={j.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold flex items-center gap-2">
+                    <div className="font-semibold flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded bg-primary/15 text-primary text-xs font-mono font-bold tracking-wider">
+                        {j.codigo}
+                      </span>
                       <Clock className="h-4 w-4 text-primary" />
                       {j.nome}
                       <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${j.status === "ativa" ? "bg-green-500/20 text-green-700" : "bg-muted text-muted-foreground"}`}>
@@ -149,6 +152,7 @@ function JornadaDialog({
   empresaId, jornada, onDone,
 }: { empresaId: string; jornada: Jornada | null; onDone: () => void }) {
   const [nome, setNome] = useState(jornada?.nome ?? "");
+  const [codigo, setCodigo] = useState(jornada?.codigo ?? "");
   const [descricao, setDescricao] = useState(jornada?.descricao ?? "");
   const [entrada, setEntrada] = useState(jornada?.horario_entrada?.slice(0, 5) ?? "08:00");
   const [intSai, setIntSai] = useState(jornada?.horario_intervalo_saida?.slice(0, 5) ?? "12:00");
@@ -185,11 +189,16 @@ function JornadaDialog({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) return toast.error("Informe o nome");
+    const codigoUp = codigo.trim().toUpperCase();
+    if (!/^[A-Z0-9]{3}$/.test(codigoUp)) {
+      return toast.error("Código deve ter exatamente 3 letras ou números.");
+    }
     setSaving(true);
     try {
       const payload = {
         empresa_id: empresaId,
         nome: nome.trim(),
+        codigo: codigoUp,
         descricao: descricao || null,
         horario_entrada: entrada,
         horario_intervalo_saida: intSai || null,
@@ -240,7 +249,18 @@ function JornadaDialog({
       </DialogHeader>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="md:col-span-2">
+          <div>
+            <Label className="mb-1 block text-xs">Código * (3 letras/números)</Label>
+            <Input
+              required
+              maxLength={3}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3))}
+              placeholder="Ex.: 001, ADM, T01"
+              className="font-mono uppercase tracking-widest"
+            />
+          </div>
+          <div>
             <Label className="mb-1 block text-xs">Nome *</Label>
             <Input required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Jornada Padrão Turbo Lanches" />
           </div>

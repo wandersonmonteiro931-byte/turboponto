@@ -10,6 +10,7 @@ import { Download, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
+import { carregarVinculosAtivos, DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export const Route = createFileRoute("/app/funcionario/cartao-ponto")({
   component: CartaoFuncPage,
@@ -26,6 +27,7 @@ function CartaoFuncPage() {
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<ResumoCartao | null>(null);
   const [cartao, setCartao] = useState<Cartao | null>(null);
+  const [vinculos, setVinculos] = useState<VinculoAtivoComDias[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -47,8 +49,10 @@ function CartaoFuncPage() {
       const { data: c } = await supabase.from("cartoes_ponto")
         .select("status,total_atraso_minutos,total_faltas,total_horas_trabalhadas_minutos,total_horas_extras_minutos")
         .eq("funcionario_id", funcionario.id).eq("ano_referencia", ano).eq("mes_referencia", mes).maybeSingle();
+      const v = await carregarVinculosAtivos(funcionario.id);
       setCartao((c ?? null) as Cartao | null);
       setResumo(r);
+      setVinculos(v);
       setLoading(false);
     })();
   }, [funcionario, ano, mes]);
@@ -151,6 +155,40 @@ function CartaoFuncPage() {
         </div>
       )}
 
+      {vinculos.length > 0 && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="text-xs uppercase font-bold text-muted-foreground mb-2">Horário de trabalho · jornadas ativas</div>
+            <div className="space-y-2">
+              {vinculos.map((v) => {
+                const diasTrab = v.dias.filter((d) => d.trabalha).sort((a, b) => a.dia_semana - b.dia_semana);
+                return (
+                  <div key={v.vinculoId} className="flex items-start gap-2 text-sm flex-wrap">
+                    <span className="inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded bg-primary/15 text-primary text-xs font-mono font-bold tracking-wider">
+                      {v.codigo}
+                    </span>
+                    <span className="font-semibold">{v.nome}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {diasTrab.length === 0
+                        ? "Sem dias configurados"
+                        : diasTrab.map((d) => {
+                            const lbl = DIAS_SEMANA[d.dia_semana].label;
+                            const e = d.horario_entrada?.slice(0, 5) ?? "--:--";
+                            const s = d.horario_saida?.slice(0, 5) ?? "--:--";
+                            const isai = d.horario_intervalo_saida?.slice(0, 5);
+                            const iret = d.horario_intervalo_retorno?.slice(0, 5);
+                            const intervalo = isai && iret ? ` (int ${isai}-${iret})` : "";
+                            return `${lbl} ${e}-${s}${intervalo}`;
+                          }).join(" · ")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div> :
@@ -172,7 +210,17 @@ function CartaoFuncPage() {
                   const semRegistro = !d.registrado.entrada && !d.registrado.saida_intervalo && !d.registrado.retorno_intervalo && !d.registrado.saida_final;
                   return (
                   <tr key={d.data} className={d.falta ? "bg-red-500/5" : d.pendente && d.trabalha ? "bg-yellow-500/5" : !d.trabalha ? "bg-muted/30" : ""}>
-                    <td className="p-2 whitespace-nowrap font-mono">{d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span></td>
+                    <td className="p-2 whitespace-nowrap font-mono">
+                      {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
+                      {d.jornadaCodigo && (
+                        <span
+                          className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[10px] font-bold tracking-wider align-middle"
+                          title={d.jornadaNome ?? ""}
+                        >
+                          {d.jornadaCodigo}
+                        </span>
+                      )}
+                    </td>
                     <td className="p-2 font-mono">{d.registrado.entrada ?? (d.falta ? <span className="text-red-600 font-bold">FALTA</span> : semRegistro && d.pendente && d.trabalha ? <span className="text-yellow-700 text-xs">marcação não registrada</span> : semRegistro && d.trabalha && d.bancoHorasMinutos < 0 ? <span className="text-red-600 font-bold text-xs">DÉBITO BH</span> : "—")}</td>
                     <td className="p-2 font-mono">{d.registrado.saida_intervalo ?? "—"}</td>
                     <td className="p-2 font-mono">{d.registrado.retorno_intervalo ?? "—"}</td>

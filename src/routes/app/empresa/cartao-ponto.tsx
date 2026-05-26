@@ -12,6 +12,7 @@ import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type DiaCartao
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
 import { EditarPontoDialog, InserirPontoDialog, type RegistroEdit } from "@/components/EditarPontoDialog";
 import { AplicarJustificativaDialog } from "@/components/AplicarJustificativaDialog";
+import { carregarVinculosAtivos, DIAS_SEMANA, type VinculoAtivoComDias } from "@/lib/jornadas";
 import type { TipoPonto } from "@/lib/ponto";
 
 export const Route = createFileRoute("/app/empresa/cartao-ponto")({
@@ -30,6 +31,7 @@ function CartaoEmpresaPage() {
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [resumo, setResumo] = useState<ResumoCartao | null>(null);
   const [cartao, setCartao] = useState<Cartao | null>(null);
+  const [vinculos, setVinculos] = useState<VinculoAtivoComDias[]>([]);
   const [empresaInfo, setEmpresaInfo] = useState<{ nome_fantasia: string; cnpj: string | null; endereco: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -70,12 +72,14 @@ function CartaoEmpresaPage() {
   const carregar = async () => {
     if (!funcId || !empresaId) return;
     setLoading(true);
-    const [r, c] = await Promise.all([
+    const [r, c, v] = await Promise.all([
       carregarCartao(funcId, ano, mes),
       supabase.from("cartoes_ponto").select("*").eq("funcionario_id", funcId).eq("ano_referencia", ano).eq("mes_referencia", mes).maybeSingle(),
+      carregarVinculosAtivos(funcId),
     ]);
     setResumo(r);
     setCartao((c.data ?? null) as Cartao | null);
+    setVinculos(v);
     setLoading(false);
   };
 
@@ -236,6 +240,40 @@ function CartaoEmpresaPage() {
         </div>
       )}
 
+      {vinculos.length > 0 && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="text-xs uppercase font-bold text-muted-foreground mb-2">Horário de trabalho · jornadas ativas</div>
+            <div className="space-y-2">
+              {vinculos.map((v) => {
+                const diasTrab = v.dias.filter((d) => d.trabalha).sort((a, b) => a.dia_semana - b.dia_semana);
+                return (
+                  <div key={v.vinculoId} className="flex items-start gap-2 text-sm flex-wrap">
+                    <span className="inline-flex items-center justify-center min-w-[42px] px-2 py-0.5 rounded bg-primary/15 text-primary text-xs font-mono font-bold tracking-wider">
+                      {v.codigo}
+                    </span>
+                    <span className="font-semibold">{v.nome}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {diasTrab.length === 0
+                        ? "Sem dias configurados"
+                        : diasTrab.map((d) => {
+                            const lbl = DIAS_SEMANA[d.dia_semana].label;
+                            const e = d.horario_entrada?.slice(0, 5) ?? "--:--";
+                            const s = d.horario_saida?.slice(0, 5) ?? "--:--";
+                            const isai = d.horario_intervalo_saida?.slice(0, 5);
+                            const iret = d.horario_intervalo_retorno?.slice(0, 5);
+                            const intervalo = isai && iret ? ` (int ${isai}-${iret})` : "";
+                            return `${lbl} ${e}-${s}${intervalo}`;
+                          }).join(" · ")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div> :
@@ -279,6 +317,14 @@ function CartaoEmpresaPage() {
                   <tr key={d.data} className={rowBg}>
                     <td className="p-2 whitespace-nowrap font-mono">
                       {d.data.slice(8, 10)} <span className="text-xs text-muted-foreground">{DIAS_SEMANA_CURTO[d.diaSemana]}</span>
+                      {d.jornadaCodigo && (
+                        <span
+                          className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[10px] font-bold tracking-wider align-middle"
+                          title={d.jornadaNome ?? ""}
+                        >
+                          {d.jornadaCodigo}
+                        </span>
+                      )}
                     </td>
                     <td className={cellClass(d.registrado.entrada)} onClick={() => abrirCelula(d, "entrada")}>{d.registrado.entrada ?? renderEmpty()}</td>
                     <td className={cellClass(d.registrado.saida_intervalo)} onClick={() => abrirCelula(d, "saida_intervalo")}>{d.registrado.saida_intervalo ?? "—"}</td>

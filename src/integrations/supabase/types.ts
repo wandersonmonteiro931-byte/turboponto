@@ -794,6 +794,7 @@ export type Database = {
       jornadas: {
         Row: {
           carga_horaria_minutos: number
+          codigo: string
           created_at: string
           descricao: string | null
           empresa_id: string
@@ -809,6 +810,7 @@ export type Database = {
         }
         Insert: {
           carga_horaria_minutos?: number
+          codigo: string
           created_at?: string
           descricao?: string | null
           empresa_id: string
@@ -824,6 +826,7 @@ export type Database = {
         }
         Update: {
           carga_horaria_minutos?: number
+          codigo?: string
           created_at?: string
           descricao?: string | null
           empresa_id?: string

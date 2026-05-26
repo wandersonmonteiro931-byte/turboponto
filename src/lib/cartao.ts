@@ -52,6 +52,8 @@ export type DiaCartao = {
   justificativa: JustificativaAplicadaDia | null;
   justificativas: JustificativaAplicadaDia[];
   bancoHorasMinutos: number; // positivo = crédito, negativo = débito
+  jornadaCodigo: string | null;
+  jornadaNome: string | null;
 };
 
 export type ResumoCartao = {
@@ -214,6 +216,8 @@ export async function carregarCartao(
     const dow = d.getDay();
     const escolha = escolherJornadaParaData(vinculos, data);
     const jd = escolha?.dia ?? null;
+    const jornadaCodigo = escolha?.vinculo.codigo ?? null;
+    const jornadaNome = escolha?.vinculo.nome ?? null;
     let trabalha = !!jd?.trabalha;
 
 
@@ -490,6 +494,8 @@ export async function carregarCartao(
       justificativa: just,
       justificativas,
       bancoHorasMinutos: bancoHorasMin,
+      jornadaCodigo: foraVinculo ? null : jornadaCodigo,
+      jornadaNome: foraVinculo ? null : jornadaNome,
     });
   }
 
