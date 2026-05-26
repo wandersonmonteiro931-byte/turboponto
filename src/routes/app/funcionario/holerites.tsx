@@ -58,12 +58,19 @@ function MeusHolerites() {
   const abrir = async (h: Holerite) => {
     const path = h.pdf_url.split(`/holerites/`)[1];
     if (!path) return toast.error("Caminho inválido");
-    const { data, error } = await supabase.storage.from("holerites").createSignedUrl(path, 120);
-    if (error || !data) return toast.error(error?.message ?? "Erro");
+    const { data, error } = await supabase.storage.from("holerites").download(path);
+    if (error || !data) return toast.error(error?.message ?? "Erro ao baixar PDF");
     if (!h.acessado_em) {
       await supabase.from("holerites").update({ acessado_em: new Date().toISOString() }).eq("id", h.id);
     }
-    window.open(data.signedUrl, "_blank");
+    const blobUrl = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `holerite-${h.mes_referencia}-${h.ano_referencia}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
     void carregar();
   };
 
