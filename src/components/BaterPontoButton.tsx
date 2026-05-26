@@ -12,6 +12,7 @@ import {
   TipoPonto, tipoLabel, statusLabel, statusColor,
   inferirTipo, avaliar, diaComercialISO,
 } from "@/lib/ponto";
+import { formatMinutos } from "@/lib/format";
 
 type Props = {
   size?: "default" | "lg";
