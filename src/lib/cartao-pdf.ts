@@ -161,13 +161,13 @@ export function gerarPdfCartao(opts: {
 
   y += 3.5;
   const colR = ML + W * 0.6;
-  doc.text(`Empresa: ${empresa.nome_fantasia}`, ML, y);
+  doc.text(`Empresa: ${(empresa.nome_fantasia || "").toUpperCase()}`, ML, y);
   doc.text(`Mes/Ano: ${NOMES_MES[mes - 1]}/${ano}`, colR, y);
   y += 3.2;
   doc.text(`End: ${(empresa.endereco ?? "-").slice(0, 70)}`, ML, y);
   doc.text(`CNPJ: ${empresa.cnpj ?? "-"}`, colR, y);
   y += 3.2;
-  doc.text(`Func: ${funcionario.nome}  Cargo: ${funcionario.cargo ?? "-"}`, ML, y);
+  doc.text(`Matricula: ${funcionario.matricula ?? "-"}  Func: ${funcionario.nome}  Cargo: ${funcionario.cargo ?? "-"}`, ML, y);
   y += 3.2;
   if (jornadas && jornadas.length > 0) {
     doc.text("Hor.Trab:", ML, y);
