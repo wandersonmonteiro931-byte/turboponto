@@ -175,14 +175,8 @@ function FuncionarioHome() {
           <p className="text-sm text-muted-foreground mb-4">
             {jornada ? "Toque no botão abaixo para registrar sua marcação" : "Você não pode bater ponto sem uma jornada ativa"}
           </p>
-          <Button
-            size="lg"
-            className="px-10 py-6 text-lg font-bold"
-            disabled={!jornada}
-            onClick={() => navigate({ to: "/app/funcionario/bater-ponto" })}
-          >
-            Bater Ponto
-          </Button>
+          <BaterPontoButton />
+
         </CardContent>
       </Card>
 
