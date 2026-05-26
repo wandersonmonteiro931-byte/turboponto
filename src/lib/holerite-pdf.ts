@@ -212,13 +212,14 @@ export function gerarHoleritePdf(
       doc.addPage();
       y = M;
     }
+    const isInformativo = !Number(l.provento || 0) && !Number(l.desconto || 0);
     cx = M;
     doc.text(l.codigo, cx + 1, y + 4); cx += colsTab.codigo;
     doc.text(l.descricao, cx + 1, y + 4); cx += colsTab.desc;
     doc.text(fmtNum(l.qtde, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" }); cx += colsTab.qtde;
     doc.text(fmtNum(l.provento), cx + colsTab.prov - 1, y + 4, { align: "right" }); cx += colsTab.prov;
     doc.text(fmtNum(l.desconto), cx + colsTab.desc2 - 1, y + 4, { align: "right" }); cx += colsTab.desc2;
-    doc.text(fmtNum(l.resultado), cx + colsTab.res - 1, y + 4, { align: "right" });
+    doc.text(isInformativo ? fmtNum(l.resultado) : "", cx + colsTab.res - 1, y + 4, { align: "right" });
     y += 5;
   }
 
@@ -227,19 +228,39 @@ export function gerarHoleritePdf(
   doc.line(M, y, W - M, y);
   y += 1;
 
-  // Totais
+  // ===== Rodapé: Totais (com destaque para líquido) =====
+  const totH = 10;
+  const liqW = 70;
+  const provW = (innerW - liqW) / 2;
+  const descW = provW;
+  doc.rect(M, y, provW, totH);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text("Total de proventos:", M + 2, y + 4);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(fmtNum(dados.total_proventos), M + provW - 2, y + 8, { align: "right" });
+
+  doc.rect(M + provW, y, descW, totH);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text("Total de descontos:", M + provW + 2, y + 4);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(fmtNum(dados.total_descontos), M + provW + descW - 2, y + 8, { align: "right" });
+
+  doc.setFillColor(220, 220, 220);
+  doc.rect(M + provW + descW, y, liqW, totH, "F");
+  doc.rect(M + provW + descW, y, liqW, totH);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.rect(M, y, innerW, 8);
-  doc.text(`Total de proventos: ${fmtNum(dados.total_proventos)}`, M + 2, y + 5);
-  doc.text(`Total de descontos: ${fmtNum(dados.total_descontos)}`, M + 70, y + 5);
-  doc.text(`Total líquido: ${fmtNum(dados.total_liquido)}`, W - M - 50, y + 5);
-  y += 8;
+  doc.text("Total líquido:", M + provW + descW + 2, y + 4);
+  doc.setFontSize(13);
+  doc.text(fmtNum(dados.total_liquido), W - M - 2, y + 8.5, { align: "right" });
+  y += totH;
 
   // Bases
   doc.rect(M, y, innerW, 10);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
   const basesCols = [
     { l: "Sal. contrib. INSS:", v: fmtNum(dados.sal_contrib_inss) },
     { l: "Base cal. FGTS:", v: fmtNum(dados.base_fgts) },
@@ -249,12 +270,13 @@ export function gerarHoleritePdf(
   const colW = innerW / basesCols.length;
   basesCols.forEach((c, i) => {
     const bx = M + i * colW;
+    if (i > 0) doc.line(bx, y, bx, y + 10);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
     doc.text(c.l, bx + 1, y + 3.5);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text(c.v, bx + colW - 2, y + 8, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
   });
   y += 12;
 
