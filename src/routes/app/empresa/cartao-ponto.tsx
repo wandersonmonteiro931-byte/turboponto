@@ -72,6 +72,7 @@ function CartaoEmpresaPage() {
     else { toast.success("Marcações excluídas."); limparSel(); carregar(); }
   };
 
+  const abrirCelula = async (d: DiaCartao, tipo: TipoPonto) => {
     if (!podeEditar || !empresaId) return;
     const regId = d.registroIds[tipo];
     if (regId) {
