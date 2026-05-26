@@ -77,85 +77,6 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     .eq("status", "ativo");
   if (e1) throw e1;
 
-  const { data: registros, error: e2 } = await supabase
-    .from("registros_ponto")
-    .select("funcionario_id,data_referencia,tipo_ponto,atraso_minutos,status")
-    .eq("empresa_id", empresaId)
-    .gte("data_referencia", inicio)
-    .lte("data_referencia", fim);
-  if (e2) throw e2;
-
-  // justificativas aprovadas no período (com tipo)
-  const { data: justAplic } = await supabase
-    .from("justificativas_aplicadas")
-    .select("funcionario_id,data,tipo_id,justificativas_tipos(afeta_assiduidade,abona_ocorrencia,categoria,desconta_salario)")
-    .eq("empresa_id", empresaId)
-    .eq("status", "aprovada")
-    .gte("data", inicio)
-    .lte("data", fim);
-
-  const { data: faltasManual } = await supabase
-    .from("dias_falta")
-    .select("funcionario_id,data")
-    .eq("empresa_id", empresaId)
-    .gte("data", inicio)
-    .lte("data", fim);
-
-  type JA = {
-    funcionario_id: string;
-    data: string;
-    justificativas_tipos: { afeta_assiduidade: string; abona_ocorrencia: boolean; categoria: string; desconta_salario: boolean } | null;
-  };
-  const justPorFunc = new Map<string, Map<string, JA[]>>();
-  for (const j of (justAplic ?? []) as unknown as JA[]) {
-    const m = justPorFunc.get(j.funcionario_id) ?? new Map();
-    const arr = m.get(j.data) ?? [];
-    arr.push(j);
-    m.set(j.data, arr);
-    justPorFunc.set(j.funcionario_id, m);
-  }
-  const faltasManualPorFunc = new Map<string, Set<string>>();
-  for (const f of (faltasManual ?? []) as Array<{ funcionario_id: string; data: string }>) {
-    const set = faltasManualPorFunc.get(f.funcionario_id) ?? new Set<string>();
-    set.add(f.data);
-    faltasManualPorFunc.set(f.funcionario_id, set);
-  }
-
-  const funcIds = (funcs ?? []).map((f) => f.id);
-  const { data: vincs } = funcIds.length
-    ? await supabase
-        .from("funcionarios_jornadas")
-        .select("funcionario_id,jornada_id")
-        .in("funcionario_id", funcIds)
-        .eq("ativo", true)
-    : { data: [] as Array<{ funcionario_id: string; jornada_id: string }> };
-
-  const jornadaIds = Array.from(new Set((vincs ?? []).map((v) => v.jornada_id)));
-  const { data: dias } = jornadaIds.length
-    ? await supabase
-        .from("jornadas_dias")
-        .select("jornada_id,dia_semana,trabalha,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno")
-        .in("jornada_id", jornadaIds)
-    : { data: [] as Array<{ jornada_id: string; dia_semana: number; trabalha: boolean; horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null }> };
-
-  const jornadaPorFunc = new Map((vincs ?? []).map((v) => [v.funcionario_id, v.jornada_id]));
-  type JornadaDiaBenef = { dia_semana: number; trabalha: boolean; horario_entrada: string | null; horario_saida: string | null; horario_intervalo_saida: string | null; horario_intervalo_retorno: string | null };
-  const diasPorJornada = new Map<string, Map<number, JornadaDiaBenef>>();
-  for (const d of dias ?? []) {
-    const map = diasPorJornada.get(d.jornada_id) ?? new Map<number, JornadaDiaBenef>();
-    map.set(d.dia_semana, d as JornadaDiaBenef);
-    diasPorJornada.set(d.jornada_id, map);
-  }
-
-  const hoje = new Date();
-  const ehMesCorrente = hoje.getFullYear() === ano && hoje.getMonth() + 1 === mes;
-  const ultimoDia = ehMesCorrente ? hoje.getDate() : new Date(ano, mes, 0).getDate();
-  const todasDatas: { iso: string; dow: number }[] = [];
-  for (let d = 1; d <= ultimoDia; d++) {
-    const dt = new Date(ano, mes - 1, d);
-    todasDatas.push({ iso: dt.toISOString().slice(0, 10), dow: dt.getDay() });
-  }
-
   const { data: fechamento } = await supabase
     .from("fechamentos_mensais")
     .select("status")
@@ -165,50 +86,24 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     .maybeSingle();
   const fechado = fechamento?.status === "fechado";
 
-  // helper: a justificativa afeta assiduidade negativamente?
-  // afeta_assiduidade='sim' = conta como ocorrência (não abona)
-  // afeta_assiduidade='nao' = não afeta (abona)
-  // afeta_assiduidade='configuravel' = segue abona_ocorrencia do tipo
-  const abonaPorJust = (justs: JA[] | undefined): boolean => {
-    if (!justs?.length) return false;
-    return justs.some((j) => {
-    const t = j.justificativas_tipos;
-    if (!t) return false;
-    if (t.afeta_assiduidade === "nao") return true;
-    if (t.afeta_assiduidade === "sim") return false;
-    return t.abona_ocorrencia === true;
-    });
-  };
-
-  const calculos: CalculoBeneficio[] = (funcs ?? []).map((f) => {
-    const regs = (registros ?? []).filter((r) => r.funcionario_id === f.id);
-    const justMap = justPorFunc.get(f.id) ?? new Map<string, JA[]>();
-    const faltasManualSet = faltasManualPorFunc.get(f.id) ?? new Set<string>();
-
-    // atraso ignora dias abonados por justificativa
-    const regsConsiderados = regs.filter((r) => !abonaPorJust(justMap.get(r.data_referencia)));
-    const totalAtraso = regsConsiderados.reduce((s, r) => s + (r.atraso_minutos || 0), 0);
-    const diasComAtraso = new Set(regsConsiderados.filter((r) => (r.atraso_minutos || 0) > 0).map((r) => r.data_referencia)).size;
-
-    const jornadaId = jornadaPorFunc.get(f.id);
-    const diasUteis = jornadaId ? diasPorJornada.get(jornadaId) ?? new Map<number, JornadaDiaBenef>() : new Map<number, JornadaDiaBenef>();
-    const datasComEntrada = new Set(
-      regs.filter((r) => r.tipo_ponto === "entrada").map((r) => r.data_referencia),
-    );
+  // Calcula faltas/atrasos usando exatamente a mesma lógica do cartão de ponto,
+  // para garantir consistência com o que o colaborador e o gestor enxergam lá.
+  const calculos: CalculoBeneficio[] = [];
+  for (const f of funcs ?? []) {
+    let totalAtraso = 0;
+    let diasComAtraso = 0;
     let faltas = 0;
-    if (jornadaId) {
-      for (const { iso, dow } of todasDatas) {
-        const diaJornada = diasUteis.get(dow);
-        if (!diaJornada?.trabalha) continue;
-        if (!faltasManualSet.has(iso) && datasComEntrada.has(iso)) continue;
-        // se há justificativa que abona, não conta falta
-        if (abonaPorJust(justMap.get(iso))) continue;
-        faltas++;
-      }
+    try {
+      const cartao = await carregarCartao(f.id, ano, mes);
+      totalAtraso = cartao.totalAtraso;
+      diasComAtraso = cartao.dias.filter((d) => d.atrasoMinutos > 0).length;
+      faltas = cartao.totalFaltas;
+    } catch {
+      // Se falhar (ex.: sem jornada), assume zero para não bloquear o cálculo
     }
 
     const aval = avaliarDireito(beneficio, totalAtraso, faltas);
-    return {
+    calculos.push({
       funcionario_id: f.id,
       total_atraso_minutos: totalAtraso,
       dias_com_atraso: diasComAtraso,
@@ -218,8 +113,9 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
       status: fechado ? "bloqueado" : aval.status,
       motivo_perda: aval.motivo,
       valor_estimado: aval.valor,
-    };
-  });
+    });
+  }
+
 
   if (calculos.length === 0) return { atualizados: 0 };
 
