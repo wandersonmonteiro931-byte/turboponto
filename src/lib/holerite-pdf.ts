@@ -57,9 +57,9 @@ const fmtNum = (v: number | null | undefined, dec = 2): string => {
 const fmtHoras = (v: number | null | undefined): string => {
   if (v == null || v === 0) return "";
   const sinal = v < 0 ? "-" : "";
-  const abs = Math.abs(v);
-  const horas = Math.floor(abs);
-  const minutos = Math.round((abs - horas) * 60);
+  const totalMinutos = Math.round(Math.abs(v) * 60);
+  const horas = Math.floor(totalMinutos / 60);
+  const minutos = totalMinutos % 60;
   return `${sinal}${horas}h${String(minutos).padStart(2, "0")}`;
 };
 const fmtData = (d?: string | null): string => {
