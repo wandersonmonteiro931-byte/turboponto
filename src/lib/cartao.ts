@@ -52,6 +52,8 @@ export type DiaCartao = {
   justificativa: JustificativaAplicadaDia | null;
   justificativas: JustificativaAplicadaDia[];
   bancoHorasMinutos: number; // positivo = crédito, negativo = débito
+  jornadaCodigo: string | null;
+  jornadaNome: string | null;
 };
 
 export type ResumoCartao = {
