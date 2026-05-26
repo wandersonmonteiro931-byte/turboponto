@@ -114,7 +114,7 @@ function CartaoEmpresaPage() {
     setLoading(false);
   };
 
-  useEffect(() => { if (funcId) carregar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [funcId, ano, mes]);
+  useEffect(() => { limparSel(); if (funcId) carregar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [funcId, ano, mes]);
 
   const persistir = async (status: "aberto" | "fechado" | "liberado") => {
     if (!empresaId || !resumo || !funcId) return;
