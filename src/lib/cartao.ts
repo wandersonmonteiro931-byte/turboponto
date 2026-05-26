@@ -216,6 +216,8 @@ export async function carregarCartao(
     const dow = d.getDay();
     const escolha = escolherJornadaParaData(vinculos, data);
     const jd = escolha?.dia ?? null;
+    const jornadaCodigo = escolha?.vinculo.codigo ?? null;
+    const jornadaNome = escolha?.vinculo.nome ?? null;
     let trabalha = !!jd?.trabalha;
 
 
