@@ -587,7 +587,7 @@ function EditorDialog({
                   try {
                     const out = await engineRecalcular(
                       { empresaId, funcionarioId: funcId, ano, mes },
-                      lancamentos,
+                      lancamentos.map((l) => ({ ...l, qtde: l.qtde ?? null, provento: l.provento ?? 0, desconto: l.desconto ?? 0, resultado: l.resultado ?? 0 })),
                     );
                     setLancamentos(out.linhas.map((l) => ({
                       _k: l._k, id: l.id, codigo: l.codigo, descricao: l.descricao,
