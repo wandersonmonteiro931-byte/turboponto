@@ -1,28 +1,58 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type TipoCalculo =
-  | "manual"
-  | "valor_fixo"
-  | "percentual_salario"
-  | "salario_base"
-  | "salario_dias_trabalhados"
-  | "horas_extras_50"
-  | "horas_extras_100"
-  | "atrasos"
-  | "faltas_dias"
-  | "dsr_faltas";
+  | "manual" | "valor_fixo" | "percentual_salario" | "salario_base" | "salario_dias_trabalhados"
+  | "horas_trabalhadas"
+  | "horas_extras_50" | "horas_extras_60" | "horas_extras_70" | "horas_extras_80" | "horas_extras_100"
+  | "dsr_he" | "adicional_noturno" | "dsr_adicional_noturno"
+  | "valor_diario" | "valor_hora"
+  | "pct_salario_base" | "pct_salario_bruto" | "pct_base_configurada"
+  | "vt_automatico" | "inss_automatico" | "fgts_automatico" | "irrf_automatico"
+  | "faltas_auto" | "atrasos_auto" | "saida_antecipada_auto"
+  | "bh_negativo" | "bh_positivo_pago" | "adto_quinzenal_auto"
+  | "cesta_basica_auto" | "vale_alimentacao_auto" | "vale_refeicao_auto" | "salario_familia_auto"
+  | "relatorio_ponto" | "resultado_auto"
+  | "atrasos" | "faltas_dias" | "dsr_faltas";
 
 export const TIPO_CALCULO_OPCOES: Array<{ value: TipoCalculo; label: string; help: string }> = [
   { value: "manual", label: "Manual", help: "Qtde e valor digitados manualmente." },
-  { value: "valor_fixo", label: "Valor fixo", help: "Usa o valor de referência. Qtde = 1." },
-  { value: "percentual_salario", label: "% do salário", help: "Valor = salário × (referência / 100)." },
-  { value: "salario_base", label: "Salário base (30 dias cheios)", help: "Valor = salário contratual. Qtde = 30. Ignora cartão de ponto." },
-  { value: "salario_dias_trabalhados", label: "Salário proporcional (dias de vínculo)", help: "Qtde = dias corridos de vínculo dentro da competência (considera admissão/desligamento). Valor = (salário/30) × dias. Faltas/atrasos NÃO reduzem esta rubrica." },
-  { value: "horas_extras_50", label: "Horas extras 50%", help: "Qtde = horas extras do mês (cartão). Valor = (salário/220) × 1,5 × horas." },
-  { value: "horas_extras_100", label: "Horas extras 100%", help: "Qtde = horas extras do mês × 2. Valor = (salário/220) × 2 × horas." },
-  { value: "atrasos", label: "Atrasos (horas)", help: "Qtde = horas de atraso no mês. Valor = (salário/220) × horas." },
-  { value: "faltas_dias", label: "Faltas (dias)", help: "Qtde = nº de faltas. Valor = (salário/30) × dias." },
-  { value: "dsr_faltas", label: "DSR sobre faltas", help: "Qtde = dias de DSR perdidos. Valor = (salário/30) × dias." },
+  { value: "valor_fixo", label: "Valor fixo mensal", help: "Usa o valor de referência. Qtde = 1." },
+  { value: "valor_diario", label: "Valor diário", help: "Valor de referência × dias." },
+  { value: "valor_hora", label: "Valor por hora", help: "Valor de referência × horas." },
+  { value: "percentual_salario", label: "% do salário (genérico)", help: "Valor = salário × (referência / 100)." },
+  { value: "pct_salario_base", label: "% do salário base", help: "% sobre salário base." },
+  { value: "pct_salario_bruto", label: "% do salário bruto", help: "% sobre salário bruto do mês." },
+  { value: "pct_base_configurada", label: "% sobre base configurada", help: "% sobre base específica (insalubridade etc.)." },
+  { value: "salario_base", label: "Salário mensal integral", help: "Salário contratual cheio. Qtde = 30." },
+  { value: "salario_dias_trabalhados", label: "Salário proporcional (dias de vínculo)", help: "Salário/30 × dias de vínculo no período." },
+  { value: "horas_trabalhadas", label: "Horas trabalhadas", help: "Valor hora × horas efetivamente trabalhadas." },
+  { value: "horas_extras_50", label: "Horas extras 50%", help: "HE × valor hora × 1,5." },
+  { value: "horas_extras_60", label: "Horas extras 60%", help: "HE × valor hora × 1,6." },
+  { value: "horas_extras_70", label: "Horas extras 70%", help: "HE × valor hora × 1,7." },
+  { value: "horas_extras_80", label: "Horas extras 80%", help: "HE × valor hora × 1,8." },
+  { value: "horas_extras_100", label: "Horas extras 100%", help: "HE × valor hora × 2." },
+  { value: "dsr_he", label: "DSR sobre horas extras", help: "Reflexo do DSR sobre HE pagas." },
+  { value: "adicional_noturno", label: "Adicional noturno", help: "Horas noturnas × valor hora × adicional." },
+  { value: "dsr_adicional_noturno", label: "DSR sobre adicional noturno", help: "Reflexo do DSR sobre adicional noturno." },
+  { value: "vt_automatico", label: "Vale-transporte automático", help: "Menor entre VT concedido e 6% do salário base proporcional." },
+  { value: "inss_automatico", label: "INSS automático", help: "Tabela progressiva sobre soma de itens com incidência INSS." },
+  { value: "fgts_automatico", label: "FGTS automático", help: "Base FGTS × 8%. Informativo, não desconta líquido." },
+  { value: "irrf_automatico", label: "IRRF automático", help: "Tabela progressiva sobre base tributável − INSS − dependentes." },
+  { value: "faltas_auto", label: "Faltas injustificadas (automático)", help: "Salário/30 × faltas do mês." },
+  { value: "atrasos_auto", label: "Atrasos (automático)", help: "Valor hora × tempo de atraso." },
+  { value: "saida_antecipada_auto", label: "Saída antecipada (automático)", help: "Valor hora × tempo de saída antecipada." },
+  { value: "bh_negativo", label: "Banco de horas negativo (desconto)", help: "Horas negativas autorizadas × valor hora." },
+  { value: "bh_positivo_pago", label: "Banco de horas positivo pago", help: "Horas positivas pagas × valor hora × adicional." },
+  { value: "adto_quinzenal_auto", label: "Adiantamento quinzenal automático", help: "% do salário proporcional do mês." },
+  { value: "cesta_basica_auto", label: "Cesta básica (assiduidade)", help: "Concedida conforme regra de assiduidade." },
+  { value: "vale_alimentacao_auto", label: "Vale-alimentação automático", help: "Valor diário × dias trabalhados." },
+  { value: "vale_refeicao_auto", label: "Vale-refeição automático", help: "Valor diário × dias trabalhados." },
+  { value: "salario_familia_auto", label: "Salário-família automático", help: "Tabela × dependentes elegíveis." },
+  { value: "relatorio_ponto", label: "Relatório do ponto", help: "Reflete dados do cartão de ponto." },
+  { value: "resultado_auto", label: "Resultado calculado pelo sistema", help: "Calculado a partir de outros itens." },
+  { value: "atrasos", label: "(legado) Atrasos", help: "Compatibilidade — prefira Atrasos (automático)." },
+  { value: "faltas_dias", label: "(legado) Faltas (dias)", help: "Compatibilidade — prefira Faltas (automático)." },
+  { value: "dsr_faltas", label: "(legado) DSR sobre faltas", help: "Compatibilidade." },
 ];
 
 export type CalcContext = {
