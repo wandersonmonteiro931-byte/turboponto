@@ -76,22 +76,25 @@ async function totalFaltasMes(funcionarioId: string, ano: number, mes: number): 
 }
 
 async function diasTrabalhadosCartao(funcionarioId: string, ano: number, mes: number): Promise<number> {
-  const { carregarCartao } = await import("@/lib/cartao");
-  const resumo = await carregarCartao(funcionarioId, ano, mes);
   const diasMes = new Date(ano, mes, 0).getDate();
   const mesIni = new Date(ano, mes - 1, 1);
   const mesFim = new Date(ano, mes - 1, diasMes);
-  const adm = resumo.dataAdmissao ? new Date(resumo.dataAdmissao + "T00:00:00") : null;
-  const des = resumo.dataDesligamento ? new Date(resumo.dataDesligamento + "T00:00:00") : null;
+  const { data: func } = await supabase
+    .from("funcionarios")
+    .select("data_admissao,data_desligamento")
+    .eq("id", funcionarioId)
+    .maybeSingle();
+  const adm = func?.data_admissao ? new Date(func.data_admissao + "T00:00:00") : null;
+  const des = func?.data_desligamento ? new Date(func.data_desligamento + "T00:00:00") : null;
   const ini = adm && adm > mesIni ? adm : mesIni;
   const fim = des && des < mesFim ? des : mesFim;
   if (fim < ini) return 0;
-  const diasPeriodo = Math.round((fim.getTime() - ini.getTime()) / 86400000) + 1;
-  const considerados = Math.max(0, diasPeriodo - (resumo.totalFaltas || 0));
-  // Proporcional sobre base 30 (CLT)
-  const dias = (considerados * 30) / diasMes;
-  return Math.round(dias * 100) / 100;
+  const diasVinculo = Math.round((fim.getTime() - ini.getTime()) / 86400000) + 1;
+  // Se vínculo cobre o mês inteiro, retorna 30 (base CLT); senão retorna os dias corridos de vínculo.
+  if (diasVinculo >= diasMes) return 30;
+  return diasVinculo;
 }
+
 
 export async function calcularRubrica(
   tipo: "provento" | "desconto",
