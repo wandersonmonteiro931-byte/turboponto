@@ -91,10 +91,12 @@ function CartaoFuncPage() {
           intervalo_retorno: ref?.horario_intervalo_retorno?.slice(0, 5) ?? null,
         };
       }
+      const vincs = await carregarVinculosAtivos(funcionario.id);
       const doc = gerarPdfCartao({
         empresa: emp,
         funcionario,
         jornada,
+        jornadas: vincs,
         ano, mes, resumo: resumoAtual,
         status: cartao?.status ?? "aberto",
       });
