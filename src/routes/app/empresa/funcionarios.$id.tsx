@@ -211,6 +211,23 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
 
   const ativos = vinculos.filter((v) => v.ativo);
 
+  const vincular = async () => {
+    if (!jornadaId) return toast.error("Selecione uma jornada");
+    setLoading(true);
+    try {
+      const { ativarVinculo } = await import("@/lib/jornadas");
+      await ativarVinculo(funcionarioId, jornadaId, dataInicio);
+      toast.success("Jornada vinculada");
+      setJornadaId("");
+      reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const encerrarVinculo = async (id: string) => {
     const dataFim = new Date().toISOString().slice(0, 10);
     const { error } = await (supabase.from("funcionarios_jornadas") as never as {
