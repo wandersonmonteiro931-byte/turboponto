@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
 import { CheckCircle2, Download, Plus, Trash2, Pencil } from "lucide-react";
-import { gerarHoleritePdf, type HolerLancamento } from "@/lib/holerite-pdf";
+import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 
 export const Route = createFileRoute("/app/empresa/holerites")({
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/app/empresa/holerites")({
 
 type Func = {
   id: string; nome: string; cargo: string | null; cpf: string | null;
+  rg: string | null; endereco: string | null;
   data_admissao: string | null; salario: number | null;
   banco_agencia: string | null; conta: string | null; lotacao: string | null;
   num_dep_irrf: number | null; num_dep_sal_fam: number | null;
@@ -62,7 +63,7 @@ function HoleritesPage() {
 
   useEffect(() => {
     if (!empresaId) return;
-    void supabase.from("funcionarios").select("id,nome,cargo,cpf,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula")
+    void supabase.from("funcionarios").select("id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula")
       .eq("empresa_id", empresaId).eq("status", "ativo").order("nome")
       .then(({ data }) => setFuncs((data ?? []) as Func[]));
   }, [empresaId]);
@@ -420,7 +421,8 @@ function EditorDialog({
     setSalvando(true);
     try {
       const { data: emp } = await supabase.from("empresas")
-        .select("nome_fantasia,razao_social,cnpj,endereco").eq("id", empresaId).maybeSingle();
+        .select("nome_fantasia,razao_social,cnpj,endereco,logo_url").eq("id", empresaId).maybeSingle();
+      const logoDataUrl = await carregarLogoComoDataUrl(emp?.logo_url ?? null);
 
       const now = new Date().toISOString();
       const { data: u } = await supabase.auth.getUser();
@@ -492,9 +494,11 @@ function EditorDialog({
           nome_fantasia: emp?.nome_fantasia ?? "",
           razao_social: emp?.razao_social,
           cnpj: emp?.cnpj, endereco: emp?.endereco,
+          logoDataUrl,
         },
         {
-          nome: f.nome, cpf: f.cpf, cargo: f.cargo,
+          nome: f.nome, cpf: f.cpf, rg: f.rg, endereco: f.endereco,
+          cargo: f.cargo,
           data_admissao: f.data_admissao, matricula: f.matricula,
         },
         {
