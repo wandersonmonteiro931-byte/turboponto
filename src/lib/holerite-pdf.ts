@@ -12,6 +12,7 @@ export type HolerFuncionario = {
   cpf?: string | null;
   cargo?: string | null;
   data_admissao?: string | null;
+  matricula?: string | null;
 };
 
 export type HolerLancamento = {
@@ -104,19 +105,21 @@ export function gerarHoleritePdf(
   doc.text("CNPJ:", W - M - 35, y + 2.8);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text(empresa.razao_social || empresa.nome_fantasia, M + 1, y + 6.8);
+  doc.text((empresa.nome_fantasia || empresa.razao_social || "").toUpperCase(), M + 1, y + 6.8);
   doc.text(empresa.cnpj || "", W - M - 35, y + 6.8);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   y += 8;
 
-  // Nome funcionário
+  // Matrícula + Nome funcionário + CPF
   doc.rect(M, y, W - 2 * M, 8);
-  doc.text("Nome:", M + 1, y + 2.8);
+  doc.text("Matrícula:", M + 1, y + 2.8);
+  doc.text("Nome:", M + 26, y + 2.8);
   doc.text("CPF:", W - M - 35, y + 2.8);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text(funcionario.nome, M + 1, y + 6.8);
+  doc.text(funcionario.matricula || "—", M + 1, y + 6.8);
+  doc.text(funcionario.nome, M + 26, y + 6.8);
   doc.text(funcionario.cpf || "", W - M - 35, y + 6.8);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);

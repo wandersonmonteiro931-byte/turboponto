@@ -54,6 +54,7 @@ function FuncionarioDetail() {
       lotacao: f.lotacao || null,
       num_dep_irrf: Number(f.num_dep_irrf ?? 0),
       num_dep_sal_fam: Number(f.num_dep_sal_fam ?? 0),
+      matricula: f.matricula || null,
     };
     const { error } = await supabase.from("funcionarios").update(payload as never).eq("id", id);
     setSaving(false);
@@ -97,7 +98,7 @@ function FuncionarioDetail() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-bold">{v("nome")}</h2>
-            <p className="text-sm text-muted-foreground">{v("cargo") || "—"}</p>
+            <p className="text-sm text-muted-foreground">{v("cargo") || "—"}{v("matricula") ? ` · Matrícula ${v("matricula")}` : ""}</p>
             <p className="text-xs text-muted-foreground capitalize mt-1">Status: {v("status")}</p>
           </div>
           {isAdmin && (
@@ -124,6 +125,7 @@ function FuncionarioDetail() {
           <Card>
             <CardContent className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
               <Fld label="Nome"><Input value={v("nome")} onChange={(e) => upd("nome", e.target.value)} disabled={!isAdmin} /></Fld>
+              <Fld label="Matrícula"><Input value={v("matricula")} onChange={(e) => upd("matricula", e.target.value)} placeholder="Ex: 0001" disabled={!isAdmin} /></Fld>
               <Fld label="CPF"><Input value={v("cpf")} onChange={(e) => upd("cpf", e.target.value)} disabled={!isAdmin} /></Fld>
               <Fld label="RG"><Input value={v("rg")} onChange={(e) => upd("rg", e.target.value)} disabled={!isAdmin} /></Fld>
               <Fld label="Data de nascimento"><Input type="date" value={v("data_nascimento")} onChange={(e) => upd("data_nascimento", e.target.value)} disabled={!isAdmin} /></Fld>

@@ -30,6 +30,7 @@ type Funcionario = {
   status: string;
   foto_url: string | null;
   usuario_id: string | null;
+  matricula: string | null;
 };
 
 const statusColor: Record<string, string> = {
@@ -52,7 +53,7 @@ function FuncionariosPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("funcionarios")
-      .select("id,nome,cpf,email,cargo,status,foto_url,usuario_id")
+      .select("id,nome,cpf,email,cargo,status,foto_url,usuario_id,matricula")
       .eq("empresa_id", empresaId)
       .order("nome");
     if (error) toast.error(error.message);
@@ -70,7 +71,8 @@ function FuncionariosPage() {
       return (
         f.nome.toLowerCase().includes(s) ||
         (f.cpf ?? "").toLowerCase().includes(s) ||
-        (f.cargo ?? "").toLowerCase().includes(s)
+        (f.cargo ?? "").toLowerCase().includes(s) ||
+        (f.matricula ?? "").toLowerCase().includes(s)
       );
     });
   }, [list, search, statusFilter]);
@@ -105,7 +107,7 @@ function FuncionariosPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Buscar por nome, CPF ou cargo" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Buscar por nome, matrícula, CPF ou cargo" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -147,7 +149,7 @@ function FuncionariosPage() {
                       {f.foto_url ? <img src={f.foto_url} className="h-full w-full object-cover" /> : <UserCircle2 className="h-6 w-6 text-muted-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{f.nome}</div>
+                      <div className="font-medium truncate">{f.nome}{f.matricula ? <span className="ml-2 text-xs text-muted-foreground font-mono">#{f.matricula}</span> : null}</div>
                       <div className="text-xs text-muted-foreground truncate">{f.cargo ?? "—"} · {f.email ?? f.cpf ?? "—"}</div>
                     </div>
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${statusColor[f.status] ?? "bg-muted"}`}>{f.status}</span>

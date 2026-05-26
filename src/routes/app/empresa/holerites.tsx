@@ -28,6 +28,7 @@ type Func = {
   data_admissao: string | null; salario: number | null;
   banco_agencia: string | null; conta: string | null; lotacao: string | null;
   num_dep_irrf: number | null; num_dep_sal_fam: number | null;
+  matricula: string | null;
 };
 type Holerite = {
   id: string;
@@ -61,7 +62,7 @@ function HoleritesPage() {
 
   useEffect(() => {
     if (!empresaId) return;
-    void supabase.from("funcionarios").select("id,nome,cargo,cpf,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam")
+    void supabase.from("funcionarios").select("id,nome,cargo,cpf,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula")
       .eq("empresa_id", empresaId).eq("status", "ativo").order("nome")
       .then(({ data }) => setFuncs((data ?? []) as Func[]));
   }, [empresaId]);
@@ -494,7 +495,7 @@ function EditorDialog({
         },
         {
           nome: f.nome, cpf: f.cpf, cargo: f.cargo,
-          data_admissao: f.data_admissao,
+          data_admissao: f.data_admissao, matricula: f.matricula,
         },
         {
           folha_tipo: folhaTipo,
