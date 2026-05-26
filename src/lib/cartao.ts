@@ -372,8 +372,10 @@ export async function carregarCartao(
     // Aplica regras das justificativas, mas mantém todas registradas para exibição no PDF
     const justificativas = justPorDia.get(data) ?? [];
     const just = justificativas[0] ?? null;
-    const temHoraExtraPagar = justificativas.some((j) => j.tipo.codigo === "HE_PAGAR");
+    const justHoraExtraPagar = justificativas.find((j) => j.tipo.codigo === "HE_PAGAR");
+    const temHoraExtraPagar = !!justHoraExtraPagar;
     const justHoraExtraCredito = justificativas.find((j) => j.tipo.codigo === "HE_CREDITO");
+    const temCreditoManualBH = justificativas.some((j) => j.tipo.movimenta_banco_horas === "credito");
     const faltaComDescontoAplicada = justificativas.some(
       (j) => j.tipo.categoria === "falta" && j.tipo.desconta_salario,
     );
@@ -409,6 +411,7 @@ export async function carregarCartao(
         const minutosCredito = just.quantidadeMinutos ?? (!trabalha ? trabalhado : extras);
         bancoHorasMin += Math.max(0, minutosCredito);
       } else if (t.movimenta_banco_horas === "debito") {
+        if (!trabalha) continue;
         if (t.categoria === "falta" && t.desconta_salario) continue;
         const minutosDebito = just.quantidadeMinutos ?? (cargaProg > 0 ? cargaProg : atraso);
         bancoHorasMin -= Math.max(0, minutosDebito);
@@ -422,8 +425,19 @@ export async function carregarCartao(
     // Toda hora extra (após +10 min) vira crédito automaticamente,
     // exceto quando o admin marca HORA EXTRA - PAGAR.
     if (!temHoraExtraPagar) {
-      const minutosCreditoHE = justHoraExtraCredito?.quantidadeMinutos ?? creditoHoraExtra;
+      const minutosCreditoHE =
+        justHoraExtraCredito?.quantidadeMinutos ?? (!trabalha && justHoraExtraCredito ? trabalhado : creditoHoraExtra);
       bancoHorasMin += Math.max(0, minutosCreditoHE);
+    }
+
+    // Trabalho em dia de folga nunca pode virar débito. Se não for marcado como
+    // HORA EXTRA - PAGAR, entra como crédito de banco de horas pelo período trabalhado.
+    if (!trabalha && trabalhado > 0) {
+      if (justHoraExtraPagar) {
+        extras = Math.max(extras, justHoraExtraPagar.quantidadeMinutos ?? trabalhado);
+      } else if (!temCreditoManualBH && !justHoraExtraCredito) {
+        bancoHorasMin += trabalhado;
+      }
     }
 
     // Crédito automático por entrada antecipada (sempre crédito, independe de HE_PAGAR).
