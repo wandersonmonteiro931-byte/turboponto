@@ -59,20 +59,28 @@ function FuncionarioHome() {
       const { data: func } = await supabase
         .from("funcionarios").select("id").eq("usuario_id", userId).maybeSingle();
       if (!func) { setCarregou(true); return; }
-      const { data: vinc } = await supabase
-        .from("funcionarios_jornadas")
-        .select("jornada_id, jornadas(id,nome,descricao,horario_entrada,horario_intervalo_saida,horario_intervalo_retorno,horario_saida,tolerancia_atraso_minutos)")
-        .eq("funcionario_id", (func as { id: string }).id)
-        .eq("ativo", true)
-        .maybeSingle();
-      const j = (vinc as { jornadas: JornadaAtual | null } | null)?.jornadas ?? null;
-      setJornada(j);
-      if (j) {
-        const { data: ds } = await supabase
-          .from("jornadas_dias").select("*").eq("jornada_id", j.id).order("dia_semana");
-        setDias((ds ?? []) as JornadaDia[]);
+      const { carregarVinculosAtivos, escolherJornadaParaData } = await import("@/lib/jornadas");
+      const vincs = await carregarVinculosAtivos((func as { id: string }).id);
+      const hojeISOstr = hojeISO();
+      const escolha = escolherJornadaParaData(vincs, hojeISOstr);
+      if (escolha) {
+        setJornada({
+          id: escolha.vinculo.jornadaId,
+          nome: escolha.vinculo.nome,
+          descricao: null,
+          horario_entrada: escolha.dia?.horario_entrada ?? null,
+          horario_intervalo_saida: escolha.dia?.horario_intervalo_saida ?? null,
+          horario_intervalo_retorno: escolha.dia?.horario_intervalo_retorno ?? null,
+          horario_saida: escolha.dia?.horario_saida ?? null,
+          tolerancia_atraso_minutos: escolha.vinculo.tolerancia_atraso_minutos,
+        });
+        setDias(escolha.vinculo.dias);
+      } else {
+        setJornada(null);
+        setDias([]);
       }
       setCarregou(true);
+
 
       const funcId = (func as { id: string }).id;
       const hoje = new Date();
