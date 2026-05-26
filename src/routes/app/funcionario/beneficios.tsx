@@ -38,7 +38,7 @@ function MeusBeneficios() {
   const { user } = useAuth();
   const [funcId, setFuncId] = useState<string | null>(null);
   const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
-  const [calcAtual, setCalcAtual] = useState<Calc | null>(null);
+  const [calculos, setCalculos] = useState<Record<string, Calc | null>>({});
   const [historico, setHistorico] = useState<Entrega[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,110 +52,56 @@ function MeusBeneficios() {
       const { data: f } = await supabase.from("funcionarios").select("id,empresa_id").eq("usuario_id", user.id).maybeSingle();
       if (!f) { setLoading(false); return; }
       setFuncId(f.id);
-      const { data: bens } = await supabase.from("beneficios").select("*").eq("empresa_id", f.empresa_id).eq("status", "ativo");
-      const cesta = (bens ?? []).find((b) => b.tipo === "cesta_basica") ?? bens?.[0];
-      setBeneficios((bens ?? []) as Beneficio[]);
+      const { data: bens } = await supabase.from("beneficios").select("*").eq("empresa_id", f.empresa_id).eq("status", "ativo").order("created_at");
+      const lista = (bens ?? []) as Beneficio[];
+      setBeneficios(lista);
 
-      if (cesta) {
-        const { data: c } = await supabase.from("beneficios_calculos")
-          .select("*").eq("funcionario_id", f.id).eq("beneficio_id", cesta.id)
-          .eq("mes_referencia", mes).eq("ano_referencia", ano).maybeSingle();
-        setCalcAtual(c as Calc | null);
+      if (lista.length > 0) {
+        const { data: cs } = await supabase.from("beneficios_calculos")
+          .select("*").eq("funcionario_id", f.id)
+          .in("beneficio_id", lista.map((b) => b.id))
+          .eq("mes_referencia", mes).eq("ano_referencia", ano);
+        const map: Record<string, Calc | null> = {};
+        for (const b of lista) map[b.id] = ((cs ?? []) as Calc[]).find((c) => c.beneficio_id === b.id) ?? null;
+        setCalculos(map);
 
         const { data: ent } = await supabase.from("beneficios_entregas")
           .select("id,beneficio_id,mes_referencia,ano_referencia,data_entrega,valor_estimado,entregue")
           .eq("funcionario_id", f.id)
           .order("ano_referencia", { ascending: false })
           .order("mes_referencia", { ascending: false })
-          .limit(12);
+          .limit(24);
         setHistorico((ent ?? []) as Entrega[]);
       }
       setLoading(false);
     })();
   }, [user, mes, ano]);
 
-  const cesta = beneficios.find((b) => b.tipo === "cesta_basica") ?? beneficios[0];
-
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
   if (!funcId) return <p className="text-sm text-muted-foreground">Cadastro de funcionário não encontrado.</p>;
-  if (!cesta) return <p className="text-sm text-muted-foreground">Nenhum benefício cadastrado pela empresa.</p>;
-
-  const atraso = calcAtual?.total_atraso_minutos ?? 0;
-  const limite = cesta.limite_atraso_minutos;
-  const alerta = cesta.limite_alerta_minutos;
-  const pct = Math.min(100, Math.round((atraso / limite) * 100));
-  const proximo = atraso >= alerta && atraso <= limite;
-  const perdeu = atraso > limite || calcAtual?.tem_direito === false;
-  const entregue = calcAtual?.status === "entregue";
-  const liberado = calcAtual?.status === "liberado";
-
-  const mensagem = entregue
-    ? "Sua cesta básica foi marcada como entregue."
-    : liberado
-    ? "Sua cesta básica foi liberada pela empresa."
-    : perdeu
-    ? `Você perdeu o direito à cesta básica este mês porque ${calcAtual?.motivo_perda?.toLowerCase() ?? "ultrapassou o limite de atraso"}.`
-    : proximo
-    ? "Atenção: você está próximo do limite de atraso para perder a cesta básica."
-    : "Você ainda tem direito à cesta básica este mês.";
-
-  const dataPrev = new Date(ano, mes - 1, cesta.dia_entrega).toLocaleDateString("pt-BR");
+  if (beneficios.length === 0) return <p className="text-sm text-muted-foreground">Nenhum benefício cadastrado pela empresa.</p>;
 
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
         <h2 className="text-xl font-bold">Meus Benefícios</h2>
-        <p className="text-sm text-muted-foreground">Acompanhe o status da sua cesta básica por assiduidade.</p>
+        <p className="text-sm text-muted-foreground">Acompanhe o status dos seus benefícios por assiduidade.</p>
       </div>
 
-      <Card>
-        <CardContent className="p-5 space-y-4">
-          <div className="flex items-start gap-3">
-            <div className={`rounded-full p-2 ${entregue || liberado ? "bg-green-500/20 text-green-700" : perdeu ? "bg-red-500/20 text-red-700" : proximo ? "bg-amber-500/20 text-amber-700" : "bg-blue-500/20 text-blue-700"}`}>
-              {entregue || liberado ? <CheckCircle2 className="h-5 w-5" /> : perdeu ? <XCircle className="h-5 w-5" /> : proximo ? <AlertTriangle className="h-5 w-5" /> : <Gift className="h-5 w-5" />}
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-bold">{cesta.nome} — {mesNome(mes)}/{ano}</div>
-              <p className="text-sm text-muted-foreground">{mensagem}</p>
-            </div>
-            {calcAtual && (
-              <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${STATUS_BENEFICIO[calcAtual.status]?.color ?? "bg-muted"}`}>
-                {STATUS_BENEFICIO[calcAtual.status]?.label ?? calcAtual.status}
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-            <Info label="Atraso acumulado" value={`${atraso} min`} />
-            <Info label="Limite permitido" value={`${limite} min`} />
-            <Info label="Valor previsto" value={fmtBRL(perdeu ? 0 : cesta.valor_maximo)} />
-            <Info label="Data prevista" value={dataPrev} />
-          </div>
-
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Uso do limite de atraso</span>
-              <span>{atraso}/{limite} min</span>
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className={`h-full ${perdeu ? "bg-red-500" : proximo ? "bg-amber-500" : "bg-green-500"}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {beneficios.map((b) => (
+        <BeneficioCard key={b.id} beneficio={b} calc={calculos[b.id] ?? null} mes={mes} ano={ano} />
+      ))}
 
       <Card>
         <CardContent className="p-4">
-          <h3 className="font-semibold mb-3">Histórico</h3>
+          <h3 className="font-semibold mb-3">Histórico de entregas</h3>
           {historico.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma entrega registrada ainda.</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
                 <tr>
+                  <th className="text-left p-2">Benefício</th>
                   <th className="text-left p-2">Mês</th>
                   <th className="text-left p-2">Data entrega</th>
                   <th className="text-left p-2">Valor</th>
@@ -163,20 +109,90 @@ function MeusBeneficios() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {historico.map((e) => (
-                  <tr key={e.id}>
-                    <td className="p-2">{mesNome(e.mes_referencia)}/{e.ano_referencia}</td>
-                    <td className="p-2">{e.data_entrega ? new Date(e.data_entrega + "T00:00").toLocaleDateString("pt-BR") : "—"}</td>
-                    <td className="p-2 font-mono">{fmtBRL(e.valor_estimado)}</td>
-                    <td className="p-2">{e.entregue ? "Entregue" : "Pendente"}</td>
-                  </tr>
-                ))}
+                {historico.map((e) => {
+                  const ben = beneficios.find((x) => x.id === e.beneficio_id);
+                  return (
+                    <tr key={e.id}>
+                      <td className="p-2">{ben?.nome ?? "—"}</td>
+                      <td className="p-2">{mesNome(e.mes_referencia)}/{e.ano_referencia}</td>
+                      <td className="p-2">{e.data_entrega ? new Date(e.data_entrega + "T00:00").toLocaleDateString("pt-BR") : "—"}</td>
+                      <td className="p-2 font-mono">{fmtBRL(e.valor_estimado)}</td>
+                      <td className="p-2">{e.entregue ? "Entregue" : "Pendente"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function BeneficioCard({ beneficio, calc, mes, ano }: { beneficio: Beneficio; calc: Calc | null; mes: number; ano: number }) {
+  const atraso = calc?.total_atraso_minutos ?? 0;
+  const limite = beneficio.limite_atraso_minutos;
+  const alerta = beneficio.limite_alerta_minutos;
+  const pct = Math.min(100, Math.round((atraso / Math.max(limite, 1)) * 100));
+  const proximo = atraso >= alerta && atraso <= limite;
+  const perdeu = atraso > limite || calc?.tem_direito === false;
+  const entregue = calc?.status === "entregue";
+  const liberado = calc?.status === "liberado";
+
+  const mensagem = !calc
+    ? "Aguardando cálculo do mês."
+    : entregue
+    ? `${beneficio.nome} marcado como entregue.`
+    : liberado
+    ? `${beneficio.nome} liberado pela empresa.`
+    : perdeu
+    ? `Você perdeu o direito a este benefício porque ${calc?.motivo_perda?.toLowerCase() ?? "ultrapassou o limite de atraso"}.`
+    : proximo
+    ? "Atenção: você está próximo do limite de atraso."
+    : "Você ainda tem direito a este benefício este mês.";
+
+  const dataPrev = new Date(ano, mes - 1, beneficio.dia_entrega).toLocaleDateString("pt-BR");
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className={`rounded-full p-2 ${entregue || liberado ? "bg-green-500/20 text-green-700" : perdeu ? "bg-red-500/20 text-red-700" : proximo ? "bg-amber-500/20 text-amber-700" : "bg-blue-500/20 text-blue-700"}`}>
+            {entregue || liberado ? <CheckCircle2 className="h-5 w-5" /> : perdeu ? <XCircle className="h-5 w-5" /> : proximo ? <AlertTriangle className="h-5 w-5" /> : <Gift className="h-5 w-5" />}
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-bold">{beneficio.nome} — {mesNome(mes)}/{ano}</div>
+            <p className="text-sm text-muted-foreground">{mensagem}</p>
+          </div>
+          {calc && (
+            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${STATUS_BENEFICIO[calc.status]?.color ?? "bg-muted"}`}>
+              {STATUS_BENEFICIO[calc.status]?.label ?? calc.status}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <Info label="Atraso acumulado" value={`${atraso} min`} />
+          <Info label="Limite permitido" value={`${limite} min`} />
+          <Info label="Valor previsto" value={fmtBRL(perdeu ? 0 : beneficio.valor_maximo)} />
+          <Info label="Data prevista" value={dataPrev} />
+        </div>
+
+        <div>
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>Uso do limite de atraso</span>
+            <span>{atraso}/{limite} min</span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full ${perdeu ? "bg-red-500" : proximo ? "bg-amber-500" : "bg-green-500"}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
