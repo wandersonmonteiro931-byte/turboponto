@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { recalcularMes as recalcularBeneficioMes, type Beneficio } from "@/lib/beneficios";
 
 // Motor de cálculo automático da folha.
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
