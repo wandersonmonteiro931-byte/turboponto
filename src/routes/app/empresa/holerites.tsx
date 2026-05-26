@@ -369,6 +369,11 @@ function EditorDialog({
     const f = funcs.find((x) => x.id === funcId);
     if (!f) return;
     setSalarioContratual(Number(f.salario ?? 0));
+    setBancoAg(f.banco_agencia ?? "");
+    setConta(f.conta ?? "");
+    setLotacao(f.lotacao ?? "");
+    setNumDepIrrf(Number(f.num_dep_irrf ?? 0));
+    setNumDepSalFam(Number(f.num_dep_sal_fam ?? 0));
   }, [funcId, funcs, holeriteId]);
 
   const totalProv = useMemo(() => lancamentos.reduce((s, l) => s + Number(l.provento || 0), 0), [lancamentos]);
