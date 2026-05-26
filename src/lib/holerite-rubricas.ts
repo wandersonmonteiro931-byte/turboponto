@@ -5,6 +5,7 @@ export type TipoCalculo =
   | "valor_fixo"
   | "percentual_salario"
   | "salario_base"
+  | "salario_dias_trabalhados"
   | "horas_extras_50"
   | "horas_extras_100"
   | "atrasos"
