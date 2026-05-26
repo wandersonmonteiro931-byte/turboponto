@@ -315,7 +315,7 @@ function BeneficiosPage() {
       {beneficioAtual && (
         <Card>
           <CardContent className="p-4 grid sm:grid-cols-4 gap-3">
-            <Resumo label="Limite de atraso" value={`${beneficioAtual.limite_atraso_minutos} min`} hint={`Alerta: ${beneficioAtual.limite_alerta_minutos} min`} />
+            <Resumo label="Limite de atraso" value={fmtHorasMin(beneficioAtual.limite_atraso_minutos)} hint={`Alerta: ${fmtHorasMin(beneficioAtual.limite_alerta_minutos)}`} />
             <Resumo label="Horas apuradas" value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))} />
             <Resumo label="Data prevista" value={diaEntrega} hint={`Dia ${beneficioAtual.dia_entrega} do mês`} />
             <div className="flex items-end">
