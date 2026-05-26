@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
 import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown } from "lucide-react";
 import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
+import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
 
@@ -434,7 +435,7 @@ function EditorDialog({
     try {
       const { data: emp } = await supabase.from("empresas")
         .select("nome_fantasia,razao_social,cnpj,endereco,logo_url").eq("id", empresaId).maybeSingle();
-      const logoDataUrl = await carregarLogoComoDataUrl(emp?.logo_url ?? null);
+      const logoDataUrl = (await carregarLogoComoDataUrl(turboLogoHolerite)) ?? (await carregarLogoComoDataUrl(emp?.logo_url ?? null));
 
       const now = new Date().toISOString();
       const { data: u } = await supabase.auth.getUser();
