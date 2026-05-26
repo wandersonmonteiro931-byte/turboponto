@@ -495,7 +495,7 @@ function EditorDialog({
         },
         {
           nome: f.nome, cpf: f.cpf, cargo: f.cargo,
-          data_admissao: f.data_admissao,
+          data_admissao: f.data_admissao, matricula: f.matricula,
         },
         {
           folha_tipo: folhaTipo,
