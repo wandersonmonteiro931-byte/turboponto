@@ -157,7 +157,7 @@ function BancoHorasPage() {
                       </span>
                     </td>
                     <td className="p-2 text-xs">{m.origem}</td>
-                    <td className="p-2 text-right font-mono">{m.tipo === "credito" ? "+" : "-"}{m.minutos}m</td>
+                    <td className="p-2 text-right font-mono">{m.tipo === "credito" ? "+" : "-"}{formatSaldoMin(m.minutos).replace(/^[+-]/, "")}</td>
                     <td className={`p-2 text-right font-mono font-bold ${m.saldoApos >= 0 ? "text-green-600" : "text-red-600"}`}>
                       {formatSaldoMin(m.saldoApos)}
                     </td>
