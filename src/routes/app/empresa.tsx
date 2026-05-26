@@ -26,6 +26,7 @@ const items: NavItem[] = [
   { to: "/app/empresa/beneficios", label: "Benefícios", icon: <Gift className="h-4 w-4" /> },
   { to: "/app/empresa/holerites", label: "Holerites", icon: <FileText className="h-4 w-4" /> },
   { to: "/app/empresa/rubricas", label: "Rubricas Holerite", icon: <FileText className="h-4 w-4" /> },
+  { to: "/app/empresa/lotacoes", label: "Lotações", icon: <Building2 className="h-4 w-4" /> },
   { to: "/app/empresa/relatorios", label: "Relatórios", icon: <BarChart3 className="h-4 w-4" /> },
   { to: "/app/empresa/configuracoes", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
 ];
