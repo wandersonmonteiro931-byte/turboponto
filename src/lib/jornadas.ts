@@ -86,6 +86,7 @@ export type VinculoAtivoComDias = {
   vinculoId: string;
   jornadaId: string;
   nome: string;
+  codigo: string;
   tolerancia_atraso_minutos: number;
   data_inicio: string;
   data_fim: string | null;
@@ -95,7 +96,7 @@ export type VinculoAtivoComDias = {
 export async function carregarVinculosAtivos(funcionarioId: string): Promise<VinculoAtivoComDias[]> {
   const { data: vincs } = await supabase
     .from("funcionarios_jornadas")
-    .select("id,jornada_id,data_inicio,data_fim,jornadas(nome,tolerancia_atraso_minutos)")
+    .select("id,jornada_id,data_inicio,data_fim,jornadas(nome,codigo,tolerancia_atraso_minutos)")
     .eq("funcionario_id", funcionarioId)
     .eq("ativo", true)
     .order("data_inicio", { ascending: false });
@@ -104,7 +105,7 @@ export async function carregarVinculosAtivos(funcionarioId: string): Promise<Vin
     jornada_id: string;
     data_inicio: string;
     data_fim: string | null;
-    jornadas: { nome: string; tolerancia_atraso_minutos: number } | null;
+    jornadas: { nome: string; codigo: string | null; tolerancia_atraso_minutos: number } | null;
   }>;
   if (!rows.length) return [];
   const jornadaIds = Array.from(new Set(rows.map((r) => r.jornada_id)));
@@ -122,6 +123,7 @@ export async function carregarVinculosAtivos(funcionarioId: string): Promise<Vin
     vinculoId: r.id,
     jornadaId: r.jornada_id,
     nome: r.jornadas?.nome ?? "Jornada",
+    codigo: r.jornadas?.codigo ?? "—",
     tolerancia_atraso_minutos: r.jornadas?.tolerancia_atraso_minutos ?? 0,
     data_inicio: r.data_inicio,
     data_fim: r.data_fim,
