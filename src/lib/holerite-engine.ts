@@ -174,11 +174,27 @@ export async function recalcular(
   let minAtraso = 0;
   let numFaltas = 0;
   let saldoBHMinutos = 0;
+  let dsrPerdidos = 0;
+  const datasFalta: string[] = [];
   try {
     const cartao = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
     minHE = cartao.totalExtras;
     minAtraso = cartao.dias.reduce((s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s), 0);
     numFaltas = cartao.totalFaltas;
+    for (const d of cartao.dias) {
+      if ((d as { falta?: boolean }).falta) datasFalta.push((d as { data: string }).data);
+    }
+    // DSR perdido: 1 por semana (seg-dom) que contenha ao menos 1 falta injustificada.
+    const semanas = new Set<string>();
+    for (const data of datasFalta) {
+      const dt = new Date(data + "T00:00:00");
+      const dow = dt.getDay(); // 0=dom..6=sab
+      const diffToMonday = (dow + 6) % 7;
+      const monday = new Date(dt);
+      monday.setDate(dt.getDate() - diffToMonday);
+      semanas.add(monday.toISOString().slice(0, 10));
+    }
+    dsrPerdidos = semanas.size;
     saldoBHMinutos = cartao.totalBancoHoras;
   } catch (e) {
     console.warn("[holerite] falha ao carregar cartão de ponto; usando fallback", e);
@@ -307,6 +323,10 @@ export async function recalcular(
     const r = porCodigo.get("07035")!;
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
   }
+  if (dsrPerdidos > 0 && porCodigo.has("07040") && !linhas.find((l) => l.codigo === "07040")) {
+    const r = porCodigo.get("07040")!;
+    linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+  }
 
   // ==== Informativos automáticos baseados no cartão de ponto ====
   // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
@@ -420,7 +440,7 @@ export async function recalcular(
         setLinha(r.codigo, { qtde: numFaltas, provento: 0, desconto: round(valorDia * numFaltas) });
         break;
       case "dsr_faltas":
-        setLinha(r.codigo, { qtde: numFaltas, provento: 0, desconto: round(valorDia * numFaltas) });
+        setLinha(r.codigo, { qtde: dsrPerdidos, provento: 0, desconto: round(valorDia * dsrPerdidos) });
         break;
       case "vt_automatico": {
         const baseSal = salarioProporcional > 0 ? salarioProporcional : salario;
