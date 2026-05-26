@@ -42,8 +42,36 @@ function CartaoEmpresaPage() {
   const [inserirOpen, setInserirOpen] = useState(false);
   const [prefill, setPrefill] = useState<{ funcionarioId?: string; data?: string; tipo?: string; hora?: string } | undefined>();
   const [justDia, setJustDia] = useState<DiaCartao | null>(null);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [bulkJustOpen, setBulkJustOpen] = useState(false);
 
-  const abrirCelula = async (d: DiaCartao, tipo: TipoPonto) => {
+  const toggleSel = (data: string) => {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(data)) next.delete(data); else next.add(data);
+      return next;
+    });
+  };
+  const limparSel = () => setSelecionados(new Set());
+
+  const removerJustificativasSel = async () => {
+    if (selecionados.size === 0 || !funcId) return;
+    if (!window.confirm(`Remover justificativas de ${selecionados.size} dia(s) selecionado(s)?`)) return;
+    const { error } = await supabase.from("justificativas_aplicadas")
+      .delete().eq("funcionario_id", funcId).in("data", Array.from(selecionados));
+    if (error) toast.error(error.message);
+    else { toast.success("Justificativas removidas."); limparSel(); carregar(); }
+  };
+
+  const excluirMarcacoesSel = async () => {
+    if (selecionados.size === 0 || !funcId) return;
+    if (!window.confirm(`Excluir TODAS as marcações de ponto dos ${selecionados.size} dia(s) selecionado(s)?`)) return;
+    const { error } = await supabase.from("registros_ponto")
+      .delete().eq("funcionario_id", funcId).in("data_referencia", Array.from(selecionados));
+    if (error) toast.error(error.message);
+    else { toast.success("Marcações excluídas."); limparSel(); carregar(); }
+  };
+
     if (!podeEditar || !empresaId) return;
     const regId = d.registroIds[tipo];
     if (regId) {
