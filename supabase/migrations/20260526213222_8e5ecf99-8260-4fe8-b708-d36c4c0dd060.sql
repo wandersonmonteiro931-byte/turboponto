@@ -1,0 +1,2 @@
+ALTER TABLE public.holerites DROP CONSTRAINT IF EXISTS holerites_funcionario_id_mes_referencia_ano_referencia_key;
+ALTER TABLE public.holerites ADD CONSTRAINT holerites_func_mes_ano_folha_key UNIQUE (funcionario_id, mes_referencia, ano_referencia, folha_tipo);

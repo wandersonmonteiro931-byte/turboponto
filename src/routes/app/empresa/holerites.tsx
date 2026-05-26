@@ -475,7 +475,7 @@ function EditorDialog({
         await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
       } else {
         const { data: ins, error } = await supabase.from("holerites").upsert(payload, {
-          onConflict: "funcionario_id,mes_referencia,ano_referencia",
+          onConflict: "funcionario_id,mes_referencia,ano_referencia,folha_tipo",
         }).select("id").maybeSingle();
         if (error) throw error;
         hid = ins?.id ?? null;
@@ -529,7 +529,7 @@ function EditorDialog({
         linhas,
       );
       const blob = doc.output("blob");
-      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2,"0")}.pdf`;
+      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2,"0")}-${folhaTipo}.pdf`;
       const { error: upErr } = await supabase.storage.from("holerites").upload(path, blob, {
         upsert: true, contentType: "application/pdf",
       });
