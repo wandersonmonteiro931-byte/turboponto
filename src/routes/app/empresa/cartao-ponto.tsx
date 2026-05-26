@@ -445,6 +445,16 @@ function CartaoEmpresaPage() {
           onSaved={carregar}
         />
       )}
+      {empresaId && funcId && (
+        <BulkJustificarDialog
+          open={bulkJustOpen}
+          onClose={() => setBulkJustOpen(false)}
+          empresaId={empresaId}
+          funcionarioId={funcId}
+          datas={Array.from(selecionados).sort()}
+          onSaved={() => { limparSel(); carregar(); }}
+        />
+      )}
     </div>
   );
 }
