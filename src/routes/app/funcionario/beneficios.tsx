@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
-import { STATUS_BENEFICIO, fmtBRL, mesNome, type Beneficio } from "@/lib/beneficios";
+import { STATUS_BENEFICIO, avaliarDireito, fmtBRL, mesNome, type Beneficio } from "@/lib/beneficios";
+import { carregarCartao } from "@/lib/cartao";
 import { AlertTriangle, CheckCircle2, Gift, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/app/funcionario/beneficios")({
@@ -61,8 +62,45 @@ function MeusBeneficios() {
           .select("*").eq("funcionario_id", f.id)
           .in("beneficio_id", lista.map((b) => b.id))
           .eq("mes_referencia", mes).eq("ano_referencia", ano);
+
+        // Calcula ao vivo (mesma lógica do cartão de ponto) para não depender
+        // do gestor clicar em "Recalcular mês".
+        let debito = 0;
+        let faltas = 0;
+        try {
+          const cartao = await carregarCartao(f.id, ano, mes);
+          faltas = cartao.totalFaltas;
+          debito = cartao.dias.reduce(
+            (s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s),
+            0,
+          );
+        } catch (err) {
+          console.warn("[beneficios] falha ao carregar cartão", err);
+        }
+
         const map: Record<string, Calc | null> = {};
-        for (const b of lista) map[b.id] = ((cs ?? []) as Calc[]).find((c) => c.beneficio_id === b.id) ?? null;
+        for (const b of lista) {
+          const stored = ((cs ?? []) as Calc[]).find((c) => c.beneficio_id === b.id) ?? null;
+          const manter = stored && ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status);
+          if (manter) {
+            map[b.id] = stored;
+          } else {
+            const aval = avaliarDireito(b, debito, faltas);
+            map[b.id] = {
+              id: stored?.id ?? "live",
+              beneficio_id: b.id,
+              total_atraso_minutos: debito,
+              dias_com_atraso: 0,
+              faltas_injustificadas: faltas,
+              tem_direito: aval.tem_direito,
+              status: aval.status,
+              motivo_perda: aval.motivo,
+              valor_estimado: aval.valor,
+              mes_referencia: mes,
+              ano_referencia: ano,
+            };
+          }
+        }
         setCalculos(map);
 
         const { data: ent } = await supabase.from("beneficios_entregas")
