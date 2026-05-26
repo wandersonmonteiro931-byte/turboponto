@@ -16,6 +16,13 @@ import {
   inferirTipo, avaliar, diaComercialISO, statusJornadaHoje,
 } from "@/lib/ponto";
 
+const fmtHorasMin = (minutos: number | null | undefined) => {
+  const min = Math.max(0, Math.round(Number(minutos ?? 0)));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h}h${String(m).padStart(2, "0")}`;
+};
+
 export const Route = createFileRoute("/app/funcionario/bater-ponto")({
   component: BaterPontoPage,
 });
@@ -215,7 +222,7 @@ function BaterPontoPage() {
       }
 
       const label = tipoLabel(inferido.tipo);
-      if (status === "atrasado") toast.warning(`${label} registrada com atraso de ${atraso} min`);
+      if (status === "atrasado") toast.warning(`${label} registrada com atraso de ${fmtHorasMin(atraso)}`);
       else if (status === "hora_extra") toast.success(`${label} registrada — hora extra`);
       else if (status === "saida_antecipada") toast.warning(`${label} antecipada`);
       else if (status === "entrada_antecipada") toast.success(`${label} antecipada`);
@@ -270,7 +277,7 @@ function BaterPontoPage() {
               {previa && previa.status !== "no_horario" && (
                 <span className={`mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}>
                   {statusLabel[previa.status]}
-                  {previa.atraso > 0 ? ` · ${previa.atraso} min` : ""}
+                  {previa.atraso > 0 ? ` · ${fmtHorasMin(previa.atraso)}` : ""}
                 </span>
               )}
               <Button
