@@ -335,15 +335,10 @@ export function gerarPdfCartao(opts: {
             j.tipo.desconta_salario &&
             j.tipo.afeta_assiduidade !== "nao",
         ));
-    for (const i of irregs) {
-      // Créditos de hora extra são somados pelo bancoHorasMinutos do dia,
-      // para não duplicar o crédito automático no rodapé do PDF.
-      if (i.debito) {
-        if (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA") {
-          horasBenef += i.qtde;
-        }
-      }
-    }
+    // QTDE HORAS BENEF deve refletir apenas débitos REAIS (não abonados).
+    // O d.bancoHorasMinutos já considera justificativas que abonam atrasos/saídas
+    // antecipadas, então usamos ele diretamente abaixo (após o bloco de falta).
+
 
     // Carga programada do dia (para faltas injustificadas em horas benef)
     const cargaProgDia = (() => {
