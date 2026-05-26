@@ -1,0 +1,207 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { TIPO_CALCULO_OPCOES, type TipoCalculo } from "@/lib/holerite-rubricas";
+
+export const Route = createFileRoute("/app/empresa/rubricas")({
+  component: RubricasPage,
+});
+
+type Rubrica = {
+  id: string;
+  codigo: string;
+  descricao: string;
+  tipo: "provento" | "desconto";
+  tipo_calculo: TipoCalculo;
+  valor_referencia: number;
+  ativo: boolean;
+};
+
+function RubricasPage() {
+  const { empresaId, role } = useAuth();
+  const podeEditar = role === "admin";
+  const [lista, setLista] = useState<Rubrica[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState<Rubrica | null>(null);
+
+  const carregar = async () => {
+    if (!empresaId) return;
+    setLoading(true);
+    const { data, error } = await supabase.from("holerite_rubricas")
+      .select("*").eq("empresa_id", empresaId).order("codigo");
+    if (error) toast.error(error.message);
+    setLista((data ?? []) as Rubrica[]);
+    setLoading(false);
+  };
+  useEffect(() => { void carregar(); /* eslint-disable-next-line */ }, [empresaId]);
+
+  const remover = async (r: Rubrica) => {
+    if (!confirm(`Remover rubrica ${r.codigo}?`)) return;
+    const { error } = await supabase.from("holerite_rubricas").delete().eq("id", r.id);
+    if (error) return toast.error(error.message);
+    toast.success("Removida");
+    await carregar();
+  };
+
+  if (!empresaId) return <p className="text-sm text-muted-foreground">Cadastre primeiro os dados da empresa.</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold">Rubricas do Holerite</h2>
+          <p className="text-sm text-muted-foreground">
+            Cadastre códigos (proventos e descontos) usados nos holerites. Durante a montagem, basta selecionar o código e o sistema preenche descrição e valor automaticamente.
+          </p>
+        </div>
+        {podeEditar && <Button onClick={() => { setEdit(null); setOpen(true); }}><Plus className="h-4 w-4 mr-1" />Nova rubrica</Button>}
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div>
+            : lista.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Nenhuma rubrica cadastrada.</div>
+            : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="text-left p-2 w-20">Código</th>
+                      <th className="text-left p-2">Descrição</th>
+                      <th className="text-left p-2 w-24">Tipo</th>
+                      <th className="text-left p-2">Cálculo</th>
+                      <th className="text-right p-2 w-28">Referência</th>
+                      <th className="text-left p-2 w-20">Status</th>
+                      {podeEditar && <th className="text-right p-2 w-24">Ações</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {lista.map((r) => (
+                      <tr key={r.id} className="hover:bg-muted/30">
+                        <td className="p-2 font-mono">{r.codigo}</td>
+                        <td className="p-2">{r.descricao}</td>
+                        <td className="p-2">
+                          {r.tipo === "provento"
+                            ? <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-700">Provento</span>
+                            : <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-700">Desconto</span>}
+                        </td>
+                        <td className="p-2 text-xs">{TIPO_CALCULO_OPCOES.find((o) => o.value === r.tipo_calculo)?.label ?? r.tipo_calculo}</td>
+                        <td className="p-2 text-right font-mono">{Number(r.valor_referencia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-xs">{r.ativo ? "Ativa" : "Inativa"}</td>
+                        {podeEditar && (
+                          <td className="p-2 text-right whitespace-nowrap space-x-1">
+                            <Button size="sm" variant="ghost" onClick={() => { setEdit(r); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
+                            <Button size="sm" variant="ghost" onClick={() => remover(r)}><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+        </CardContent>
+      </Card>
+
+      {open && empresaId && (
+        <EditorRubrica
+          empresaId={empresaId}
+          rubrica={edit}
+          onClose={() => setOpen(false)}
+          onSaved={() => { setOpen(false); void carregar(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
+  empresaId: string; rubrica: Rubrica | null; onClose: () => void; onSaved: () => void;
+}) {
+  const [codigo, setCodigo] = useState(rubrica?.codigo ?? "");
+  const [descricao, setDescricao] = useState(rubrica?.descricao ?? "");
+  const [tipo, setTipo] = useState<"provento" | "desconto">(rubrica?.tipo ?? "provento");
+  const [tipoCalculo, setTipoCalculo] = useState<TipoCalculo>(rubrica?.tipo_calculo ?? "manual");
+  const [valorRef, setValorRef] = useState(rubrica?.valor_referencia ?? 0);
+  const [ativo, setAtivo] = useState(rubrica?.ativo ?? true);
+  const [salvando, setSalvando] = useState(false);
+
+  const salvar = async () => {
+    if (!codigo.trim() || !descricao.trim()) return toast.error("Preencha código e descrição");
+    setSalvando(true);
+    const payload = {
+      empresa_id: empresaId,
+      codigo: codigo.trim(),
+      descricao: descricao.trim(),
+      tipo, tipo_calculo: tipoCalculo,
+      valor_referencia: Number(valorRef) || 0,
+      ativo,
+    };
+    const q = rubrica
+      ? supabase.from("holerite_rubricas").update(payload).eq("id", rubrica.id)
+      : supabase.from("holerite_rubricas").insert(payload);
+    const { error } = await q;
+    setSalvando(false);
+    if (error) return toast.error(error.message);
+    toast.success("Salvo");
+    onSaved();
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>{rubrica ? "Editar rubrica" : "Nova rubrica"}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label className="text-xs">Código</Label><Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="0001" /></div>
+            <div>
+              <Label className="text-xs">Tipo</Label>
+              <Select value={tipo} onValueChange={(v: "provento" | "desconto") => setTipo(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="provento">Provento (soma)</SelectItem>
+                  <SelectItem value="desconto">Desconto (subtrai)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div><Label className="text-xs">Descrição</Label><Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="SALARIO BASE" /></div>
+          <div>
+            <Label className="text-xs">Tipo de cálculo</Label>
+            <Select value={tipoCalculo} onValueChange={(v: TipoCalculo) => setTipoCalculo(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TIPO_CALCULO_OPCOES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {TIPO_CALCULO_OPCOES.find((o) => o.value === tipoCalculo)?.help}
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs">Valor de referência</Label>
+            <Input type="number" step="0.01" value={valorRef} onChange={(e) => setValorRef(Number(e.target.value))} />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
+            Ativa
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Salvar"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
