@@ -214,6 +214,7 @@ export function gerarPdfCartao(opts: {
   const cols: { key: string; w: number; label: string; align?: "left" | "right" | "center" }[] = [
     { key: "dia", w: 8, label: "Dia" },
     { key: "data", w: 13, label: "Data" },
+    { key: "esc", w: 6, label: "Esc", align: "center" },
     { key: "entPrev", w: 11, label: "E.Prev", align: "center" },
     { key: "intSai", w: 11, label: "I.Sai", align: "center" },
     { key: "intRet", w: 11, label: "I.Ret", align: "center" },
