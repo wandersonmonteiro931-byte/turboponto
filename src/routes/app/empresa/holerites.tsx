@@ -28,6 +28,7 @@ type Func = {
   data_admissao: string | null; salario: number | null;
   banco_agencia: string | null; conta: string | null; lotacao: string | null;
   num_dep_irrf: number | null; num_dep_sal_fam: number | null;
+  matricula: string | null;
 };
 type Holerite = {
   id: string;
