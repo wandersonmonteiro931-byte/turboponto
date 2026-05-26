@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { recalcularMes as recalcularBeneficioMes, type Beneficio } from "@/lib/beneficios";
 
 // Motor de cálculo automático da folha.
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
@@ -292,26 +293,54 @@ export async function recalcular(
     linhas.splice(idxNeg, 1);
   }
 
-  // QTD HORAS CESTA BÁSICA (18445) - busca de beneficios_calculos ou usa HE do mês
+  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito que conta
+  // para a regra da cesta básica do mês de referência. Vem do cálculo do
+  // benefício "Cesta Básica" (beneficios_calculos.total_atraso_minutos),
+  // exatamente o mesmo número exibido em "QTDE HORAS BENEF" no cartão de ponto.
+  // Só exibe a rubrica se houver um cálculo de cesta básica e horas > 0.
   if (porCodigo.has("18445")) {
-    const { data: bcalc } = await supabase
+    // Garante que o cálculo do benefício "Cesta Básica" está fresco para o
+    // mês de referência antes de ler — caso ponto/falta tenham mudado.
+    try {
+      const { data: ben } = await supabase
+        .from("beneficios")
+        .select("*")
+        .eq("empresa_id", ctx.empresaId)
+        .eq("tipo", "cesta_basica")
+        .eq("status", "ativo")
+        .maybeSingle();
+      if (ben) {
+        await recalcularBeneficioMes(ctx.empresaId, ben as Beneficio, ctx.mes, ctx.ano);
+      }
+    } catch (e) {
+      console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
+    }
+    const { data: bcalcs } = await supabase
       .from("beneficios_calculos")
-      .select("horas_extras_minutos,total_atraso_minutos")
+      .select("total_atraso_minutos,beneficios!inner(tipo)")
       .eq("funcionario_id", ctx.funcionarioId)
       .eq("ano_referencia", ctx.ano)
-      .eq("mes_referencia", ctx.mes)
-      .maybeSingle();
-    const horasCB = round(((Number(bcalc?.horas_extras_minutos ?? minHE)) / 60));
+      .eq("mes_referencia", ctx.mes);
+    const cesta = (bcalcs ?? []).find(
+      (b: { beneficios?: { tipo?: string } | null }) =>
+        b.beneficios?.tipo === "cesta_basica",
+    ) as { total_atraso_minutos?: number } | undefined;
+    const minutosBenef = Number(cesta?.total_atraso_minutos ?? 0);
+    const horasCB = round(minutosBenef / 60);
     const idxCB = linhas.findIndex((l) => l.codigo === "18445");
-    const r = porCodigo.get("18445")!;
-    const payload: EngineLanc = {
-      _k: idxCB >= 0 ? linhas[idxCB]._k : crypto.randomUUID(),
-      id: idxCB >= 0 ? linhas[idxCB].id : undefined,
-      codigo: r.codigo, descricao: r.descricao,
-      qtde: horasCB, provento: 0, desconto: 0, resultado: horasCB,
-      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
-    };
-    if (idxCB >= 0) linhas[idxCB] = payload; else linhas.push(payload);
+    if (horasCB > 0) {
+      const r = porCodigo.get("18445")!;
+      const payload: EngineLanc = {
+        _k: idxCB >= 0 ? linhas[idxCB]._k : crypto.randomUUID(),
+        id: idxCB >= 0 ? linhas[idxCB].id : undefined,
+        codigo: r.codigo, descricao: r.descricao,
+        qtde: horasCB, provento: 0, desconto: 0, resultado: horasCB,
+        modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+      };
+      if (idxCB >= 0) linhas[idxCB] = payload; else linhas.push(payload);
+    } else if (idxCB >= 0) {
+      linhas.splice(idxCB, 1);
+    }
   }
 
 
