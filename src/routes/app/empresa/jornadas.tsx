@@ -296,8 +296,8 @@ function JornadaDialog({
         </div>
 
         <div>
-          <Label className="mb-2 block text-xs">Dias trabalhados</Label>
-          <div className="flex flex-wrap gap-2">
+          <Label className="mb-2 block text-xs">Dias trabalhados e horários por dia</Label>
+          <div className="flex flex-wrap gap-2 mb-3">
             {dias.map((d, i) => (
               <button
                 key={d.dia_semana}
@@ -311,10 +311,42 @@ function JornadaDialog({
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Os horários acima serão aplicados aos dias selecionados. Dias não selecionados são folgas.
+          <p className="text-xs text-muted-foreground mb-3">
+            Cada dia pode ter horários próprios. Se deixar em branco, o sistema usa os horários padrão acima.
           </p>
+          <div className="space-y-2">
+            {dias.map((d, i) =>
+              d.trabalha ? (
+                <div key={d.dia_semana} className="border rounded-md p-2 bg-muted/30">
+                  <div className="text-xs font-semibold mb-2">{DIAS_SEMANA[i].full}</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Entrada</Label>
+                      <Input type="time" value={d.horario_entrada} placeholder={entrada}
+                        onChange={(e) => setDias((arr) => arr.map((x, idx) => idx === i ? { ...x, horario_entrada: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Saída int.</Label>
+                      <Input type="time" value={d.horario_intervalo_saida} placeholder={intSai}
+                        onChange={(e) => setDias((arr) => arr.map((x, idx) => idx === i ? { ...x, horario_intervalo_saida: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Retorno int.</Label>
+                      <Input type="time" value={d.horario_intervalo_retorno} placeholder={intRet}
+                        onChange={(e) => setDias((arr) => arr.map((x, idx) => idx === i ? { ...x, horario_intervalo_retorno: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Saída</Label>
+                      <Input type="time" value={d.horario_saida} placeholder={saida}
+                        onChange={(e) => setDias((arr) => arr.map((x, idx) => idx === i ? { ...x, horario_saida: e.target.value } : x))} />
+                    </div>
+                  </div>
+                </div>
+              ) : null,
+            )}
+          </div>
         </div>
+
 
         <DialogFooter>
           <Button type="submit" disabled={saving} className="font-semibold">
