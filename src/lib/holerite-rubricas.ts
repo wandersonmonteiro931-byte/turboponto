@@ -103,6 +103,12 @@ export async function calcularRubrica(
       qtde = 30;
       valor = salario;
       break;
+    case "salario_dias_trabalhados": {
+      const dias = await diasTrabalhadosCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
+      qtde = dias;
+      valor = round(valorDia * dias);
+      break;
+    }
     case "horas_extras_50": {
       const h = await totalHorasExtrasMes(ctx.funcionarioId, ctx.ano, ctx.mes);
       qtde = round(h);
