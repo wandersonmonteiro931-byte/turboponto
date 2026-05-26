@@ -152,6 +152,7 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
 
   const salvar = async () => {
     if (!codigo.trim() || !descricao.trim()) return toast.error("Preencha código e descrição");
+    if (!/^[0-9]{5}$/.test(codigo.trim())) return toast.error("O código deve ter exatamente 5 dígitos numéricos");
     setSalvando(true);
     const payload = {
       empresa_id: empresaId,
