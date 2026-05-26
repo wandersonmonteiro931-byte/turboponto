@@ -125,6 +125,7 @@ function FuncionarioDetail() {
           <Card>
             <CardContent className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
               <Fld label="Nome"><Input value={v("nome")} onChange={(e) => upd("nome", e.target.value)} disabled={!isAdmin} /></Fld>
+              <Fld label="Matrícula"><Input value={v("matricula")} onChange={(e) => upd("matricula", e.target.value)} placeholder="Ex: 0001" disabled={!isAdmin} /></Fld>
               <Fld label="CPF"><Input value={v("cpf")} onChange={(e) => upd("cpf", e.target.value)} disabled={!isAdmin} /></Fld>
               <Fld label="RG"><Input value={v("rg")} onChange={(e) => upd("rg", e.target.value)} disabled={!isAdmin} /></Fld>
               <Fld label="Data de nascimento"><Input type="date" value={v("data_nascimento")} onChange={(e) => upd("data_nascimento", e.target.value)} disabled={!isAdmin} /></Fld>
