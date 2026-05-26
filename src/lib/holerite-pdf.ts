@@ -12,6 +12,7 @@ export type HolerFuncionario = {
   cpf?: string | null;
   cargo?: string | null;
   data_admissao?: string | null;
+  matricula?: string | null;
 };
 
 export type HolerLancamento = {
