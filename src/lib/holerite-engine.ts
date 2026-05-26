@@ -257,8 +257,8 @@ export async function recalcular(
   };
 
   // Aplica cálculo para cada rubrica automática já presente, e para algumas "sempre presentes"
-  // (00005, INSS, FGTS, IRRF) que devem aparecer sempre que houver salário.
-  const sempre = ["00005", "07000", "07005", "07010"];
+  // (00005, 07065 ADIANTAMENTO, INSS, FGTS, IRRF) que devem aparecer sempre que houver salário.
+  const sempre = ["00005", "07065", "07000", "07005", "07010"];
   for (const cod of sempre) {
     if (porCodigo.has(cod) && !linhas.find((l) => l.codigo === cod)) {
       const r = porCodigo.get(cod)!;
@@ -489,6 +489,23 @@ export async function recalcular(
       (!l.resultado || l.resultado === 0);
     if (semDados) linhas.splice(i, 1);
   }
+
+  // Ordem fixa obrigatória no início: salário contratual (00005),
+  // ADIANTAMENTO SALARIAL (07065) e INSS do mês (07000). Demais linhas mantêm a ordem atual.
+  const ordemFixa = ["00005", "07065", "07000"];
+  const fixas: EngineLanc[] = [];
+  const resto: EngineLanc[] = [];
+  for (const l of linhas) {
+    if (ordemFixa.includes(l.codigo)) continue;
+    resto.push(l);
+  }
+  for (const cod of ordemFixa) {
+    const l = linhas.find((x) => x.codigo === cod);
+    if (l) fixas.push(l);
+  }
+  linhas.length = 0;
+  linhas.push(...fixas, ...resto);
+
 
   // Totais (informativos não entram no líquido)
 
