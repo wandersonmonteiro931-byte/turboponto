@@ -209,30 +209,13 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
   };
   useEffect(() => { reload(); }, [funcionarioId, empresaId]);
 
-  const ativo = vinculos.find((v) => v.ativo);
+  const ativos = vinculos.filter((v) => v.ativo);
 
-  const vincular = async () => {
-    if (!jornadaId) return toast.error("Selecione uma jornada");
-    setLoading(true);
-    try {
-      const { ativarVinculo } = await import("@/lib/jornadas");
-      await ativarVinculo(funcionarioId, jornadaId, dataInicio);
-      toast.success("Jornada vinculada");
-      setJornadaId("");
-      reload();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const encerrar = async () => {
-    if (!ativo) return;
+  const encerrarVinculo = async (id: string) => {
     const dataFim = new Date().toISOString().slice(0, 10);
     const { error } = await (supabase.from("funcionarios_jornadas") as never as {
       update: (v: object) => { eq: (a: string, b: unknown) => Promise<{ error: { message: string } | null }> };
-    }).update({ ativo: false, data_fim: dataFim }).eq("id", ativo.id);
+    }).update({ ativo: false, data_fim: dataFim }).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Jornada encerrada");
     reload();
@@ -242,17 +225,25 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
     <Card>
       <CardContent className="p-5 space-y-5">
         <div>
-          <h3 className="font-semibold mb-2">Jornada atual</h3>
-          {ativo ? (
-            <div className="rounded-md border p-3 flex items-center justify-between">
-              <div>
-                <div className="font-medium">{ativo.jornadas?.nome ?? "—"}</div>
-                <div className="text-xs text-muted-foreground">
-                  Desde {new Date(ativo.data_inicio + "T00:00").toLocaleDateString("pt-BR")}
-                </div>
-              </div>
-              {canEdit && <Button size="sm" variant="outline" onClick={encerrar}>Encerrar</Button>}
-            </div>
+          <h3 className="font-semibold mb-2">Jornadas ativas</h3>
+          {ativos.length > 0 ? (
+            <ul className="divide-y border rounded-md">
+              {ativos.map((v) => (
+                <li key={v.id} className="p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium">{v.jornadas?.nome ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Desde {new Date(v.data_inicio + "T00:00").toLocaleDateString("pt-BR")}
+                    </div>
+                  </div>
+                  {canEdit && (
+                    <Button size="sm" variant="outline" onClick={() => encerrarVinculo(v.id)}>
+                      Encerrar
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="text-sm text-muted-foreground">Sem jornada ativa. Vincule uma jornada abaixo.</p>
           )}
@@ -260,7 +251,7 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
 
         {canEdit && (
           <div>
-            <h3 className="font-semibold mb-2">{ativo ? "Trocar jornada" : "Vincular jornada"}</h3>
+            <h3 className="font-semibold mb-2">Vincular nova jornada</h3>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
               <select
                 className="h-9 px-3 rounded-md border bg-background text-sm"
@@ -268,7 +259,9 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
                 onChange={(e) => setJornadaId(e.target.value)}
               >
                 <option value="">Selecione...</option>
-                {jornadas.map((j) => <option key={j.id} value={j.id}>{j.nome}</option>)}
+                {jornadas
+                  .filter((j) => !ativos.some((a) => a.jornada_id === j.id))
+                  .map((j) => <option key={j.id} value={j.id}>{j.nome}</option>)}
               </select>
               <input
                 type="date"
@@ -279,7 +272,8 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
               <Button onClick={vincular} disabled={loading}>{loading ? "..." : "Vincular"}</Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Ao vincular uma nova jornada, a anterior é encerrada automaticamente preservando o histórico.
+              O colaborador pode ter várias jornadas ativas simultaneamente. O sistema escolhe automaticamente
+              a jornada aplicável a cada data pelo dia da semana configurado em cada uma.
             </p>
           </div>
         )}
@@ -312,3 +306,4 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
     </Card>
   );
 }
+
