@@ -299,6 +299,22 @@ export async function recalcular(
   // exatamente o mesmo número exibido em "QTDE HORAS BENEF" no cartão de ponto.
   // Só exibe a rubrica se houver um cálculo de cesta básica e horas > 0.
   if (porCodigo.has("18445")) {
+    // Garante que o cálculo do benefício "Cesta Básica" está fresco para o
+    // mês de referência antes de ler — caso ponto/falta tenham mudado.
+    try {
+      const { data: ben } = await supabase
+        .from("beneficios")
+        .select("*")
+        .eq("empresa_id", ctx.empresaId)
+        .eq("tipo", "cesta_basica")
+        .eq("status", "ativo")
+        .maybeSingle();
+      if (ben) {
+        await recalcularBeneficioMes(ctx.empresaId, ben as Beneficio, ctx.mes, ctx.ano);
+      }
+    } catch (e) {
+      console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
+    }
     const { data: bcalcs } = await supabase
       .from("beneficios_calculos")
       .select("total_atraso_minutos,beneficios!inner(tipo)")
