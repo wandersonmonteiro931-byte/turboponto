@@ -149,7 +149,7 @@ function FuncionariosPage() {
                       {f.foto_url ? <img src={f.foto_url} className="h-full w-full object-cover" /> : <UserCircle2 className="h-6 w-6 text-muted-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{f.nome}</div>
+                      <div className="font-medium truncate">{f.nome}{f.matricula ? <span className="ml-2 text-xs text-muted-foreground font-mono">#{f.matricula}</span> : null}</div>
                       <div className="text-xs text-muted-foreground truncate">{f.cargo ?? "—"} · {f.email ?? f.cpf ?? "—"}</div>
                     </div>
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${statusColor[f.status] ?? "bg-muted"}`}>{f.status}</span>
