@@ -247,6 +247,23 @@ function EditorRubrica({ empresaId, rubrica, onClose, onSaved }: {
             <Label className="text-xs">Valor de referência</Label>
             <Input type="number" step="0.01" value={valorRef} onChange={(e) => setValorRef(Number(e.target.value))} />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Modo</Label>
+              <Select value={modo} onValueChange={(v: ModoRubrica) => setModo(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="automatico">Automático (sistema calcula)</SelectItem>
+                  <SelectItem value="semi_automatico">Semi-automático (sugere, admin confirma)</SelectItem>
+                  <SelectItem value="manual">Manual (operador digita)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-end gap-2 text-sm pb-2">
+              <input type="checkbox" checked={editavelManual} onChange={(e) => setEditavelManual(e.target.checked)} />
+              Permitir edição manual
+            </label>
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
             Ativa
