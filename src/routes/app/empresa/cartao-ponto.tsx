@@ -72,12 +72,14 @@ function CartaoEmpresaPage() {
   const carregar = async () => {
     if (!funcId || !empresaId) return;
     setLoading(true);
-    const [r, c] = await Promise.all([
+    const [r, c, v] = await Promise.all([
       carregarCartao(funcId, ano, mes),
       supabase.from("cartoes_ponto").select("*").eq("funcionario_id", funcId).eq("ano_referencia", ano).eq("mes_referencia", mes).maybeSingle(),
+      carregarVinculosAtivos(funcId),
     ]);
     setResumo(r);
     setCartao((c.data ?? null) as Cartao | null);
+    setVinculos(v);
     setLoading(false);
   };
 
