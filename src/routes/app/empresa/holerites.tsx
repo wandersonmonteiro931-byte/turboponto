@@ -403,11 +403,20 @@ function EditorDialog({
       setLiberarJa(h.liberado);
       const { data: ls } = await supabase.from("holerite_lancamentos")
         .select("*").eq("holerite_id", holeriteId).order("ordem");
-      setLancamentos((ls ?? []).map((l) => ({
-        _k: l.id, id: l.id, codigo: l.codigo, descricao: l.descricao,
-        qtde: l.qtde != null ? Number(l.qtde) : null,
-        provento: Number(l.provento ?? 0), desconto: Number(l.desconto ?? 0), resultado: Number(l.resultado ?? 0),
-      })));
+      setLancamentos((ls ?? []).map((l) => {
+        const provento = Number(l.provento ?? 0);
+        const desconto = Number(l.desconto ?? 0);
+        const resultado = Number(l.resultado ?? 0);
+        const qtde = l.qtde != null ? Number(l.qtde) : null;
+        const legadoSaldoEmFerias = l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
+        const legadoInsufMesAnteriorEmFerias = l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
+        return {
+          _k: l.id, id: l.id,
+          codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
+          descricao: legadoSaldoEmFerias ? "INSUFICIENCIA DE SALDO" : legadoInsufMesAnteriorEmFerias ? "INSUF MES ANTERIOR" : l.descricao,
+          qtde, provento, desconto, resultado,
+        };
+      }));
     })();
     // eslint-disable-next-line
   }, [holeriteId]);
