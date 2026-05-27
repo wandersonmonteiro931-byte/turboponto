@@ -177,6 +177,7 @@ export async function recalcular(
   let numFaltas = 0;
   let saldoBHMinutos = 0;
   let dsrPerdidos = 0;
+  let minHorasBenef = 0;
   const datasFalta: string[] = [];
   try {
     const cartao = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
