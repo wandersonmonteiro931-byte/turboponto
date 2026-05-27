@@ -266,7 +266,7 @@ export function gerarHoleritePdf(
   doc.setFontSize(8);
   doc.text("Total líquido:", M + provW + descW + 2, y + 4);
   doc.setFontSize(13);
-  doc.text(fmtNum(dados.total_liquido), W - M - 2, y + 8.5, { align: "right" });
+  doc.text(Number(dados.total_liquido || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), W - M - 2, y + 8.5, { align: "right" });
   y += totH;
 
   // Bases
