@@ -347,19 +347,20 @@ export async function recalcular(
   if (porCodigo.has("09995")) {
     const mesAnt = ctx.mes === 1 ? 12 : ctx.mes - 1;
     const anoAnt = ctx.mes === 1 ? ctx.ano - 1 : ctx.ano;
-    const { data: hAnt } = await supabase
+    // Busca TODOS os holerites do mês anterior (MENSAL, ADIANTAMENTO, etc.)
+    const { data: hAntList } = await supabase
       .from("holerites")
       .select("id")
       .eq("funcionario_id", ctx.funcionarioId)
       .eq("ano_referencia", anoAnt)
-      .eq("mes_referencia", mesAnt)
-      .maybeSingle();
+      .eq("mes_referencia", mesAnt);
     let saldoAnterior = 0;
-    if (hAnt?.id) {
+    const ids = (hAntList ?? []).map((h) => h.id).filter(Boolean);
+    if (ids.length > 0) {
       const { data: linhasAnt } = await supabase
         .from("holerite_lancamentos")
         .select("codigo,descricao,qtde,provento,desconto,resultado")
-        .eq("holerite_id", hAnt.id)
+        .in("holerite_id", ids)
         .in("codigo", ["09990", "09000"]);
       saldoAnterior = (linhasAnt ?? []).reduce(
         (s, l) => {
