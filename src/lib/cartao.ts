@@ -534,3 +534,54 @@ export const NOMES_MES = [
 ];
 
 export const DIAS_SEMANA_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+/**
+ * Calcula o total de minutos que afetam o benefício (QTDE HORAS BENEF).
+ * Mesma regra usada no PDF do cartão de ponto:
+ *  - Falta injustificada: soma a carga programada do dia.
+ *  - Caso contrário, se houver débito de banco de horas (atrasos / saídas
+ *    antecipadas / débitos de fechamento), soma o débito do dia.
+ *  - Faltas com justificativa que abona assiduidade não entram.
+ */
+export function calcularHorasBenefMinutos(resumo: ResumoCartao): number {
+  const hm = (t: string | null): number | null => {
+    if (!t) return null;
+    const [h, m] = t.slice(0, 5).split(":").map(Number);
+    return h * 60 + m;
+  };
+  const diffRelogio = (inicio: number, fim: number): number => {
+    let diff = fim - inicio;
+    if (diff < 0) diff += 1440;
+    return diff;
+  };
+  let total = 0;
+  for (const d of resumo.dias) {
+    const justificativas = d.justificativas ?? [];
+    const falta = d.faltaRegistrada || d.falta;
+    const faltaInjustificada =
+      falta &&
+      (!justificativas.length ||
+        justificativas.some(
+          (j) =>
+            j.tipo.categoria === "falta" &&
+            j.tipo.desconta_salario &&
+            j.tipo.afeta_assiduidade !== "nao",
+        ));
+    if (faltaInjustificada) {
+      const pe = hm(d.programado.entrada);
+      const psf = hm(d.programado.saida_final);
+      if (pe != null && psf != null) {
+        let c = diffRelogio(pe, psf);
+        const psi = hm(d.programado.saida_intervalo);
+        const pri = hm(d.programado.retorno_intervalo);
+        if (psi != null && pri != null) c -= diffRelogio(psi, pri);
+        total += Math.max(0, c);
+      }
+      continue;
+    }
+    if (d.bancoHorasMinutos < 0) {
+      total += -d.bancoHorasMinutos;
+    }
+  }
+  return total;
+}
