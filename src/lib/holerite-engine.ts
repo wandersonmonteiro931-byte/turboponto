@@ -581,7 +581,27 @@ export async function recalcular(
   }
   totalProv = round(totalProv);
   totalDesc = round(totalDesc);
-  const totalLiq = round(totalProv - totalDesc);
+  let totalLiq = round(totalProv - totalDesc);
+
+  // Se líquido ficou negativo, registra o saldo em 09000 (INSUFICIENCIA DE SALDO)
+  // como informativo e zera o líquido. Esse valor será lançado automaticamente
+  // como desconto 09005 (INSUF MES ANTERIOR) no holerite do mês seguinte.
+  const idx9000 = linhas.findIndex((l) => l.codigo === "09000");
+  if (totalLiq < 0 && porCodigo.has("09000")) {
+    const shortfall = round(-totalLiq);
+    const r = porCodigo.get("09000")!;
+    const payload: EngineLanc = {
+      _k: idx9000 >= 0 ? linhas[idx9000]._k : crypto.randomUUID(),
+      id: idx9000 >= 0 ? linhas[idx9000].id : undefined,
+      codigo: r.codigo, descricao: r.descricao,
+      qtde: shortfall, provento: 0, desconto: 0, resultado: shortfall,
+      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+    };
+    if (idx9000 >= 0) linhas[idx9000] = payload; else linhas.push(payload);
+    totalLiq = 0;
+  } else if (idx9000 >= 0) {
+    linhas.splice(idx9000, 1);
+  }
 
   return {
     linhas,
