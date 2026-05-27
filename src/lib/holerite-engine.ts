@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { recalcularMes as recalcularBeneficioMes, type Beneficio } from "@/lib/beneficios";
 import { carregarCartao } from "@/lib/cartao";
 import { carregarVinculosAtivos, escolherJornadaParaData } from "@/lib/jornadas";
+import { calcularHorasBenefMinutos } from "@/lib/cartao";
 
 // Motor de cálculo automático da folha.
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
