@@ -245,7 +245,7 @@ function HoleritesPage() {
                         </td>}
                         <td className="p-2 font-medium">{h.funcionarios?.nome ?? "—"}</td>
                         <td className="p-2">{mesNome(h.mes_referencia)}/{h.ano_referencia}</td>
-                        <td className="p-2 text-right font-mono">{Number(h.total_liquido || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-right font-mono">{Math.max(0, Number(h.total_liquido || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                         <td className="p-2">
                           {h.liberado
                             ? <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-700">Liberado</span>
@@ -308,6 +308,12 @@ const formatHorasDecimais = (v: number | null | undefined) => {
   return `${sinal}${horas}h${String(minutos).padStart(2, "0")}`;
 };
 
+const formatResultado = (l: LancEdit) => {
+  if (l.resultado == null || Number(l.resultado) === 0) return "";
+  if (["18445", "28651", "28652"].includes(l.codigo)) return formatHorasDecimais(l.resultado);
+  return Number(l.resultado).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+};
+
 function EditorDialog({
   empresaId, holeriteId, funcs, defaultMes, defaultAno, onClose, onSaved,
 }: {
@@ -338,11 +344,11 @@ function EditorDialog({
     { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
   ]);
   const [salvando, setSalvando] = useState(false);
-  const [rubricas, setRubricas] = useState<Array<{ id: string; codigo: string; descricao: string; tipo: "provento" | "desconto"; tipo_calculo: TipoCalculo; valor_referencia: number }>>([]);
+  const [rubricas, setRubricas] = useState<Array<{ id: string; codigo: string; descricao: string; tipo: "provento" | "desconto" | "informativo" | "resultado"; tipo_calculo: TipoCalculo; valor_referencia: number; entra_liquido?: boolean }>>([]);
 
   useEffect(() => {
     void supabase.from("holerite_rubricas")
-      .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia")
+      .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia,entra_liquido")
       .eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
       .then(({ data }) => setRubricas((data ?? []) as typeof rubricas));
     // eslint-disable-next-line
@@ -397,11 +403,20 @@ function EditorDialog({
       setLiberarJa(h.liberado);
       const { data: ls } = await supabase.from("holerite_lancamentos")
         .select("*").eq("holerite_id", holeriteId).order("ordem");
-      setLancamentos((ls ?? []).map((l) => ({
-        _k: l.id, id: l.id, codigo: l.codigo, descricao: l.descricao,
-        qtde: l.qtde != null ? Number(l.qtde) : null,
-        provento: Number(l.provento ?? 0), desconto: Number(l.desconto ?? 0), resultado: Number(l.resultado ?? 0),
-      })));
+      setLancamentos((ls ?? []).map((l) => {
+        const provento = Number(l.provento ?? 0);
+        const desconto = Number(l.desconto ?? 0);
+        const resultado = Number(l.resultado ?? 0);
+        const qtde = l.qtde != null ? Number(l.qtde) : null;
+        const legadoSaldoEmFerias = l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
+        const legadoInsufMesAnteriorEmFerias = l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
+        return {
+          _k: l.id, id: l.id,
+          codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
+          descricao: legadoSaldoEmFerias ? "INSUFICIENCIA DE SALDO" : legadoInsufMesAnteriorEmFerias ? "INSUF MES ANTERIOR" : l.descricao,
+          qtde, provento, desconto, resultado,
+        };
+      }));
     })();
     // eslint-disable-next-line
   }, [holeriteId]);
@@ -419,9 +434,14 @@ function EditorDialog({
     setNumDepSalFam(Number(f.num_dep_sal_fam ?? 0));
   }, [funcId, funcs, holeriteId]);
 
-  const totalProv = useMemo(() => lancamentos.reduce((s, l) => s + Number(l.provento || 0), 0), [lancamentos]);
-  const totalDesc = useMemo(() => lancamentos.reduce((s, l) => s + Number(l.desconto || 0), 0), [lancamentos]);
-  const totalLiq = totalProv - totalDesc;
+  const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
+  const entraNoLiquido = (l: LancEdit) => {
+    const r = rubricaPorCodigo.get(l.codigo);
+    return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
+  };
+  const totalProv = useMemo(() => lancamentos.reduce((s, l) => entraNoLiquido(l) ? s + Number(l.provento || 0) : s, 0), [lancamentos, rubricaPorCodigo]);
+  const totalDesc = useMemo(() => lancamentos.reduce((s, l) => entraNoLiquido(l) ? s + Number(l.desconto || 0) : s, 0), [lancamentos, rubricaPorCodigo]);
+  const totalLiq = Math.max(0, totalProv - totalDesc);
 
   const addLinha = () => setLancamentos((prev) => [...prev, { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 }]);
   const removerLinha = (k: string) => setLancamentos((prev) => prev.filter((l) => l._k !== k));
@@ -624,8 +644,8 @@ function EditorDialog({
                     <th className="p-1 text-left">Descrição</th>
                     <th className="p-1 text-right w-20">Qtde</th>
                     <th className="p-1 text-right w-24">Provento</th>
-                    <th className="p-1 text-right w-24">Desconto</th>
-                      <th className="p-1 text-right w-24">Resultado (h)</th>
+                      <th className="p-1 text-right w-24">Desconto</th>
+                      <th className="p-1 text-right w-24">Resultado</th>
                     <th className="p-1 w-8"></th>
                   </tr>
                 </thead>
@@ -670,7 +690,7 @@ function EditorDialog({
                       <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.desconto ?? 0} onChange={(e) => updLinha(l._k, { desconto: Number(e.target.value) })} /></td>
                       <td className="p-1">
                         {(!Number(l.provento || 0) && !Number(l.desconto || 0))
-                          ? <Input className="h-7 text-xs text-right" readOnly value={formatHorasDecimais(l.resultado)} />
+                          ? <Input className="h-7 text-xs text-right" readOnly value={formatResultado(l)} />
                           : <div className="h-7" />}
                       </td>
                       <td className="p-1 text-center"><Button size="sm" variant="ghost" onClick={() => removerLinha(l._k)}><Trash2 className="h-3 w-3 text-red-600" /></Button></td>
