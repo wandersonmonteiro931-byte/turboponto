@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { recalcularMes as recalcularBeneficioMes, type Beneficio } from "@/lib/beneficios";
 import { carregarCartao } from "@/lib/cartao";
 import { carregarVinculosAtivos, escolherJornadaParaData } from "@/lib/jornadas";
+import { calcularHorasBenefMinutos } from "@/lib/cartao";
 
 // Motor de cálculo automático da folha.
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
@@ -176,6 +177,7 @@ export async function recalcular(
   let numFaltas = 0;
   let saldoBHMinutos = 0;
   let dsrPerdidos = 0;
+  let minHorasBenef = 0;
   const datasFalta: string[] = [];
   try {
     const cartao = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
@@ -209,6 +211,7 @@ export async function recalcular(
       if (faltasSet.has(iso)) faltaAcumulada = true;
     }
     saldoBHMinutos = cartao.totalBancoHoras;
+    minHorasBenef = calcularHorasBenefMinutos(cartao);
   } catch (e) {
     console.warn("[holerite] falha ao carregar cartão de ponto; usando fallback", e);
     const [creditos, debitos, faltas] = await Promise.all([
@@ -464,7 +467,9 @@ export async function recalcular(
       console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
     }
     // Saldo de débito do mês em horas, vindo direto do cartão de ponto.
-    const horasCB = round(minAtraso / 60);
+    // Mesma base do cartão de ponto (QTDE HORAS BENEF): inclui faltas
+    // injustificadas (carga programada) + débitos de banco de horas.
+    const horasCB = round(minHorasBenef / 60);
     const idxCB = linhas.findIndex((l) => l.codigo === "18445");
     if (horasCB > 0) {
       const r = porCodigo.get("18445")!;
