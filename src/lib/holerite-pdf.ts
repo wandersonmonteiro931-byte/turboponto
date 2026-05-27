@@ -227,7 +227,9 @@ export function gerarHoleritePdf(
     doc.text(fmtNum(l.qtde, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" }); cx += colsTab.qtde;
     doc.text(fmtNum(l.provento), cx + colsTab.prov - 1, y + 4, { align: "right" }); cx += colsTab.prov;
     doc.text(fmtNum(l.desconto), cx + colsTab.desc2 - 1, y + 4, { align: "right" }); cx += colsTab.desc2;
-    doc.text(isInformativo ? fmtHoras(l.resultado) : "", cx + colsTab.res - 1, y + 4, { align: "right" });
+    const isHoras = ["18445", "28651", "28652"].includes(l.codigo);
+    const resTxt = l.codigo === "09990" ? "" : (isInformativo && isHoras ? fmtHoras(l.resultado) : (isInformativo ? fmtNum(l.resultado) : ""));
+    doc.text(resTxt, cx + colsTab.res - 1, y + 4, { align: "right" });
     y += 5;
   }
 
