@@ -245,7 +245,7 @@ function HoleritesPage() {
                         </td>}
                         <td className="p-2 font-medium">{h.funcionarios?.nome ?? "—"}</td>
                         <td className="p-2">{mesNome(h.mes_referencia)}/{h.ano_referencia}</td>
-                        <td className="p-2 text-right font-mono">{Number(h.total_liquido || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-right font-mono">{Math.max(0, Number(h.total_liquido || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                         <td className="p-2">
                           {h.liberado
                             ? <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-700">Liberado</span>
