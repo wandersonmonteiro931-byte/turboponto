@@ -435,6 +435,13 @@ function EditorDialog({
     setNumDepSalFam(Number(f.num_dep_sal_fam ?? 0));
   }, [funcId, funcs, holeriteId]);
 
+  // Atualiza Período de Pagamento ao trocar mês/ano
+  useEffect(() => {
+    const ult = new Date(ano, mes, 0).getDate();
+    setPeriodoInicio(`${ano}-${String(mes).padStart(2, "0")}-01`);
+    setPeriodoFim(`${ano}-${String(mes).padStart(2, "0")}-${String(ult).padStart(2, "0")}`);
+  }, [mes, ano]);
+
   const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
   const entraNoLiquido = (l: LancEdit) => {
     const r = rubricaPorCodigo.get(l.codigo);
