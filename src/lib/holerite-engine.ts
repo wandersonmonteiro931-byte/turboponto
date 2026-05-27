@@ -605,13 +605,13 @@ export async function recalcular(
   totalDesc = round(totalDesc);
   let totalLiq = round(totalProv - totalDesc);
 
-  // Se líquido ficou negativo, registra o saldo em 09000 (INSUFICIENCIA DE SALDO)
+  // Se líquido ficou negativo, registra o saldo em 09990 (INSUFICIENCIA DE SALDO)
   // como informativo e zera o líquido. Esse valor será lançado automaticamente
-  // como desconto 09005 (INSUF MES ANTERIOR) no holerite do mês seguinte.
-  const idx9000 = linhas.findIndex((l) => l.codigo === "09000");
-  if (totalLiq < 0 && porCodigo.has("09000")) {
+  // como desconto 09995 (INSUF MES ANTERIOR) no holerite do mês seguinte.
+  const idx9000 = linhas.findIndex((l) => l.codigo === "09990");
+  if (totalLiq < 0 && porCodigo.has("09990")) {
     const shortfall = round(-totalLiq);
-    const r = porCodigo.get("09000")!;
+    const r = porCodigo.get("09990")!;
     const payload: EngineLanc = {
       _k: idx9000 >= 0 ? linhas[idx9000]._k : crypto.randomUUID(),
       id: idx9000 >= 0 ? linhas[idx9000].id : undefined,
