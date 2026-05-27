@@ -211,6 +211,7 @@ export async function recalcular(
       if (faltasSet.has(iso)) faltaAcumulada = true;
     }
     saldoBHMinutos = cartao.totalBancoHoras;
+    minHorasBenef = calcularHorasBenefMinutos(cartao);
   } catch (e) {
     console.warn("[holerite] falha ao carregar cartão de ponto; usando fallback", e);
     const [creditos, debitos, faltas] = await Promise.all([
