@@ -127,7 +127,7 @@ async function diasTrabalhadosCartao(funcionarioId: string, ano: number, mes: nu
 
 
 export async function calcularRubrica(
-  tipo: "provento" | "desconto",
+  tipo: "provento" | "desconto" | "informativo" | "resultado",
   tipoCalculo: TipoCalculo,
   valorRef: number,
   ctx: CalcContext,
@@ -195,6 +195,6 @@ export async function calcularRubrica(
 
   const provento = tipo === "provento" ? round(valor) : 0;
   const desconto = tipo === "desconto" ? round(valor) : 0;
-  const resultado = round(provento - desconto);
+  const resultado = tipo === "informativo" || tipo === "resultado" ? round(valor) : round(provento - desconto);
   return { qtde, provento, desconto, resultado };
 }
