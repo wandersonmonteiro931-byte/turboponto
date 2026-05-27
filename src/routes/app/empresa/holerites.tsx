@@ -310,6 +310,7 @@ const formatHorasDecimais = (v: number | null | undefined) => {
 
 const formatResultado = (l: LancEdit) => {
   if (l.resultado == null || Number(l.resultado) === 0) return "";
+  if (l.codigo === "09990") return "";
   if (["18445", "28651", "28652"].includes(l.codigo)) return formatHorasDecimais(l.resultado);
   return Number(l.resultado).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 };
@@ -702,7 +703,7 @@ function EditorDialog({
                     <td colSpan={4} className="p-2 text-right">Totais:</td>
                     <td className="p-2 text-right font-mono">{totalProv.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                     <td className="p-2 text-right font-mono">{totalDesc.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-                    <td className="p-2 text-right font-mono text-base bg-primary/10 text-primary">{totalLiq.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                    <td className="p-2 text-right font-mono text-base bg-primary/10 text-foreground">{Number(totalLiq || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
                     <td></td>
                   </tr>
                 </tfoot>
