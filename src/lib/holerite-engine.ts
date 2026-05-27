@@ -328,6 +328,48 @@ export async function recalcular(
     linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
   }
 
+  // ==== Insuficiência de saldo do mês anterior (09005) ====
+  // Busca o holerite do mês anterior (mesmo funcionário) e, se houver uma linha
+  // 09000 (INSUFICIENCIA DE SALDO), lança automaticamente 09005 como desconto.
+  if (porCodigo.has("09005")) {
+    const mesAnt = ctx.mes === 1 ? 12 : ctx.mes - 1;
+    const anoAnt = ctx.mes === 1 ? ctx.ano - 1 : ctx.ano;
+    const { data: hAnt } = await supabase
+      .from("holerites")
+      .select("id")
+      .eq("funcionario_id", ctx.funcionarioId)
+      .eq("ano_referencia", anoAnt)
+      .eq("mes_referencia", mesAnt)
+      .maybeSingle();
+    let saldoAnterior = 0;
+    if (hAnt?.id) {
+      const { data: linhasAnt } = await supabase
+        .from("holerite_lancamentos")
+        .select("codigo,resultado,qtde")
+        .eq("holerite_id", hAnt.id)
+        .eq("codigo", "09000");
+      saldoAnterior = (linhasAnt ?? []).reduce(
+        (s, l) => s + Number(l.resultado || l.qtde || 0),
+        0,
+      );
+    }
+    const idx9005 = linhas.findIndex((l) => l.codigo === "09005");
+    if (saldoAnterior > 0) {
+      const r = porCodigo.get("09005")!;
+      const payload: EngineLanc = {
+        _k: idx9005 >= 0 ? linhas[idx9005]._k : crypto.randomUUID(),
+        id: idx9005 >= 0 ? linhas[idx9005].id : undefined,
+        codigo: r.codigo, descricao: r.descricao,
+        qtde: null, provento: 0, desconto: round(saldoAnterior),
+        resultado: -round(saldoAnterior),
+        modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+      };
+      if (idx9005 >= 0) linhas[idx9005] = payload; else linhas.push(payload);
+    } else if (idx9005 >= 0) {
+      linhas.splice(idx9005, 1);
+    }
+  }
+
   // ==== Informativos automáticos baseados no cartão de ponto ====
   // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
   const saldoBHHoras = round(saldoBHMinutos / 60);
@@ -539,7 +581,27 @@ export async function recalcular(
   }
   totalProv = round(totalProv);
   totalDesc = round(totalDesc);
-  const totalLiq = round(totalProv - totalDesc);
+  let totalLiq = round(totalProv - totalDesc);
+
+  // Se líquido ficou negativo, registra o saldo em 09000 (INSUFICIENCIA DE SALDO)
+  // como informativo e zera o líquido. Esse valor será lançado automaticamente
+  // como desconto 09005 (INSUF MES ANTERIOR) no holerite do mês seguinte.
+  const idx9000 = linhas.findIndex((l) => l.codigo === "09000");
+  if (totalLiq < 0 && porCodigo.has("09000")) {
+    const shortfall = round(-totalLiq);
+    const r = porCodigo.get("09000")!;
+    const payload: EngineLanc = {
+      _k: idx9000 >= 0 ? linhas[idx9000]._k : crypto.randomUUID(),
+      id: idx9000 >= 0 ? linhas[idx9000].id : undefined,
+      codigo: r.codigo, descricao: r.descricao,
+      qtde: shortfall, provento: 0, desconto: 0, resultado: shortfall,
+      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+    };
+    if (idx9000 >= 0) linhas[idx9000] = payload; else linhas.push(payload);
+    totalLiq = 0;
+  } else if (idx9000 >= 0) {
+    linhas.splice(idx9000, 1);
+  }
 
   return {
     linhas,
