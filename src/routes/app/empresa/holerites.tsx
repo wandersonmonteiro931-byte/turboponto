@@ -338,11 +338,11 @@ function EditorDialog({
     { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
   ]);
   const [salvando, setSalvando] = useState(false);
-  const [rubricas, setRubricas] = useState<Array<{ id: string; codigo: string; descricao: string; tipo: "provento" | "desconto"; tipo_calculo: TipoCalculo; valor_referencia: number }>>([]);
+  const [rubricas, setRubricas] = useState<Array<{ id: string; codigo: string; descricao: string; tipo: "provento" | "desconto" | "informativo" | "resultado"; tipo_calculo: TipoCalculo; valor_referencia: number; entra_liquido?: boolean }>>([]);
 
   useEffect(() => {
     void supabase.from("holerite_rubricas")
-      .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia")
+      .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia,entra_liquido")
       .eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
       .then(({ data }) => setRubricas((data ?? []) as typeof rubricas));
     // eslint-disable-next-line
@@ -419,9 +419,14 @@ function EditorDialog({
     setNumDepSalFam(Number(f.num_dep_sal_fam ?? 0));
   }, [funcId, funcs, holeriteId]);
 
-  const totalProv = useMemo(() => lancamentos.reduce((s, l) => s + Number(l.provento || 0), 0), [lancamentos]);
-  const totalDesc = useMemo(() => lancamentos.reduce((s, l) => s + Number(l.desconto || 0), 0), [lancamentos]);
-  const totalLiq = totalProv - totalDesc;
+  const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
+  const entraNoLiquido = (l: LancEdit) => {
+    const r = rubricaPorCodigo.get(l.codigo);
+    return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
+  };
+  const totalProv = useMemo(() => lancamentos.reduce((s, l) => entraNoLiquido(l) ? s + Number(l.provento || 0) : s, 0), [lancamentos, rubricaPorCodigo]);
+  const totalDesc = useMemo(() => lancamentos.reduce((s, l) => entraNoLiquido(l) ? s + Number(l.desconto || 0) : s, 0), [lancamentos, rubricaPorCodigo]);
+  const totalLiq = Math.max(0, totalProv - totalDesc);
 
   const addLinha = () => setLancamentos((prev) => [...prev, { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 }]);
   const removerLinha = (k: string) => setLancamentos((prev) => prev.filter((l) => l._k !== k));
