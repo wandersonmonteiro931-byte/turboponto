@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { recalcularMes as recalcularBeneficioMes, type Beneficio } from "@/lib/beneficios";
 import { carregarCartao } from "@/lib/cartao";
+import { carregarVinculosAtivos, escolherJornadaParaData } from "@/lib/jornadas";
 
 // Motor de cálculo automático da folha.
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
@@ -184,17 +185,29 @@ export async function recalcular(
     for (const d of cartao.dias) {
       if ((d as { falta?: boolean }).falta) datasFalta.push((d as { data: string }).data);
     }
-    // DSR perdido: 1 por semana (seg-dom) que contenha ao menos 1 falta injustificada.
-    const semanas = new Set<string>();
-    for (const data of datasFalta) {
-      const dt = new Date(data + "T00:00:00");
-      const dow = dt.getDay(); // 0=dom..6=sab
-      const diffToMonday = (dow + 6) % 7;
-      const monday = new Date(dt);
-      monday.setDate(dt.getDate() - diffToMonday);
-      semanas.add(monday.toISOString().slice(0, 10));
+    // DSR perdido: 1 por folga/repouso da escala precedida por ao menos uma
+    // falta injustificada no período entre a folga anterior (ou admissão) e
+    // a folga atual. Folgas antes da admissão ou anteriores a qualquer falta
+    // do período não geram perda de DSR.
+    const faltasSet = new Set(datasFalta);
+    const vinculos = await carregarVinculosAtivos(ctx.funcionarioId);
+    const admStr = f?.data_admissao ?? null;
+    const desStr = f?.data_desligamento ?? null;
+    const diasMes = new Date(ctx.ano, ctx.mes, 0).getDate();
+    let faltaAcumulada = false;
+    for (let d = 1; d <= diasMes; d++) {
+      const iso = `${ctx.ano}-${String(ctx.mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if (admStr && iso < admStr) continue;
+      if (desStr && iso > desStr) break;
+      const escolha = vinculos.length ? escolherJornadaParaData(vinculos, iso) : null;
+      const isFolga = !!escolha && (!escolha.dia || !escolha.dia.trabalha);
+      if (isFolga) {
+        if (faltaAcumulada) dsrPerdidos++;
+        faltaAcumulada = false;
+        continue;
+      }
+      if (faltasSet.has(iso)) faltaAcumulada = true;
     }
-    dsrPerdidos = semanas.size;
     saldoBHMinutos = cartao.totalBancoHoras;
   } catch (e) {
     console.warn("[holerite] falha ao carregar cartão de ponto; usando fallback", e);
