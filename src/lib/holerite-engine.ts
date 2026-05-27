@@ -467,7 +467,9 @@ export async function recalcular(
       console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
     }
     // Saldo de débito do mês em horas, vindo direto do cartão de ponto.
-    const horasCB = round(minAtraso / 60);
+    // Mesma base do cartão de ponto (QTDE HORAS BENEF): inclui faltas
+    // injustificadas (carga programada) + débitos de banco de horas.
+    const horasCB = round(minHorasBenef / 60);
     const idxCB = linhas.findIndex((l) => l.codigo === "18445");
     if (horasCB > 0) {
       const r = porCodigo.get("18445")!;
