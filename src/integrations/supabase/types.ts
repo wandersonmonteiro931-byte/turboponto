@@ -516,10 +516,12 @@ export type Database = {
           horario_saida: string | null
           id: string
           intervalo_almoco_min: number | null
+          ips_permitidos: string[]
           logo_url: string | null
           nome_fantasia: string
           razao_social: string | null
           responsavel: string | null
+          restringir_ip_ponto: boolean
           telefone: string | null
           tolerancia_atraso_min: number | null
           updated_at: string
@@ -534,10 +536,12 @@ export type Database = {
           horario_saida?: string | null
           id?: string
           intervalo_almoco_min?: number | null
+          ips_permitidos?: string[]
           logo_url?: string | null
           nome_fantasia: string
           razao_social?: string | null
           responsavel?: string | null
+          restringir_ip_ponto?: boolean
           telefone?: string | null
           tolerancia_atraso_min?: number | null
           updated_at?: string
@@ -552,10 +556,12 @@ export type Database = {
           horario_saida?: string | null
           id?: string
           intervalo_almoco_min?: number | null
+          ips_permitidos?: string[]
           logo_url?: string | null
           nome_fantasia?: string
           razao_social?: string | null
           responsavel?: string | null
+          restringir_ip_ponto?: boolean
           telefone?: string | null
           tolerancia_atraso_min?: number | null
           updated_at?: string

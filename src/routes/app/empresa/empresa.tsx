@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Building2, Upload } from "lucide-react";
+import { Building2, Upload, Wifi, X, Plus } from "lucide-react";
+import { getMeuIp } from "@/lib/ip-ponto.functions";
 
 export const Route = createFileRoute("/app/empresa/empresa")({
   component: EmpresaPage,
@@ -28,6 +29,8 @@ type EmpresaForm = {
   intervalo_almoco_min: number;
   tolerancia_atraso_min: number;
   afastado_pode_bater_ponto: boolean;
+  restringir_ip_ponto: boolean;
+  ips_permitidos: string[];
 };
 
 const empty: EmpresaForm = {
@@ -36,6 +39,8 @@ const empty: EmpresaForm = {
   horario_entrada: "08:00", horario_saida: "18:00",
   intervalo_almoco_min: 60, tolerancia_atraso_min: 10,
   afastado_pode_bater_ponto: false,
+  restringir_ip_ponto: false,
+  ips_permitidos: [],
 };
 
 function EmpresaPage() {
@@ -43,6 +48,12 @@ function EmpresaPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasEmpresa, setHasEmpresa] = useState(false);
+  const [meuIp, setMeuIp] = useState<string | null>(null);
+  const [novoIp, setNovoIp] = useState("");
+
+  useEffect(() => {
+    getMeuIp().then((r) => setMeuIp(r.ip)).catch(() => setMeuIp(null));
+  }, []);
   const [form, setForm] = useState<EmpresaForm>(empty);
   const isAdmin = role === "admin";
   const canEdit = isAdmin || !hasEmpresa;
@@ -67,6 +78,8 @@ function EmpresaPage() {
           intervalo_almoco_min: data.intervalo_almoco_min ?? 60,
           tolerancia_atraso_min: data.tolerancia_atraso_min ?? 10,
           afastado_pode_bater_ponto: !!data.afastado_pode_bater_ponto,
+          restringir_ip_ponto: !!(data as { restringir_ip_ponto?: boolean }).restringir_ip_ponto,
+          ips_permitidos: ((data as { ips_permitidos?: string[] }).ips_permitidos ?? []) as string[],
         });
       }
       setLoading(false);
@@ -131,7 +144,9 @@ function EmpresaPage() {
         intervalo_almoco_min: form.intervalo_almoco_min,
         tolerancia_atraso_min: form.tolerancia_atraso_min,
         afastado_pode_bater_ponto: form.afastado_pode_bater_ponto,
-      }).eq("id", empresaId!);
+        restringir_ip_ponto: form.restringir_ip_ponto,
+        ips_permitidos: form.ips_permitidos,
+      } as never).eq("id", empresaId!);
       if (error) throw error;
       toast.success("Dados atualizados");
     } catch (err) {
@@ -233,6 +248,70 @@ function EmpresaPage() {
           </div>
         </CardContent>
       </Card>
+
+      {hasEmpresa && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Wifi className="h-5 w-5" />Restrição por rede (IP)</CardTitle>
+            <CardDescription>
+              Permita o registro de ponto apenas a partir de endereços IP públicos autorizados (ex.: WiFi da empresa).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between rounded-md border p-4">
+              <div>
+                <div className="font-medium text-sm">Bloquear ponto fora dos IPs autorizados</div>
+                <div className="text-xs text-muted-foreground">
+                  Quando ativo, o sistema impede o registro se o funcionário não estiver em uma rede liberada.
+                </div>
+              </div>
+              <Switch checked={form.restringir_ip_ponto} onCheckedChange={(v) => upd("restringir_ip_ponto", v)} disabled={!canEdit} />
+            </div>
+
+            <div className="rounded-md border p-4 space-y-3">
+              <div className="text-xs text-muted-foreground">
+                Seu IP público atual: <strong className="font-mono text-foreground">{meuIp ?? "detectando..."}</strong>
+                {meuIp && canEdit && !form.ips_permitidos.includes(meuIp) && (
+                  <Button type="button" size="sm" variant="outline" className="ml-2 h-6 text-xs"
+                    onClick={() => upd("ips_permitidos", [...form.ips_permitidos, meuIp])}>
+                    <Plus className="h-3 w-3 mr-1" />Adicionar este IP
+                  </Button>
+                )}
+              </div>
+
+              {canEdit && (
+                <div className="flex gap-2">
+                  <Input placeholder="Ex.: 200.123.45.67" value={novoIp} onChange={(e) => setNovoIp(e.target.value)} />
+                  <Button type="button" variant="outline" onClick={() => {
+                    const ip = novoIp.trim();
+                    if (!ip) return;
+                    if (form.ips_permitidos.includes(ip)) { toast.info("IP já cadastrado"); return; }
+                    upd("ips_permitidos", [...form.ips_permitidos, ip]);
+                    setNovoIp("");
+                  }}><Plus className="h-4 w-4 mr-1" />Adicionar</Button>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {form.ips_permitidos.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">Nenhum IP cadastrado.</span>
+                ) : form.ips_permitidos.map((ip) => (
+                  <span key={ip} className="inline-flex items-center gap-1 text-xs font-mono bg-muted px-2 py-1 rounded">
+                    {ip}
+                    {canEdit && (
+                      <button type="button" onClick={() => upd("ips_permitidos", form.ips_permitidos.filter((x) => x !== ip))}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
 
       {canEdit && (
         <div className="flex justify-end">
