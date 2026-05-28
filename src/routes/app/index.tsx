@@ -13,7 +13,7 @@ function AppIndex() {
   useEffect(() => {
     if (loading || !session) return;
     if (!profileLoaded) return;
-    navigate({ to: role === "funcionario" ? "/app/funcionario" : "/app/empresa", replace: true });
+    navigate({ to: role === "admin" || role === "gerente" ? "/app/empresa" : "/app/funcionario", replace: true });
   }, [role, loading, session, profileLoaded, navigate]);
 
   return (
