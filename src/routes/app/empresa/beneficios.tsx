@@ -302,6 +302,53 @@ function BeneficiosPage() {
     await carregar();
   };
 
+  const confirmarReprovar = async () => {
+    if (!reprovarAlvo || !empresaId || !user) return;
+    const motivo = reprovarMotivo.trim();
+    if (!motivo) { toast.error("Informe o motivo da reprovação"); return; }
+    const anterior = reprovarAlvo.status;
+    try {
+      await reprovarCalculo({ calculoId: reprovarAlvo.id, motivo });
+      await supabase.from("beneficios_logs").insert({
+        empresa_id: empresaId,
+        funcionario_id: reprovarAlvo.funcionario_id,
+        beneficio_id: beneficioId,
+        usuario_id: user.id,
+        acao: `reprovado_admin`,
+        status_anterior: anterior,
+        status_novo: "nao_tem_direito",
+        justificativa: motivo,
+      });
+      toast.success("Funcionário reprovado");
+      setReprovarAlvo(null);
+      setReprovarMotivo("");
+      await carregar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao reprovar");
+    }
+  };
+
+  const aprovarManual = async (linha: LinhaCalc) => {
+    if (!empresaId || !user) return;
+    try {
+      await aprovarCalculo({ calculoId: linha.id });
+      await supabase.from("beneficios_logs").insert({
+        empresa_id: empresaId,
+        funcionario_id: linha.funcionario_id,
+        beneficio_id: beneficioId,
+        usuario_id: user.id,
+        acao: `aprovado_admin`,
+        status_anterior: linha.status,
+        status_novo: "tem_direito",
+        justificativa: null,
+      });
+      toast.success("Direito restaurado");
+      await carregar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aprovar");
+    }
+  };
+
   const linhasFiltradas = useMemo(() => {
     return calculos.filter((c) => {
       if (funcionarioId !== "todos" && c.funcionario_id !== funcionarioId) return false;
