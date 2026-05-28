@@ -249,6 +249,70 @@ function EmpresaPage() {
         </CardContent>
       </Card>
 
+      {hasEmpresa && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Wifi className="h-5 w-5" />Restrição por rede (IP)</CardTitle>
+            <CardDescription>
+              Permita o registro de ponto apenas a partir de endereços IP públicos autorizados (ex.: WiFi da empresa).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between rounded-md border p-4">
+              <div>
+                <div className="font-medium text-sm">Bloquear ponto fora dos IPs autorizados</div>
+                <div className="text-xs text-muted-foreground">
+                  Quando ativo, o sistema impede o registro se o funcionário não estiver em uma rede liberada.
+                </div>
+              </div>
+              <Switch checked={form.restringir_ip_ponto} onCheckedChange={(v) => upd("restringir_ip_ponto", v)} disabled={!canEdit} />
+            </div>
+
+            <div className="rounded-md border p-4 space-y-3">
+              <div className="text-xs text-muted-foreground">
+                Seu IP público atual: <strong className="font-mono text-foreground">{meuIp ?? "detectando..."}</strong>
+                {meuIp && canEdit && !form.ips_permitidos.includes(meuIp) && (
+                  <Button type="button" size="sm" variant="outline" className="ml-2 h-6 text-xs"
+                    onClick={() => upd("ips_permitidos", [...form.ips_permitidos, meuIp])}>
+                    <Plus className="h-3 w-3 mr-1" />Adicionar este IP
+                  </Button>
+                )}
+              </div>
+
+              {canEdit && (
+                <div className="flex gap-2">
+                  <Input placeholder="Ex.: 200.123.45.67" value={novoIp} onChange={(e) => setNovoIp(e.target.value)} />
+                  <Button type="button" variant="outline" onClick={() => {
+                    const ip = novoIp.trim();
+                    if (!ip) return;
+                    if (form.ips_permitidos.includes(ip)) { toast.info("IP já cadastrado"); return; }
+                    upd("ips_permitidos", [...form.ips_permitidos, ip]);
+                    setNovoIp("");
+                  }}><Plus className="h-4 w-4 mr-1" />Adicionar</Button>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {form.ips_permitidos.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">Nenhum IP cadastrado.</span>
+                ) : form.ips_permitidos.map((ip) => (
+                  <span key={ip} className="inline-flex items-center gap-1 text-xs font-mono bg-muted px-2 py-1 rounded">
+                    {ip}
+                    {canEdit && (
+                      <button type="button" onClick={() => upd("ips_permitidos", form.ips_permitidos.filter((x) => x !== ip))}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {canEdit && (
         <div className="flex justify-end">
           <Button type="submit" disabled={saving} className="font-semibold">
