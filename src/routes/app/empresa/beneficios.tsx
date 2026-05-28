@@ -89,6 +89,34 @@ function BeneficiosPage() {
     [beneficios, beneficioId],
   );
 
+  // Carrega ciclos toda vez que o benefício muda
+  useEffect(() => {
+    if (!beneficioId) { setCiclos([]); return; }
+    void (async () => {
+      try {
+        const cs = await carregarCiclos(beneficioId);
+        setCiclos(cs);
+      } catch (e) {
+        console.warn("[beneficios] erro carregando ciclos", e);
+      }
+    })();
+  }, [beneficioId]);
+
+  // Mes/Ano do ciclo atualmente em aberto (primeiro mês não aprovado)
+  const cicloDisponivel = useMemo(() => proximoMesDisponivel(ciclos), [ciclos]);
+  const selecionado = { mes, ano };
+  const cmp = compMesAno(selecionado, cicloDisponivel);
+  const cicloSelecionadoAprovado = useMemo(
+    () => ciclos.find((c) => c.mes_referencia === mes && c.ano_referencia === ano && c.status === "aprovado") ?? null,
+    [ciclos, mes, ano],
+  );
+  // Bloqueia cálculo e edição quando o mês selecionado é posterior ao ciclo em aberto
+  const futuroBloqueado = cmp > 0;
+  // Mês passado já aprovado: leitura apenas
+  const passadoFechado = cmp < 0 || !!cicloSelecionadoAprovado;
+  const podeRecalcular = podeEditar && !futuroBloqueado && !passadoFechado;
+
+
   const carregar = async () => {
     if (!empresaId) return;
     if (!beneficioId) {
