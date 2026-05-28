@@ -104,7 +104,10 @@ function MeusBeneficios() {
         const map: Record<string, Calc | null> = {};
         for (const b of lista) {
           const stored = ((cs ?? []) as Calc[]).find((c) => c.beneficio_id === b.id) ?? null;
-          const manter = stored && ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status);
+          const manter = stored && (
+            ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status) ||
+            !!stored.motivo_admin
+          );
           if (manter) {
             map[b.id] = stored;
           } else {
@@ -118,6 +121,7 @@ function MeusBeneficios() {
               tem_direito: aval.tem_direito,
               status: aval.status,
               motivo_perda: aval.motivo,
+              motivo_admin: stored?.motivo_admin ?? null,
               valor_estimado: aval.valor,
               mes_referencia: mes,
               ano_referencia: ano,
