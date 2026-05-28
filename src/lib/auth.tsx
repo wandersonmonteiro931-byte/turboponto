@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(null);
         setEmpresaId(null);
         setNome("");
+        setProfileLoaded(false);
       }
     });
 
