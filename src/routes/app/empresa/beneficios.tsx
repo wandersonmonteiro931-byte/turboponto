@@ -183,9 +183,11 @@ function BeneficiosPage() {
       "jornadas_dias",
       "funcionarios",
       "beneficios",
-      "beneficios_calculos",
       "beneficios_entregas",
+      // NÃO escutar beneficios_calculos: esta tela é quem grava nela,
+      // o que causaria um loop de recálculo via realtime.
     ];
+
     const channel = supabase.channel(`beneficios-rt-${empresaId}`);
     for (const t of tables) {
       channel.on(

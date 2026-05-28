@@ -48,11 +48,14 @@ function MeusBeneficios() {
   const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
   const [calculos, setCalculos] = useState<Record<string, Calc | null>>({});
   const [historico, setHistorico] = useState<Entrega[]>([]);
+  const [datasPrevistas, setDatasPrevistas] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
+  const [recarga, setRecarga] = useState(0);
 
   const hoje = new Date();
   const mes = hoje.getMonth() + 1;
   const ano = hoje.getFullYear();
+
 
   useEffect(() => {
     if (!user) return;
@@ -69,6 +72,18 @@ function MeusBeneficios() {
           .select("*").eq("funcionario_id", f.id)
           .in("beneficio_id", lista.map((b) => b.id))
           .eq("mes_referencia", mes).eq("ano_referencia", ano);
+
+        const { data: ciclos } = await supabase.from("beneficios_ciclos")
+          .select("beneficio_id,data_prevista_entrega")
+          .eq("empresa_id", f.empresa_id)
+          .in("beneficio_id", lista.map((b) => b.id))
+          .eq("mes_referencia", mes).eq("ano_referencia", ano);
+        const mapaDatas: Record<string, string | null> = {};
+        for (const c of (ciclos ?? []) as { beneficio_id: string; data_prevista_entrega: string | null }[]) {
+          mapaDatas[c.beneficio_id] = c.data_prevista_entrega;
+        }
+        setDatasPrevistas(mapaDatas);
+
 
         // Calcula ao vivo (mesma lógica do cartão de ponto) para não depender
         // do gestor clicar em "Recalcular mês".
@@ -120,7 +135,22 @@ function MeusBeneficios() {
       }
       setLoading(false);
     })();
-  }, [user, mes, ano]);
+  }, [user, mes, ano, recarga]);
+
+  // Realtime: data prevista pode mudar a qualquer momento (admin altera)
+  useEffect(() => {
+    if (!funcId) return;
+    const ch = supabase
+      .channel(`func-beneficios-ciclos-${funcId}`)
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "beneficios_ciclos" } as never,
+        () => setRecarga((n) => n + 1),
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [funcId]);
+
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
   if (!funcId) return <p className="text-sm text-muted-foreground">Cadastro de funcionário não encontrado.</p>;
@@ -134,7 +164,7 @@ function MeusBeneficios() {
       </div>
 
       {beneficios.map((b) => (
-        <BeneficioCard key={b.id} beneficio={b} calc={calculos[b.id] ?? null} mes={mes} ano={ano} />
+        <BeneficioCard key={b.id} beneficio={b} calc={calculos[b.id] ?? null} mes={mes} ano={ano} dataPrevistaOverride={datasPrevistas[b.id] ?? null} />
       ))}
 
       <Card>
@@ -175,7 +205,7 @@ function MeusBeneficios() {
   );
 }
 
-function BeneficioCard({ beneficio, calc, mes, ano }: { beneficio: Beneficio; calc: Calc | null; mes: number; ano: number }) {
+function BeneficioCard({ beneficio, calc, mes, ano, dataPrevistaOverride }: { beneficio: Beneficio; calc: Calc | null; mes: number; ano: number; dataPrevistaOverride: string | null }) {
   const atraso = calc?.total_atraso_minutos ?? 0;
   const limite = beneficio.limite_atraso_minutos;
   const alerta = beneficio.limite_alerta_minutos;
@@ -197,7 +227,10 @@ function BeneficioCard({ beneficio, calc, mes, ano }: { beneficio: Beneficio; ca
     ? "Atenção: você está próximo do limite de atraso."
     : "Você ainda tem direito a este benefício este mês.";
 
-  const dataPrev = new Date(ano, mes - 1, beneficio.dia_entrega).toLocaleDateString("pt-BR");
+  const dataPrev = dataPrevistaOverride
+    ? new Date(dataPrevistaOverride + "T00:00:00").toLocaleDateString("pt-BR")
+    : new Date(ano, mes - 1, beneficio.dia_entrega).toLocaleDateString("pt-BR");
+
 
   return (
     <Card>
