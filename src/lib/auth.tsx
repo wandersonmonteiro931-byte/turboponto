@@ -11,6 +11,7 @@ interface AuthState {
   empresaId: string | null;
   nome: string;
   loading: boolean;
+  profileLoaded: boolean;
   signOut: () => Promise<void>;
 }
 
