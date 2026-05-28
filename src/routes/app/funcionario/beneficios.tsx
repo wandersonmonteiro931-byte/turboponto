@@ -135,7 +135,22 @@ function MeusBeneficios() {
       }
       setLoading(false);
     })();
-  }, [user, mes, ano]);
+  }, [user, mes, ano, recarga]);
+
+  // Realtime: data prevista pode mudar a qualquer momento (admin altera)
+  useEffect(() => {
+    if (!funcId) return;
+    const ch = supabase
+      .channel(`func-beneficios-ciclos-${funcId}`)
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "beneficios_ciclos" } as never,
+        () => setRecarga((n) => n + 1),
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [funcId]);
+
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
   if (!funcId) return <p className="text-sm text-muted-foreground">Cadastro de funcionário não encontrado.</p>;
