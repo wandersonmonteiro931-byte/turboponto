@@ -17,9 +17,10 @@ import { toast } from "sonner";
 import {
   STATUS_BENEFICIO, mesNome, recalcularMes,
   carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo, salvarDataPrevista,
+  reprovarCalculo, aprovarCalculo,
   type Beneficio, type CicloBeneficio,
 } from "@/lib/beneficios";
-import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck, XCircle, ThumbsUp } from "lucide-react";
 
 
 
