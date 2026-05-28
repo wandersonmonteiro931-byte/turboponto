@@ -219,8 +219,11 @@ function BeneficioCard({ beneficio, calc, mes, ano, dataPrevistaOverride }: { be
   const entregue = calc?.status === "entregue";
   const liberado = calc?.status === "liberado";
 
+  const reprovadoAdmin = !!calc?.motivo_admin;
   const mensagem = !calc
     ? "Aguardando cálculo do mês."
+    : reprovadoAdmin
+    ? `Reprovado pela empresa: ${calc?.motivo_admin}`
     : entregue
     ? `${beneficio.nome} marcado como entregue.`
     : liberado
