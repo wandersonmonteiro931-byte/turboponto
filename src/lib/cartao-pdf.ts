@@ -219,7 +219,7 @@ export function gerarPdfCartao(opts: {
 
   doc.setFont("courier", "bold");
   doc.setFontSize(9);
-  doc.text("CARTAO DE PONTO", pageW / 2, y, { align: "center" });
+  doc.text("CARTAO DE PONTO V8", pageW / 2, y, { align: "center" });
 
   doc.setFont("courier", "normal");
   doc.setFontSize(7);

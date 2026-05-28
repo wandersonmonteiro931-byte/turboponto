@@ -268,7 +268,7 @@ function CartaoEmpresaPage() {
 
       if (!matriculaFinal) {
         toast.error(
-          "Não encontrei matrícula para este funcionário. Abra o cadastro, confira o campo Matrícula, salve novamente e tente gerar o PDF.",
+          "Matrícula não encontrada. Abra o cadastro do funcionário, salve a matrícula novamente e tente gerar o PDF.",
         );
         return;
       }
@@ -283,11 +283,9 @@ function CartaoEmpresaPage() {
 
       const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
 
-      // Recarrega o cartão para refletir todas as alterações recentes.
       const resumoAtual = await carregarCartao(funcId, ano, mes);
       setResumo(resumoAtual);
 
-      // Busca jornada ativa do funcionário.
       const { data: vinc } = await supabase
         .from("funcionarios_jornadas")
         .select("jornadas(nome), jornada_id")
@@ -345,8 +343,8 @@ function CartaoEmpresaPage() {
         status: cartao?.status ?? "aberto",
       });
 
-      salvarPdfArquivo(doc, `cartao-${f.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
-      toast.success(`PDF gerado com matrícula ${matriculaFinal}.`);
+      salvarPdfArquivo(doc, `V8-cartao-${f.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+      toast.success(`PDF V8 gerado com matrícula ${matriculaFinal}.`);
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
