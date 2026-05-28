@@ -48,6 +48,12 @@ function EmpresaPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasEmpresa, setHasEmpresa] = useState(false);
+  const [meuIp, setMeuIp] = useState<string | null>(null);
+  const [novoIp, setNovoIp] = useState("");
+
+  useEffect(() => {
+    getMeuIp().then((r) => setMeuIp(r.ip)).catch(() => setMeuIp(null));
+  }, []);
   const [form, setForm] = useState<EmpresaForm>(empty);
   const isAdmin = role === "admin";
   const canEdit = isAdmin || !hasEmpresa;
