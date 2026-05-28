@@ -7,17 +7,19 @@ export const Route = createFileRoute("/app/")({
 });
 
 function AppIndex() {
-  const { role, loading } = useAuth();
+  const { role, loading, session } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !session) return;
+    // wait until role is resolved before deciding redirect target
+    if (role === null) return;
     if (role === "funcionario") {
-      navigate({ to: "/app/funcionario" });
+      navigate({ to: "/app/funcionario", replace: true });
     } else {
-      navigate({ to: "/app/empresa" });
+      navigate({ to: "/app/empresa", replace: true });
     }
-  }, [role, loading, navigate]);
+  }, [role, loading, session, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
