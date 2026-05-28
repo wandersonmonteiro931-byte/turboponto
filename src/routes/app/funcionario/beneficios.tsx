@@ -27,6 +27,7 @@ type Calc = {
   tem_direito: boolean;
   status: string;
   motivo_perda: string | null;
+  motivo_admin: string | null;
   valor_estimado: number;
   mes_referencia: number;
   ano_referencia: number;
