@@ -323,9 +323,33 @@ function BeneficiosPage() {
     return { total, comDireito, semDireito, proximos, aEntregar };
   }, [calculos, beneficioAtual]);
 
-  const diaEntrega = beneficioAtual
-    ? new Date(ano, mes - 1, beneficioAtual.dia_entrega).toLocaleDateString("pt-BR")
-    : "—";
+  const cicloSelecionado = useMemo(
+    () => ciclos.find((c) => c.mes_referencia === mes && c.ano_referencia === ano) ?? null,
+    [ciclos, mes, ano],
+  );
+  const dataPrevistaPadrao = beneficioAtual
+    ? `${ano}-${String(mes).padStart(2, "0")}-${String(Math.min(beneficioAtual.dia_entrega, new Date(ano, mes, 0).getDate())).padStart(2, "0")}`
+    : "";
+  const dataPrevistaValor = cicloSelecionado?.data_prevista_entrega ?? dataPrevistaPadrao;
+
+  const alterarDataPrevista = async (novaData: string) => {
+    if (!empresaId || !beneficioAtual) return;
+    try {
+      await salvarDataPrevista({
+        empresaId,
+        beneficioId,
+        mes,
+        ano,
+        data: novaData || null,
+      });
+      const cs = await carregarCiclos(beneficioId);
+      setCiclos(cs);
+      toast.success("Data prevista atualizada");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar data");
+    }
+  };
+
 
   if (!empresaId) return <p className="text-sm text-muted-foreground">Cadastre primeiro os dados da empresa.</p>;
 
