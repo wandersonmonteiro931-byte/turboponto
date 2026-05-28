@@ -115,6 +115,22 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
     if (!funcId || !empresaId || !inferido) return;
     setEnviando(true);
     try {
+      // Validação de IP autorizado (se a empresa ativou)
+      const { data: emp } = await supabase
+        .from("empresas")
+        .select("restringir_ip_ponto,ips_permitidos")
+        .eq("id", empresaId)
+        .maybeSingle();
+      const e = emp as { restringir_ip_ponto?: boolean; ips_permitidos?: string[] } | null;
+      if (e?.restringir_ip_ponto) {
+        const { ip } = await getMeuIp();
+        const lista = e.ips_permitidos ?? [];
+        if (!ip || !lista.includes(ip)) {
+          toast.error(`Você não está em uma rede autorizada para bater ponto.${ip ? ` (IP: ${ip})` : ""}`);
+          setEnviando(false);
+          return;
+        }
+      }
       const { atraso, status } = avaliar(inferido.programado, new Date(), tolerancia, inferido.tipo);
       const { error } = await supabase.from("registros_ponto").insert({
         empresa_id: empresaId,
