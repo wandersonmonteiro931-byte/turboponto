@@ -129,6 +129,10 @@ function LoginPage() {
             </>
           )}
         </div>
+
+        <div className="mt-4 pt-4 border-t flex justify-center">
+          <InstallPWAButton className="w-full" />
+        </div>
       </div>
     </div>
   );
