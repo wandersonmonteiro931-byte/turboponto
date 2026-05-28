@@ -212,11 +212,26 @@ function CartaoEmpresaPage() {
         toast.error("Selecione um funcionário.");
         return;
       }
-      const f = funcs.find((x) => x.id === funcId);
+      const fLista = funcs.find((x) => x.id === funcId);
+
+      const { data: funcionarioPdf, error: funcPdfError } = await supabase
+        .from("funcionarios")
+        .select("id,nome,cpf,cargo,matricula")
+        .eq("id", funcId)
+        .maybeSingle();
+
+      if (funcPdfError) {
+        toast.error(funcPdfError.message);
+        return;
+      }
+
+      const f = (funcionarioPdf ?? fLista) as Func | undefined;
+
       if (!f) {
         toast.error("Funcionário não encontrado.");
         return;
       }
+
       const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
       // Recarrega o cartão para refletir todas as alterações recentes
       const resumoAtual = await carregarCartao(funcId, ano, mes);
