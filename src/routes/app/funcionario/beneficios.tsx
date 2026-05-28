@@ -73,6 +73,18 @@ function MeusBeneficios() {
           .in("beneficio_id", lista.map((b) => b.id))
           .eq("mes_referencia", mes).eq("ano_referencia", ano);
 
+        const { data: ciclos } = await supabase.from("beneficios_ciclos")
+          .select("beneficio_id,data_prevista_entrega")
+          .eq("empresa_id", f.empresa_id)
+          .in("beneficio_id", lista.map((b) => b.id))
+          .eq("mes_referencia", mes).eq("ano_referencia", ano);
+        const mapaDatas: Record<string, string | null> = {};
+        for (const c of (ciclos ?? []) as { beneficio_id: string; data_prevista_entrega: string | null }[]) {
+          mapaDatas[c.beneficio_id] = c.data_prevista_entrega;
+        }
+        setDatasPrevistas(mapaDatas);
+
+
         // Calcula ao vivo (mesma lógica do cartão de ponto) para não depender
         // do gestor clicar em "Recalcular mês".
         let debito = 0;
