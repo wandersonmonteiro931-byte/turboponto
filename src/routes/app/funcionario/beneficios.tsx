@@ -205,7 +205,7 @@ function MeusBeneficios() {
   );
 }
 
-function BeneficioCard({ beneficio, calc, mes, ano }: { beneficio: Beneficio; calc: Calc | null; mes: number; ano: number }) {
+function BeneficioCard({ beneficio, calc, mes, ano, dataPrevistaOverride }: { beneficio: Beneficio; calc: Calc | null; mes: number; ano: number; dataPrevistaOverride: string | null }) {
   const atraso = calc?.total_atraso_minutos ?? 0;
   const limite = beneficio.limite_atraso_minutos;
   const alerta = beneficio.limite_alerta_minutos;
@@ -227,7 +227,10 @@ function BeneficioCard({ beneficio, calc, mes, ano }: { beneficio: Beneficio; ca
     ? "Atenção: você está próximo do limite de atraso."
     : "Você ainda tem direito a este benefício este mês.";
 
-  const dataPrev = new Date(ano, mes - 1, beneficio.dia_entrega).toLocaleDateString("pt-BR");
+  const dataPrev = dataPrevistaOverride
+    ? new Date(dataPrevistaOverride + "T00:00:00").toLocaleDateString("pt-BR")
+    : new Date(ano, mes - 1, beneficio.dia_entrega).toLocaleDateString("pt-BR");
+
 
   return (
     <Card>
