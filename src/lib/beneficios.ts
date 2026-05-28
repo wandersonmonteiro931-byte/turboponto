@@ -169,3 +169,79 @@ export function fmtBRL(v: number) {
 export function mesNome(m: number) {
   return ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][m-1] ?? "";
 }
+
+export type CicloBeneficio = {
+  id: string;
+  empresa_id: string;
+  beneficio_id: string;
+  mes_referencia: number;
+  ano_referencia: number;
+  status: "aberto" | "aprovado";
+  aprovado_em: string | null;
+  aprovado_por: string | null;
+  observacao: string | null;
+};
+
+export async function carregarCiclos(beneficioId: string): Promise<CicloBeneficio[]> {
+  const { data, error } = await supabase
+    .from("beneficios_ciclos")
+    .select("*")
+    .eq("beneficio_id", beneficioId)
+    .order("ano_referencia", { ascending: false })
+    .order("mes_referencia", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as CicloBeneficio[];
+}
+
+export function ultimoCicloAprovado(ciclos: CicloBeneficio[]): CicloBeneficio | null {
+  return ciclos.find((c) => c.status === "aprovado") ?? null;
+}
+
+export function proximoMesDisponivel(ciclos: CicloBeneficio[]): { mes: number; ano: number } {
+  const ult = ultimoCicloAprovado(ciclos);
+  if (!ult) {
+    const hoje = new Date();
+    return { mes: hoje.getMonth() + 1, ano: hoje.getFullYear() };
+  }
+  const m = ult.mes_referencia + 1;
+  return m > 12 ? { mes: 1, ano: ult.ano_referencia + 1 } : { mes: m, ano: ult.ano_referencia };
+}
+
+export function compMesAno(a: { mes: number; ano: number }, b: { mes: number; ano: number }) {
+  if (a.ano !== b.ano) return a.ano < b.ano ? -1 : 1;
+  if (a.mes === b.mes) return 0;
+  return a.mes < b.mes ? -1 : 1;
+}
+
+export async function aprovarCiclo(params: {
+  empresaId: string;
+  beneficioId: string;
+  mes: number;
+  ano: number;
+  usuarioId: string;
+  observacao?: string;
+}): Promise<void> {
+  const { empresaId, beneficioId, mes, ano, usuarioId, observacao } = params;
+  const { error } = await supabase.from("beneficios_ciclos").upsert({
+    empresa_id: empresaId,
+    beneficio_id: beneficioId,
+    mes_referencia: mes,
+    ano_referencia: ano,
+    status: "aprovado",
+    aprovado_em: new Date().toISOString(),
+    aprovado_por: usuarioId,
+    observacao: observacao ?? null,
+  }, { onConflict: "beneficio_id,mes_referencia,ano_referencia" });
+  if (error) throw error;
+
+  const proxMes = mes === 12 ? 1 : mes + 1;
+  const proxAno = mes === 12 ? ano + 1 : ano;
+  await supabase.from("beneficios_ciclos").upsert({
+    empresa_id: empresaId,
+    beneficio_id: beneficioId,
+    mes_referencia: proxMes,
+    ano_referencia: proxAno,
+    status: "aberto",
+  }, { onConflict: "beneficio_id,mes_referencia,ano_referencia", ignoreDuplicates: true });
+}
+

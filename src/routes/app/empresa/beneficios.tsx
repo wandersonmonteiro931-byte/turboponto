@@ -16,9 +16,11 @@ import {
 import { toast } from "sonner";
 import {
   STATUS_BENEFICIO, mesNome, recalcularMes,
-  type Beneficio,
+  carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo,
+  type Beneficio, type CicloBeneficio,
 } from "@/lib/beneficios";
-import { AlertCircle, CheckCircle2, FileText, RefreshCw, Truck } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck } from "lucide-react";
+
 
 export const Route = createFileRoute("/app/empresa/beneficios")({
   component: BeneficiosPage,
@@ -61,9 +63,12 @@ function BeneficiosPage() {
   const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
   const [beneficioId, setBeneficioId] = useState<string>("");
   const [calculos, setCalculos] = useState<LinhaCalc[]>([]);
+  const [ciclos, setCiclos] = useState<CicloBeneficio[]>([]);
   const [loading, setLoading] = useState(true);
   const [recalculando, setRecalculando] = useState(false);
+  const [aprovando, setAprovando] = useState(false);
   const [novoOpen, setNovoOpen] = useState(false);
+
 
   useEffect(() => {
     if (!empresaId) return;
@@ -83,6 +88,34 @@ function BeneficiosPage() {
     () => beneficios.find((b) => b.id === beneficioId) ?? null,
     [beneficios, beneficioId],
   );
+
+  // Carrega ciclos toda vez que o benefício muda
+  useEffect(() => {
+    if (!beneficioId) { setCiclos([]); return; }
+    void (async () => {
+      try {
+        const cs = await carregarCiclos(beneficioId);
+        setCiclos(cs);
+      } catch (e) {
+        console.warn("[beneficios] erro carregando ciclos", e);
+      }
+    })();
+  }, [beneficioId]);
+
+  // Mes/Ano do ciclo atualmente em aberto (primeiro mês não aprovado)
+  const cicloDisponivel = useMemo(() => proximoMesDisponivel(ciclos), [ciclos]);
+  const selecionado = { mes, ano };
+  const cmp = compMesAno(selecionado, cicloDisponivel);
+  const cicloSelecionadoAprovado = useMemo(
+    () => ciclos.find((c) => c.mes_referencia === mes && c.ano_referencia === ano && c.status === "aprovado") ?? null,
+    [ciclos, mes, ano],
+  );
+  // Bloqueia cálculo e edição quando o mês selecionado é posterior ao ciclo em aberto
+  const futuroBloqueado = cmp > 0;
+  // Mês passado já aprovado: leitura apenas
+  const passadoFechado = cmp < 0 || !!cicloSelecionadoAprovado;
+  const podeRecalcular = podeEditar && !futuroBloqueado && !passadoFechado;
+
 
   const carregar = async () => {
     if (!empresaId) return;
@@ -108,15 +141,18 @@ function BeneficiosPage() {
     if (!empresaId || !beneficioAtual) { void carregar(); return; }
     void (async () => {
       setLoading(true);
-      try {
-        await recalcularMes(empresaId, beneficioAtual, mes, ano);
-      } catch (e) {
-        console.warn("[beneficios] auto recalc falhou", e);
+      // Não recalcula meses futuros (sem aprovação do anterior) nem ciclos já fechados
+      if (podeRecalcular) {
+        try {
+          await recalcularMes(empresaId, beneficioAtual, mes, ano);
+        } catch (e) {
+          console.warn("[beneficios] auto recalc falhou", e);
+        }
       }
       await carregar();
     })();
     /* eslint-disable-next-line */
-  }, [empresaId, beneficioId, beneficioAtual, mes, ano]);
+  }, [empresaId, beneficioId, beneficioAtual, mes, ano, podeRecalcular]);
 
   // Realtime: recalcula automaticamente sempre que qualquer dado que
   // influencia o cálculo do benefício mudar em outra seção do app
@@ -128,13 +164,16 @@ function BeneficiosPage() {
       if (pending) clearTimeout(pending);
       pending = setTimeout(async () => {
         try {
-          await recalcularMes(empresaId, beneficioAtual, mes, ano);
+          if (podeRecalcular) {
+            await recalcularMes(empresaId, beneficioAtual, mes, ano);
+          }
           await carregar();
         } catch (e) {
           console.warn("[beneficios] realtime recalc falhou", e);
         }
       }, 400);
     };
+
     const tables = [
       "registros_ponto",
       "dias_falta",
@@ -170,6 +209,10 @@ function BeneficiosPage() {
 
   const recalcular = async () => {
     if (!empresaId || !beneficioAtual) return;
+    if (!podeRecalcular) {
+      toast.info(passadoFechado ? "Ciclo já aprovado — não pode ser recalculado." : "Aprove o ciclo anterior primeiro.");
+      return;
+    }
     setRecalculando(true);
     try {
       const r = await recalcularMes(empresaId, beneficioAtual, mes, ano);
@@ -181,6 +224,38 @@ function BeneficiosPage() {
       setRecalculando(false);
     }
   };
+
+  const aprovarMes = async () => {
+    if (!empresaId || !beneficioAtual || !user) return;
+    if (cmp !== 0) {
+      toast.info("Só é possível aprovar o ciclo em aberto.");
+      return;
+    }
+    if (!confirm(`Aprovar ${mesNome(mes)}/${ano} e abrir o próximo mês? Esta ação não pode ser desfeita.`)) return;
+    setAprovando(true);
+    try {
+      await aprovarCiclo({
+        empresaId, beneficioId, mes, ano, usuarioId: user.id,
+      });
+      await supabase.from("beneficios_logs").insert({
+        empresa_id: empresaId,
+        beneficio_id: beneficioId,
+        usuario_id: user.id,
+        acao: `ciclo_aprovado: ${mes}/${ano}`,
+        status_anterior: "aberto",
+        status_novo: "aprovado",
+        justificativa: null,
+      });
+      const cs = await carregarCiclos(beneficioId);
+      setCiclos(cs);
+      toast.success(`Ciclo de ${mesNome(mes)}/${ano} aprovado. Próximo mês liberado.`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aprovar ciclo");
+    } finally {
+      setAprovando(false);
+    }
+  };
+
 
   const mudarStatus = async (linha: LinhaCalc, novoStatus: string, justificativa: string) => {
     if (!empresaId || !user) return;
@@ -318,14 +393,40 @@ function BeneficiosPage() {
             <Resumo label="Limite de atraso" value={fmtHorasMin(beneficioAtual.limite_atraso_minutos)} hint={`Alerta: ${fmtHorasMin(beneficioAtual.limite_alerta_minutos)}`} />
             <Resumo label="Horas apuradas" value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))} />
             <Resumo label="Data prevista" value={diaEntrega} hint={`Dia ${beneficioAtual.dia_entrega} do mês`} />
-            <div className="flex items-end">
-              <Button onClick={recalcular} disabled={recalculando} variant="outline" className="w-full">
+            <div className="flex items-end gap-2">
+              <Button onClick={recalcular} disabled={recalculando || !podeRecalcular} variant="outline" className="flex-1">
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalculando ? "animate-spin" : ""}`} />
                 Recalcular mês
               </Button>
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Banner: ciclo em aberto (admin pode aprovar) */}
+      {beneficioAtual && cmp === 0 && ehAdmin && (
+        <div className="border rounded-md px-3 py-2 bg-primary/5 border-primary/30 flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-sm">
+            Ciclo de <strong>{mesNome(mes)}/{ano}</strong> em aberto.
+            Após aprovar, o mês de <strong>{mesNome(mes === 12 ? 1 : mes + 1)}/{mes === 12 ? ano + 1 : ano}</strong> ficará disponível.
+          </div>
+          <Button size="sm" onClick={aprovarMes} disabled={aprovando}>
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {aprovando ? "Aprovando..." : "Aprovar mês e abrir próximo"}
+          </Button>
+        </div>
+      )}
+
+      {/* Banner: ciclo aprovado */}
+      {beneficioAtual && cicloSelecionadoAprovado && (
+        <Alerta tone="blue" icon={<CheckCircle2 className="h-4 w-4" />}
+          texto={`Ciclo de ${mesNome(mes)}/${ano} aprovado em ${new Date(cicloSelecionadoAprovado.aprovado_em ?? "").toLocaleDateString("pt-BR")}. Somente leitura.`} />
+      )}
+
+      {/* Banner: mês futuro aguardando aprovação */}
+      {beneficioAtual && futuroBloqueado && (
+        <Alerta tone="amber" icon={<Lock className="h-4 w-4" />}
+          texto={`Aguardando aprovação do ciclo de ${mesNome(cicloDisponivel.mes)}/${cicloDisponivel.ano} para iniciar este mês. Nenhum cálculo será feito.`} />
       )}
 
       {/* Alertas */}
@@ -337,10 +438,11 @@ function BeneficiosPage() {
         <Alerta tone="blue" icon={<Truck className="h-4 w-4" />}
           texto={`${totais.aEntregar} cesta(s) liberada(s) aguardando entrega.`} />
       )}
-      {beneficioAtual && hoje.getDate() >= beneficioAtual.dia_entrega && totais.aEntregar > 0 && (
+      {beneficioAtual && hoje.getDate() >= beneficioAtual.dia_entrega && totais.aEntregar > 0 && cmp === 0 && (
         <Alerta tone="red" icon={<AlertCircle className="h-4 w-4" />}
           texto={`Dia ${beneficioAtual.dia_entrega} chegou e ainda há cestas pendentes.`} />
       )}
+
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -363,10 +465,15 @@ function BeneficiosPage() {
             </div>
           ) : linhasFiltradas.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
-              <p>Nenhum cálculo para esse período.</p>
-              {podeEditar && <Button size="sm" onClick={recalcular}>Calcular agora</Button>}
+              <p>
+                {futuroBloqueado
+                  ? "Mês ainda não liberado — aprove o ciclo anterior primeiro."
+                  : "Nenhum cálculo para esse período."}
+              </p>
+              {podeRecalcular && <Button size="sm" onClick={recalcular}>Calcular agora</Button>}
             </div>
           ) : (
+
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
