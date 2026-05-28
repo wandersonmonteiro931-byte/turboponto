@@ -140,10 +140,13 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     .eq("ano_referencia", ano);
   const mapaExist = new Map((existentes ?? []).map((e) => [e.funcionario_id, e]));
 
-  const rows = calculos.map((c) => {
+  // Upsert por funcionário: assim, uma falha individual não bloqueia os demais.
+  let atualizados = 0;
+  const erros: string[] = [];
+  for (const c of calculos) {
     const ex = mapaExist.get(c.funcionario_id);
     const manterStatus = ex && ["liberado", "entregue", "em_analise"].includes(ex.status);
-    return {
+    const row = {
       ...(ex ? { id: ex.id } : {}),
       empresa_id: empresaId,
       beneficio_id: beneficio.id,
@@ -153,13 +156,20 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
       status: manterStatus ? ex!.status : c.status,
       calculado_em: new Date().toISOString(),
     };
-  });
-
-  const { error: eUp } = await supabase.from("beneficios_calculos").upsert(rows, {
-    onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia",
-  });
-  if (eUp) throw eUp;
-  return { atualizados: rows.length };
+    const { error } = await supabase
+      .from("beneficios_calculos")
+      .upsert(row, { onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia" });
+    if (error) {
+      console.warn("[beneficios] upsert falhou", c.funcionario_id, error);
+      erros.push(`${c.funcionario_id.slice(0, 8)}: ${error.message}`);
+    } else {
+      atualizados++;
+    }
+  }
+  if (atualizados === 0 && erros.length > 0) {
+    throw new Error(erros.join(" | "));
+  }
+  return { atualizados };
 }
 
 export function fmtBRL(v: number) {
