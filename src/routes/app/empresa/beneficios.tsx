@@ -130,7 +130,7 @@ function BeneficiosPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("beneficios_calculos")
-      .select("id,funcionario_id,total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,valor_estimado,funcionarios(nome,cargo)")
+      .select("id,funcionario_id,total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,motivo_admin,valor_estimado,funcionarios(nome,cargo)")
       .eq("empresa_id", empresaId)
       .eq("beneficio_id", beneficioId)
       .eq("mes_referencia", mes)
