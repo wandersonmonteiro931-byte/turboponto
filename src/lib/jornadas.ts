@@ -137,12 +137,13 @@ export type VinculoAtivoComDias = {
 };
 
 export async function carregarVinculosAtivos(funcionarioId: string): Promise<VinculoAtivoComDias[]> {
-  const { data: vincs } = await supabase
+  const { data: vincs, error: errVinc } = await supabase
     .from("funcionarios_jornadas")
     .select("id,jornada_id,data_inicio,data_fim,jornadas(nome,codigo,tolerancia_atraso_minutos)")
     .eq("funcionario_id", funcionarioId)
     .eq("ativo", true)
     .order("data_inicio", { ascending: false });
+  if (errVinc) console.error("carregarVinculosAtivos vinculos:", errVinc);
   const rows = (vincs ?? []) as Array<{
     id: string;
     jornada_id: string;
@@ -152,10 +153,11 @@ export async function carregarVinculosAtivos(funcionarioId: string): Promise<Vin
   }>;
   if (!rows.length) return [];
   const jornadaIds = Array.from(new Set(rows.map((r) => r.jornada_id)));
-  const { data: dias } = await supabase
+  const { data: dias, error: errDias } = await supabase
     .from("jornadas_dias")
     .select("*")
     .in("jornada_id", jornadaIds);
+  if (errDias) console.error("carregarVinculosAtivos dias:", errDias);
   const diasPorJornada = new Map<string, JornadaDia[]>();
   for (const d of (dias ?? []) as JornadaDia[]) {
     const arr = diasPorJornada.get(d.jornada_id) ?? [];
@@ -185,9 +187,10 @@ export function escolherJornadaParaData(
   dataISO: string,
 ): { vinculo: VinculoAtivoComDias; dia: JornadaDia | null } | null {
   const dow = new Date(dataISO + "T12:00:00").getDay();
-  const aplicaveis = vinculos.filter(
-    (v) => v.data_inicio <= dataISO && (!v.data_fim || v.data_fim >= dataISO),
-  );
+  // Apenas filtra vínculos já encerrados (data_fim < hoje).
+  // O início é informativo — se está ativo, considera-se vigente para evitar
+  // problemas com fuso horário do navegador vs servidor.
+  const aplicaveis = vinculos.filter((v) => !v.data_fim || v.data_fim >= dataISO);
   if (!aplicaveis.length) return null;
   const comTrabalha = aplicaveis
     .map((v) => ({ vinculo: v, dia: v.dias.find((d) => d.dia_semana === dow) ?? null }))
