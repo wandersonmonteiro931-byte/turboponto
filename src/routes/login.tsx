@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/lib/auth";
+import { InstallPWAButton } from "@/components/InstallPWAButton";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
