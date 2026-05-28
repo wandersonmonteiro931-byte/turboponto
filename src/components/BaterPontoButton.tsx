@@ -13,6 +13,7 @@ import {
   inferirTipo, avaliar, diaComercialISO,
 } from "@/lib/ponto";
 import { formatMinutos } from "@/lib/format";
+import { getMeuIp } from "@/lib/ip-ponto.functions";
 
 type Props = {
   size?: "default" | "lg";
