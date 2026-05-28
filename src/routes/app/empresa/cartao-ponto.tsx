@@ -181,6 +181,42 @@ function CartaoEmpresaPage() {
     if (funcId) carregar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [funcId, ano, mes]);
 
+  const extrairMatriculaFuncionario = (registro: Record<string, unknown> | null | undefined): string | null => {
+    if (!registro) return null;
+
+    const chavesDiretas = [
+      "matricula",
+      "matrícula",
+      "numero_matricula",
+      "numeroMatricula",
+      "matricula_funcionario",
+      "matriculaFuncionario",
+      "codigo_matricula",
+      "codigoMatricula",
+    ];
+
+    for (const chave of chavesDiretas) {
+      const valor = registro[chave];
+
+      if (valor !== null && valor !== undefined && String(valor).trim()) {
+        return String(valor).trim();
+      }
+    }
+
+    for (const [chave, valor] of Object.entries(registro)) {
+      const chaveNormalizada = chave
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      if (chaveNormalizada.includes("matric") && valor !== null && valor !== undefined && String(valor).trim()) {
+        return String(valor).trim();
+      }
+    }
+
+    return null;
+  };
+
   const persistir = async (status: "aberto" | "fechado" | "liberado") => {
     if (!empresaId || !resumo || !funcId) return;
     const payload = {
@@ -212,12 +248,14 @@ function CartaoEmpresaPage() {
         toast.error("Selecione um funcionário.");
         return;
       }
+
       const fLista = funcs.find((x) => x.id === funcId);
 
-      const { data: funcionarioPdf, error: funcPdfError } = await supabase
+      const { data: funcionarioBanco, error: funcPdfError } = await supabase
         .from("funcionarios")
-        .select("id,nome,cpf,cargo,matricula")
+        .select("*")
         .eq("id", funcId)
+        .eq("empresa_id", empresaId)
         .maybeSingle();
 
       if (funcPdfError) {
@@ -225,13 +263,13 @@ function CartaoEmpresaPage() {
         return;
       }
 
-      const matriculaDaLista = fLista?.matricula ? String(fLista.matricula).trim() : "";
-      const matriculaDoBanco = funcionarioPdf?.matricula ? String(funcionarioPdf.matricula).trim() : "";
-      const matriculaFinal = matriculaDoBanco || matriculaDaLista || null;
+      const matriculaDaLista = extrairMatriculaFuncionario(fLista as unknown as Record<string, unknown>);
+      const matriculaDoBanco = extrairMatriculaFuncionario(funcionarioBanco as Record<string, unknown>);
+      const matriculaFinal = matriculaDoBanco || matriculaDaLista;
 
       const f = {
         ...(fLista ?? {}),
-        ...(funcionarioPdf ?? {}),
+        ...(funcionarioBanco ?? {}),
         matricula: matriculaFinal,
       } as Func;
 
@@ -241,14 +279,19 @@ function CartaoEmpresaPage() {
       }
 
       if (!matriculaFinal) {
-        toast.warning("Matrícula não encontrada no cadastro deste funcionário.");
+        toast.error(
+          "A matrícula não foi encontrada no registro do funcionário. Abra o cadastro, salve a matrícula novamente e gere o PDF.",
+        );
+        return;
       }
 
       const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
-      // Recarrega o cartão para refletir todas as alterações recentes
+
+      // Recarrega o cartão para refletir todas as alterações recentes.
       const resumoAtual = await carregarCartao(funcId, ano, mes);
       setResumo(resumoAtual);
-      // Busca jornada ativa do funcionário (dia de seg-sex como referência)
+
+      // Busca jornada ativa do funcionário.
       const { data: vinc } = await supabase
         .from("funcionarios_jornadas")
         .select("jornadas(nome), jornada_id")
@@ -259,6 +302,7 @@ function CartaoEmpresaPage() {
         .maybeSingle();
 
       const v = vinc as { jornadas: { nome: string } | null; jornada_id: string } | null;
+
       let jornada: {
         nome: string;
         entrada: string | null;
@@ -266,11 +310,13 @@ function CartaoEmpresaPage() {
         intervalo_saida: string | null;
         intervalo_retorno: string | null;
       } | null = null;
+
       if (v?.jornada_id) {
         const { data: jd } = await supabase
           .from("jornadas_dias")
           .select("dia_semana,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno,trabalha")
           .eq("jornada_id", v.jornada_id);
+
         const refDia = (jd ?? []).find((x) => x.trabalha) as
           | {
               horario_entrada: string | null;
@@ -279,6 +325,7 @@ function CartaoEmpresaPage() {
               horario_intervalo_retorno: string | null;
             }
           | undefined;
+
         jornada = {
           nome: v.jornadas?.nome ?? "JORNADA",
           entrada: refDia?.horario_entrada?.slice(0, 5) ?? null,
@@ -287,11 +334,13 @@ function CartaoEmpresaPage() {
           intervalo_retorno: refDia?.horario_intervalo_retorno?.slice(0, 5) ?? null,
         };
       }
+
       const vincs = await carregarVinculosAtivos(f.id);
+
       const doc = gerarPdfCartao({
         empresa: emp,
         funcionario: f,
-        matriculaPdf: f.matricula,
+        matriculaPdf: matriculaFinal,
         jornada,
         jornadas: vincs,
         ano,
@@ -299,8 +348,9 @@ function CartaoEmpresaPage() {
         resumo: resumoAtual,
         status: cartao?.status ?? "aberto",
       });
+
       salvarPdfArquivo(doc, `cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
-      toast.success("PDF gerado.");
+      toast.success(`PDF gerado com matrícula ${matriculaFinal}.`);
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
