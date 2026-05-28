@@ -36,14 +36,15 @@ export const Route = createFileRoute("/app/empresa")({
 });
 
 function EmpresaLayout() {
-  const { role, loading } = useAuth();
+  const { role, loading, profileLoaded } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && role === "funcionario") {
-      navigate({ to: "/app/funcionario" });
+    if (loading || !profileLoaded) return;
+    if (role !== "admin" && role !== "gerente") {
+      navigate({ to: "/app/funcionario", replace: true });
     }
-  }, [role, loading, navigate]);
+  }, [role, loading, profileLoaded, navigate]);
 
   return (
     <AppShell items={items} title="Área da Empresa">
