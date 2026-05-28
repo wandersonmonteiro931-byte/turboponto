@@ -391,6 +391,7 @@ function EditorDialog({
       setPeriodoInicio(h.periodo_inicio ?? "");
       setPeriodoFim(h.periodo_fim ?? "");
       setDataPagamento(h.data_pagamento ?? "");
+      setDataPagamentoTocada(!!h.data_pagamento);
       setBancoAg(h.banco_agencia ?? "");
       setConta(h.conta ?? "");
       setNumDepIrrf(h.num_dep_irrf ?? 0);
