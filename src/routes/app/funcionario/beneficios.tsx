@@ -27,6 +27,7 @@ type Calc = {
   tem_direito: boolean;
   status: string;
   motivo_perda: string | null;
+  motivo_admin: string | null;
   valor_estimado: number;
   mes_referencia: number;
   ano_referencia: number;
@@ -103,7 +104,10 @@ function MeusBeneficios() {
         const map: Record<string, Calc | null> = {};
         for (const b of lista) {
           const stored = ((cs ?? []) as Calc[]).find((c) => c.beneficio_id === b.id) ?? null;
-          const manter = stored && ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status);
+          const manter = stored && (
+            ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status) ||
+            !!stored.motivo_admin
+          );
           if (manter) {
             map[b.id] = stored;
           } else {
@@ -117,6 +121,7 @@ function MeusBeneficios() {
               tem_direito: aval.tem_direito,
               status: aval.status,
               motivo_perda: aval.motivo,
+              motivo_admin: stored?.motivo_admin ?? null,
               valor_estimado: aval.valor,
               mes_referencia: mes,
               ano_referencia: ano,
@@ -137,16 +142,15 @@ function MeusBeneficios() {
     })();
   }, [user, mes, ano, recarga]);
 
-  // Realtime: data prevista pode mudar a qualquer momento (admin altera)
+  // Realtime: ciclo (aprovação/data), cálculos (reprovação admin) e entregas
   useEffect(() => {
     if (!funcId) return;
+    const reload = () => setRecarga((n) => n + 1);
     const ch = supabase
-      .channel(`func-beneficios-ciclos-${funcId}`)
-      .on(
-        "postgres_changes" as never,
-        { event: "*", schema: "public", table: "beneficios_ciclos" } as never,
-        () => setRecarga((n) => n + 1),
-      )
+      .channel(`func-beneficios-${funcId}`)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_ciclos" } as never, reload)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_calculos", filter: `funcionario_id=eq.${funcId}` } as never, reload)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_entregas", filter: `funcionario_id=eq.${funcId}` } as never, reload)
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
   }, [funcId]);
@@ -215,8 +219,11 @@ function BeneficioCard({ beneficio, calc, mes, ano, dataPrevistaOverride }: { be
   const entregue = calc?.status === "entregue";
   const liberado = calc?.status === "liberado";
 
+  const reprovadoAdmin = !!calc?.motivo_admin;
   const mensagem = !calc
     ? "Aguardando cálculo do mês."
+    : reprovadoAdmin
+    ? `Reprovado pela empresa: ${calc?.motivo_admin}`
     : entregue
     ? `${beneficio.nome} marcado como entregue.`
     : liberado

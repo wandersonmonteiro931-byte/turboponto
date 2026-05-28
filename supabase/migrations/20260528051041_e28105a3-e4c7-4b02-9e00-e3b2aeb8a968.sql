@@ -1,0 +1,1 @@
+ALTER TABLE public.beneficios_calculos ADD COLUMN IF NOT EXISTS motivo_admin TEXT;

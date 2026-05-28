@@ -246,6 +246,32 @@ export async function aprovarCiclo(params: {
   }, { onConflict: "beneficio_id,mes_referencia,ano_referencia" });
   if (error) throw error;
 
+  // Materializa o histórico: cria registros em beneficios_entregas para
+  // todos os funcionários com direito (mesmo se ainda não marcados como entregue)
+  // para que apareçam imediatamente no histórico do colaborador.
+  const { data: calcs } = await supabase
+    .from("beneficios_calculos")
+    .select("funcionario_id,valor_estimado,status,tem_direito")
+    .eq("empresa_id", empresaId)
+    .eq("beneficio_id", beneficioId)
+    .eq("mes_referencia", mes)
+    .eq("ano_referencia", ano);
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  for (const c of (calcs ?? []) as Array<{ funcionario_id: string; valor_estimado: number; status: string; tem_direito: boolean }>) {
+    if (!c.tem_direito) continue;
+    await supabase.from("beneficios_entregas").upsert({
+      empresa_id: empresaId,
+      funcionario_id: c.funcionario_id,
+      beneficio_id: beneficioId,
+      mes_referencia: mes,
+      ano_referencia: ano,
+      valor_estimado: c.valor_estimado,
+      entregue: c.status === "entregue",
+      data_entrega: c.status === "entregue" ? hoje : null,
+    }, { onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia", ignoreDuplicates: false });
+  }
+
   const proxMes = mes === 12 ? 1 : mes + 1;
   const proxAno = mes === 12 ? ano + 1 : ano;
   await supabase.from("beneficios_ciclos").upsert({
@@ -255,6 +281,42 @@ export async function aprovarCiclo(params: {
     ano_referencia: proxAno,
     status: "aberto",
   }, { onConflict: "beneficio_id,mes_referencia,ano_referencia", ignoreDuplicates: true });
+}
+
+/** Admin reprova manualmente um funcionário com motivo (visível ao funcionário). */
+export async function reprovarCalculo(params: {
+  calculoId: string;
+  motivo: string;
+}): Promise<void> {
+  const { calculoId, motivo } = params;
+  const { error } = await supabase
+    .from("beneficios_calculos")
+    .update({
+      status: "nao_tem_direito",
+      tem_direito: false,
+      motivo_admin: motivo,
+      motivo_perda: motivo,
+      valor_estimado: 0,
+    })
+    .eq("id", calculoId);
+  if (error) throw error;
+}
+
+/** Admin aprova/restaura direito (limpa reprovação) — recalcular ajusta valor. */
+export async function aprovarCalculo(params: {
+  calculoId: string;
+}): Promise<void> {
+  const { calculoId } = params;
+  const { error } = await supabase
+    .from("beneficios_calculos")
+    .update({
+      status: "tem_direito",
+      tem_direito: true,
+      motivo_admin: null,
+      motivo_perda: null,
+    })
+    .eq("id", calculoId);
+  if (error) throw error;
 }
 
 /** Define/atualiza a data prevista de entrega do ciclo (admin pode alterar sempre).

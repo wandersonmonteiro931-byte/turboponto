@@ -17,9 +17,10 @@ import { toast } from "sonner";
 import {
   STATUS_BENEFICIO, mesNome, recalcularMes,
   carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo, salvarDataPrevista,
+  reprovarCalculo, aprovarCalculo,
   type Beneficio, type CicloBeneficio,
 } from "@/lib/beneficios";
-import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck, XCircle, ThumbsUp } from "lucide-react";
 
 
 
@@ -38,6 +39,7 @@ type LinhaCalc = {
   tem_direito: boolean;
   status: string;
   motivo_perda: string | null;
+  motivo_admin: string | null;
   valor_estimado: number;
   funcionarios: { nome: string; cargo: string | null } | null;
 };
@@ -69,6 +71,8 @@ function BeneficiosPage() {
   const [recalculando, setRecalculando] = useState(false);
   const [aprovando, setAprovando] = useState(false);
   const [novoOpen, setNovoOpen] = useState(false);
+  const [reprovarAlvo, setReprovarAlvo] = useState<LinhaCalc | null>(null);
+  const [reprovarMotivo, setReprovarMotivo] = useState("");
 
 
   useEffect(() => {
@@ -128,7 +132,7 @@ function BeneficiosPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("beneficios_calculos")
-      .select("id,funcionario_id,total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,valor_estimado,funcionarios(nome,cargo)")
+      .select("id,funcionario_id,total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,motivo_admin,valor_estimado,funcionarios(nome,cargo)")
       .eq("empresa_id", empresaId)
       .eq("beneficio_id", beneficioId)
       .eq("mes_referencia", mes)
@@ -296,6 +300,53 @@ function BeneficiosPage() {
 
     toast.success("Atualizado");
     await carregar();
+  };
+
+  const confirmarReprovar = async () => {
+    if (!reprovarAlvo || !empresaId || !user) return;
+    const motivo = reprovarMotivo.trim();
+    if (!motivo) { toast.error("Informe o motivo da reprovação"); return; }
+    const anterior = reprovarAlvo.status;
+    try {
+      await reprovarCalculo({ calculoId: reprovarAlvo.id, motivo });
+      await supabase.from("beneficios_logs").insert({
+        empresa_id: empresaId,
+        funcionario_id: reprovarAlvo.funcionario_id,
+        beneficio_id: beneficioId,
+        usuario_id: user.id,
+        acao: `reprovado_admin`,
+        status_anterior: anterior,
+        status_novo: "nao_tem_direito",
+        justificativa: motivo,
+      });
+      toast.success("Funcionário reprovado");
+      setReprovarAlvo(null);
+      setReprovarMotivo("");
+      await carregar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao reprovar");
+    }
+  };
+
+  const aprovarManual = async (linha: LinhaCalc) => {
+    if (!empresaId || !user) return;
+    try {
+      await aprovarCalculo({ calculoId: linha.id });
+      await supabase.from("beneficios_logs").insert({
+        empresa_id: empresaId,
+        funcionario_id: linha.funcionario_id,
+        beneficio_id: beneficioId,
+        usuario_id: user.id,
+        acao: `aprovado_admin`,
+        status_anterior: linha.status,
+        status_novo: "tem_direito",
+        justificativa: null,
+      });
+      toast.success("Direito restaurado");
+      await carregar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aprovar");
+    }
   };
 
   const linhasFiltradas = useMemo(() => {
@@ -550,9 +601,23 @@ function BeneficiosPage() {
                         <td className="p-2">
                           <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
                         </td>
-                        <td className="p-2 text-xs text-muted-foreground">{c.motivo_perda ?? "—"}</td>
+                        <td className="p-2 text-xs text-muted-foreground">
+                          {c.motivo_admin ? (
+                            <span className="text-red-700"><strong>Reprovado:</strong> {c.motivo_admin}</span>
+                          ) : (c.motivo_perda ?? "—")}
+                        </td>
                         {podeEditar && (
                           <td className="p-2 text-right space-x-1 whitespace-nowrap">
+                            {ehAdmin && !passadoFechado && c.status !== "entregue" && c.tem_direito && (
+                              <Button size="sm" variant="ghost" onClick={() => setReprovarAlvo(c)}>
+                                <XCircle className="h-3 w-3 mr-1" />Reprovar
+                              </Button>
+                            )}
+                            {ehAdmin && !passadoFechado && !c.tem_direito && (
+                              <Button size="sm" variant="ghost" onClick={() => void aprovarManual(c)}>
+                                <ThumbsUp className="h-3 w-3 mr-1" />Aprovar
+                              </Button>
+                            )}
                             {c.tem_direito && c.status === "tem_direito" && (
                               <Button size="sm" variant="outline" onClick={() => {
                                 const j = prompt("Justificativa para liberar:") ?? "";
@@ -606,6 +671,30 @@ function BeneficiosPage() {
             }
           }
         }} />}
+
+      <Dialog open={!!reprovarAlvo} onOpenChange={(o) => { if (!o) { setReprovarAlvo(null); setReprovarMotivo(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reprovar benefício</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Reprovar <strong>{reprovarAlvo?.funcionarios?.nome}</strong> para {mesNome(mes)}/{ano}.
+              O motivo informado será exibido para o funcionário.
+            </p>
+            <Fld label="Motivo">
+              <Textarea
+                value={reprovarMotivo}
+                onChange={(e) => setReprovarMotivo(e.target.value)}
+                placeholder="Ex: Faltou ao trabalho sem justificativa em 15/05"
+                rows={4}
+              />
+            </Fld>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setReprovarAlvo(null); setReprovarMotivo(""); }}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => void confirmarReprovar()}>Confirmar reprovação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
