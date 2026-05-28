@@ -187,9 +187,10 @@ export function escolherJornadaParaData(
   dataISO: string,
 ): { vinculo: VinculoAtivoComDias; dia: JornadaDia | null } | null {
   const dow = new Date(dataISO + "T12:00:00").getDay();
-  const aplicaveis = vinculos.filter(
-    (v) => v.data_inicio <= dataISO && (!v.data_fim || v.data_fim >= dataISO),
-  );
+  // Apenas filtra vínculos já encerrados (data_fim < hoje).
+  // O início é informativo — se está ativo, considera-se vigente para evitar
+  // problemas com fuso horário do navegador vs servidor.
+  const aplicaveis = vinculos.filter((v) => !v.data_fim || v.data_fim >= dataISO);
   if (!aplicaveis.length) return null;
   const comTrabalha = aplicaveis
     .map((v) => ({ vinculo: v, dia: v.dias.find((d) => d.dia_semana === dow) ?? null }))
