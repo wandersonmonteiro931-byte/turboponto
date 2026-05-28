@@ -21,14 +21,15 @@ export const Route = createFileRoute("/app/funcionario")({
 });
 
 function FuncionarioLayout() {
-  const { role, loading } = useAuth();
+  const { role, loading, profileLoaded } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && role && role !== "funcionario") {
-      navigate({ to: "/app/empresa" });
+    if (loading || !profileLoaded) return;
+    if (role === "admin" || role === "gerente") {
+      navigate({ to: "/app/empresa", replace: true });
     }
-  }, [role, loading, navigate]);
+  }, [role, loading, profileLoaded, navigate]);
 
   return (
     <AppShell items={items} title="Área do Funcionário">
