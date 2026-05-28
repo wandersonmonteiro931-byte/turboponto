@@ -29,6 +29,8 @@ type EmpresaForm = {
   intervalo_almoco_min: number;
   tolerancia_atraso_min: number;
   afastado_pode_bater_ponto: boolean;
+  restringir_ip_ponto: boolean;
+  ips_permitidos: string[];
 };
 
 const empty: EmpresaForm = {
@@ -37,6 +39,8 @@ const empty: EmpresaForm = {
   horario_entrada: "08:00", horario_saida: "18:00",
   intervalo_almoco_min: 60, tolerancia_atraso_min: 10,
   afastado_pode_bater_ponto: false,
+  restringir_ip_ponto: false,
+  ips_permitidos: [],
 };
 
 function EmpresaPage() {
