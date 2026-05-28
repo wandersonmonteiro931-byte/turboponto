@@ -283,6 +283,26 @@ export async function aprovarCiclo(params: {
   }, { onConflict: "beneficio_id,mes_referencia,ano_referencia", ignoreDuplicates: true });
 }
 
+/** Admin reabre um ciclo já aprovado para edição. */
+export async function reabrirCiclo(params: {
+  beneficioId: string;
+  mes: number;
+  ano: number;
+}): Promise<void> {
+  const { beneficioId, mes, ano } = params;
+  const { error } = await supabase
+    .from("beneficios_ciclos")
+    .update({
+      status: "aberto",
+      aprovado_em: null,
+      aprovado_por: null,
+    })
+    .eq("beneficio_id", beneficioId)
+    .eq("mes_referencia", mes)
+    .eq("ano_referencia", ano);
+  if (error) throw error;
+}
+
 /** Admin reprova manualmente um funcionário com motivo (visível ao funcionário). */
 export async function reprovarCalculo(params: {
   calculoId: string;

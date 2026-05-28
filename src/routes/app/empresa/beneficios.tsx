@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   STATUS_BENEFICIO, mesNome, recalcularMes,
   carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo, salvarDataPrevista,
-  reprovarCalculo, aprovarCalculo,
+  reprovarCalculo, aprovarCalculo, reabrirCiclo,
   type Beneficio, type CicloBeneficio,
 } from "@/lib/beneficios";
 import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck, XCircle, ThumbsUp } from "lucide-react";
@@ -515,8 +515,46 @@ function BeneficiosPage() {
 
       {/* Banner: ciclo aprovado */}
       {beneficioAtual && cicloSelecionadoAprovado && (
-        <Alerta tone="blue" icon={<CheckCircle2 className="h-4 w-4" />}
-          texto={`Ciclo de ${mesNome(mes)}/${ano} aprovado em ${new Date(cicloSelecionadoAprovado.aprovado_em ?? "").toLocaleDateString("pt-BR")}. Somente leitura.`} />
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+          <div className="flex items-start gap-2 text-sm text-blue-900">
+            <CheckCircle2 className="h-4 w-4 mt-0.5" />
+            <span>
+              Ciclo de {mesNome(mes)}/{ano} aprovado em{" "}
+              {new Date(cicloSelecionadoAprovado.aprovado_em ?? "").toLocaleDateString("pt-BR")}.
+              {ehAdmin ? " Reabra para editar." : " Somente leitura."}
+            </span>
+          </div>
+          {ehAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                if (!beneficioId || !user || !empresaId) return;
+                if (!confirm(`Reabrir o ciclo de ${mesNome(mes)}/${ano}? Você poderá editar e aprovar novamente.`)) return;
+                try {
+                  await reabrirCiclo({ beneficioId, mes, ano });
+                  await supabase.from("beneficios_logs").insert({
+                    empresa_id: empresaId,
+                    beneficio_id: beneficioId,
+                    usuario_id: user.id,
+                    acao: `ciclo_reaberto: ${mes}/${ano}`,
+                    status_anterior: "aprovado",
+                    status_novo: "aberto",
+                    justificativa: null,
+                  });
+                  const cs = await carregarCiclos(beneficioId);
+                  setCiclos(cs);
+                  toast.success("Ciclo reaberto para edição.");
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : "Erro ao reabrir ciclo");
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reabrir ciclo
+            </Button>
+          )}
+        </div>
       )}
 
       {/* Banner: mês futuro aguardando aprovação */}
