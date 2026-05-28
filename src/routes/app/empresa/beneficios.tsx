@@ -393,14 +393,40 @@ function BeneficiosPage() {
             <Resumo label="Limite de atraso" value={fmtHorasMin(beneficioAtual.limite_atraso_minutos)} hint={`Alerta: ${fmtHorasMin(beneficioAtual.limite_alerta_minutos)}`} />
             <Resumo label="Horas apuradas" value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))} />
             <Resumo label="Data prevista" value={diaEntrega} hint={`Dia ${beneficioAtual.dia_entrega} do mês`} />
-            <div className="flex items-end">
-              <Button onClick={recalcular} disabled={recalculando} variant="outline" className="w-full">
+            <div className="flex items-end gap-2">
+              <Button onClick={recalcular} disabled={recalculando || !podeRecalcular} variant="outline" className="flex-1">
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalculando ? "animate-spin" : ""}`} />
                 Recalcular mês
               </Button>
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Banner: ciclo em aberto (admin pode aprovar) */}
+      {beneficioAtual && cmp === 0 && ehAdmin && (
+        <div className="border rounded-md px-3 py-2 bg-primary/5 border-primary/30 flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-sm">
+            Ciclo de <strong>{mesNome(mes)}/{ano}</strong> em aberto.
+            Após aprovar, o mês de <strong>{mesNome(mes === 12 ? 1 : mes + 1)}/{mes === 12 ? ano + 1 : ano}</strong> ficará disponível.
+          </div>
+          <Button size="sm" onClick={aprovarMes} disabled={aprovando}>
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {aprovando ? "Aprovando..." : "Aprovar mês e abrir próximo"}
+          </Button>
+        </div>
+      )}
+
+      {/* Banner: ciclo aprovado */}
+      {beneficioAtual && cicloSelecionadoAprovado && (
+        <Alerta tone="blue" icon={<CheckCircle2 className="h-4 w-4" />}
+          texto={`Ciclo de ${mesNome(mes)}/${ano} aprovado em ${new Date(cicloSelecionadoAprovado.aprovado_em ?? "").toLocaleDateString("pt-BR")}. Somente leitura.`} />
+      )}
+
+      {/* Banner: mês futuro aguardando aprovação */}
+      {beneficioAtual && futuroBloqueado && (
+        <Alerta tone="amber" icon={<Lock className="h-4 w-4" />}
+          texto={`Aguardando aprovação do ciclo de ${mesNome(cicloDisponivel.mes)}/${cicloDisponivel.ano} para iniciar este mês. Nenhum cálculo será feito.`} />
       )}
 
       {/* Alertas */}
@@ -412,10 +438,11 @@ function BeneficiosPage() {
         <Alerta tone="blue" icon={<Truck className="h-4 w-4" />}
           texto={`${totais.aEntregar} cesta(s) liberada(s) aguardando entrega.`} />
       )}
-      {beneficioAtual && hoje.getDate() >= beneficioAtual.dia_entrega && totais.aEntregar > 0 && (
+      {beneficioAtual && hoje.getDate() >= beneficioAtual.dia_entrega && totais.aEntregar > 0 && cmp === 0 && (
         <Alerta tone="red" icon={<AlertCircle className="h-4 w-4" />}
           texto={`Dia ${beneficioAtual.dia_entrega} chegou e ainda há cestas pendentes.`} />
       )}
+
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
