@@ -329,6 +329,7 @@ function EditorDialog({
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
   const [dataPagamento, setDataPagamento] = useState("");
+  const [dataPagamentoTocada, setDataPagamentoTocada] = useState(false);
   const [bancoAg, setBancoAg] = useState("");
   const [conta, setConta] = useState("");
   const [numDepIrrf, setNumDepIrrf] = useState(0);
