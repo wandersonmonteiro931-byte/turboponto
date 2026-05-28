@@ -465,10 +465,15 @@ function BeneficiosPage() {
             </div>
           ) : linhasFiltradas.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
-              <p>Nenhum cálculo para esse período.</p>
-              {podeEditar && <Button size="sm" onClick={recalcular}>Calcular agora</Button>}
+              <p>
+                {futuroBloqueado
+                  ? "Mês ainda não liberado — aprove o ciclo anterior primeiro."
+                  : "Nenhum cálculo para esse período."}
+              </p>
+              {podeRecalcular && <Button size="sm" onClick={recalcular}>Calcular agora</Button>}
             </div>
           ) : (
+
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
