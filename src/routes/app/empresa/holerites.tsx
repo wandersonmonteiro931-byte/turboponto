@@ -329,6 +329,7 @@ function EditorDialog({
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
   const [dataPagamento, setDataPagamento] = useState("");
+  const [dataPagamentoTocada, setDataPagamentoTocada] = useState(false);
   const [bancoAg, setBancoAg] = useState("");
   const [conta, setConta] = useState("");
   const [numDepIrrf, setNumDepIrrf] = useState(0);
@@ -390,6 +391,7 @@ function EditorDialog({
       setPeriodoInicio(h.periodo_inicio ?? "");
       setPeriodoFim(h.periodo_fim ?? "");
       setDataPagamento(h.data_pagamento ?? "");
+      setDataPagamentoTocada(!!h.data_pagamento);
       setBancoAg(h.banco_agencia ?? "");
       setConta(h.conta ?? "");
       setNumDepIrrf(h.num_dep_irrf ?? 0);
@@ -440,7 +442,13 @@ function EditorDialog({
     const ult = new Date(ano, mes, 0).getDate();
     setPeriodoInicio(`${ano}-${String(mes).padStart(2, "0")}-01`);
     setPeriodoFim(`${ano}-${String(mes).padStart(2, "0")}-${String(ult).padStart(2, "0")}`);
-  }, [mes, ano]);
+    // Default: dia 05 do mês seguinte (apenas se usuário ainda não escolheu manualmente)
+    if (!dataPagamentoTocada) {
+      const proxMes = mes === 12 ? 1 : mes + 1;
+      const proxAno = mes === 12 ? ano + 1 : ano;
+      setDataPagamento(`${proxAno}-${String(proxMes).padStart(2, "0")}-05`);
+    }
+  }, [mes, ano, dataPagamentoTocada]);
 
   const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
   const entraNoLiquido = (l: LancEdit) => {
@@ -605,7 +613,7 @@ function EditorDialog({
             <Fld label="Ano"><Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} /></Fld>
             <Fld label="Período início"><Input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} /></Fld>
             <Fld label="Período fim"><Input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} /></Fld>
-            <Fld label="Data de pagamento"><Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></Fld>
+            <Fld label="Data de pagamento"><Input type="date" value={dataPagamento} onChange={(e) => { setDataPagamento(e.target.value); setDataPagamentoTocada(true); }} /></Fld>
             <Fld label="Salário contratual"><Input type="number" step="0.01" value={salarioContratual} onChange={(e) => setSalarioContratual(Number(e.target.value))} /></Fld>
             <Fld label="Banco / Agência"><Input value={bancoAg} onChange={(e) => setBancoAg(e.target.value)} placeholder="237/02402" /></Fld>
             <Fld label="Conta"><Input value={conta} onChange={(e) => setConta(e.target.value)} /></Fld>
