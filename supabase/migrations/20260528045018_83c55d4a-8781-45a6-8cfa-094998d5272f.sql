@@ -1,0 +1,1 @@
+ALTER TABLE public.beneficios_ciclos ADD COLUMN IF NOT EXISTS data_prevista_entrega DATE;
