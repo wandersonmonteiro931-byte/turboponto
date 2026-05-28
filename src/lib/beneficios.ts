@@ -259,16 +259,18 @@ export async function aprovarCiclo(params: {
 
   const hoje = new Date().toISOString().slice(0, 10);
   for (const c of (calcs ?? []) as Array<{ funcionario_id: string; valor_estimado: number; status: string; tem_direito: boolean }>) {
-    if (!c.tem_direito) continue;
+    // Cria entrada no histórico para TODOS os funcionários — com direito ficam
+    // marcados como PAGO (entregue=true) e sem direito ficam com valor 0
+    // para aparecer como "SEM DIREITO" no histórico do funcionário.
     await supabase.from("beneficios_entregas").upsert({
       empresa_id: empresaId,
       funcionario_id: c.funcionario_id,
       beneficio_id: beneficioId,
       mes_referencia: mes,
       ano_referencia: ano,
-      valor_estimado: c.valor_estimado,
-      entregue: c.status === "entregue",
-      data_entrega: c.status === "entregue" ? hoje : null,
+      valor_estimado: c.tem_direito ? c.valor_estimado : 0,
+      entregue: c.tem_direito,
+      data_entrega: c.tem_direito ? hoje : null,
     }, { onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia", ignoreDuplicates: false });
   }
 
