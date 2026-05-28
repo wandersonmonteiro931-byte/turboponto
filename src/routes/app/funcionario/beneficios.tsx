@@ -3,7 +3,15 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
-import { STATUS_BENEFICIO, avaliarDireito, fmtBRL, mesNome, type Beneficio } from "@/lib/beneficios";
+import {
+  STATUS_BENEFICIO,
+  avaliarDireito,
+  fmtBRL,
+  mesNome,
+  proximoMesDisponivel,
+  type Beneficio,
+  type CicloBeneficio,
+} from "@/lib/beneficios";
 import { carregarCartao } from "@/lib/cartao";
 import { AlertTriangle, CheckCircle2, Gift, XCircle } from "lucide-react";
 
@@ -43,118 +51,157 @@ type Entrega = {
   entregue: boolean;
 };
 
+type BeneficioCtx = {
+  beneficio: Beneficio;
+  mes: number;
+  ano: number;
+  calc: Calc | null;
+  dataPrevista: string | null;
+  cicloAprovado: boolean;
+};
+
 function MeusBeneficios() {
   const { user } = useAuth();
   const [funcId, setFuncId] = useState<string | null>(null);
-  const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
-  const [calculos, setCalculos] = useState<Record<string, Calc | null>>({});
+  const [empresaId, setEmpresaId] = useState<string | null>(null);
+  const [contextos, setContextos] = useState<BeneficioCtx[]>([]);
   const [historico, setHistorico] = useState<Entrega[]>([]);
-  const [datasPrevistas, setDatasPrevistas] = useState<Record<string, string | null>>({});
+  const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
   const [loading, setLoading] = useState(true);
   const [recarga, setRecarga] = useState(0);
-
-  const hoje = new Date();
-  const mes = hoje.getMonth() + 1;
-  const ano = hoje.getFullYear();
-
 
   useEffect(() => {
     if (!user) return;
     void (async () => {
-      const { data: f } = await supabase.from("funcionarios").select("id,empresa_id").eq("usuario_id", user.id).maybeSingle();
+      const { data: f } = await supabase
+        .from("funcionarios")
+        .select("id,empresa_id")
+        .eq("usuario_id", user.id)
+        .maybeSingle();
       if (!f) { setLoading(false); return; }
       setFuncId(f.id);
-      const { data: bens } = await supabase.from("beneficios").select("*").eq("empresa_id", f.empresa_id).eq("status", "ativo").order("created_at");
+      setEmpresaId(f.empresa_id);
+
+      const { data: bens } = await supabase
+        .from("beneficios")
+        .select("*")
+        .eq("empresa_id", f.empresa_id)
+        .eq("status", "ativo")
+        .order("created_at");
       const lista = (bens ?? []) as Beneficio[];
       setBeneficios(lista);
 
-      if (lista.length > 0) {
-        const { data: cs } = await supabase.from("beneficios_calculos")
-          .select("*").eq("funcionario_id", f.id)
-          .in("beneficio_id", lista.map((b) => b.id))
-          .eq("mes_referencia", mes).eq("ano_referencia", ano);
+      if (lista.length === 0) { setLoading(false); return; }
 
-        const { data: ciclos } = await supabase.from("beneficios_ciclos")
-          .select("beneficio_id,data_prevista_entrega")
-          .eq("empresa_id", f.empresa_id)
-          .in("beneficio_id", lista.map((b) => b.id))
-          .eq("mes_referencia", mes).eq("ano_referencia", ano);
-        const mapaDatas: Record<string, string | null> = {};
-        for (const c of (ciclos ?? []) as { beneficio_id: string; data_prevista_entrega: string | null }[]) {
-          mapaDatas[c.beneficio_id] = c.data_prevista_entrega;
-        }
-        setDatasPrevistas(mapaDatas);
+      // Ciclos de todos os benefícios da empresa
+      const { data: ciclosData } = await supabase
+        .from("beneficios_ciclos")
+        .select("*")
+        .eq("empresa_id", f.empresa_id)
+        .in("beneficio_id", lista.map((b) => b.id));
+      const ciclos = (ciclosData ?? []) as CicloBeneficio[];
 
-
-        // Calcula ao vivo (mesma lógica do cartão de ponto) para não depender
-        // do gestor clicar em "Recalcular mês".
-        let debito = 0;
-        let faltas = 0;
-        try {
-          const cartao = await carregarCartao(f.id, ano, mes);
-          faltas = cartao.totalFaltas;
-          debito = cartao.dias.reduce(
-            (s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s),
-            0,
-          );
-        } catch (err) {
-          console.warn("[beneficios] falha ao carregar cartão", err);
-        }
-
-        const map: Record<string, Calc | null> = {};
-        for (const b of lista) {
-          const stored = ((cs ?? []) as Calc[]).find((c) => c.beneficio_id === b.id) ?? null;
-          const manter = stored && (
-            ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status) ||
-            !!stored.motivo_admin
-          );
-          if (manter) {
-            map[b.id] = stored;
-          } else {
-            const aval = avaliarDireito(b, debito, faltas);
-            map[b.id] = {
-              id: stored?.id ?? "live",
-              beneficio_id: b.id,
-              total_atraso_minutos: debito,
-              dias_com_atraso: 0,
-              faltas_injustificadas: faltas,
-              tem_direito: aval.tem_direito,
-              status: aval.status,
-              motivo_perda: aval.motivo,
-              motivo_admin: stored?.motivo_admin ?? null,
-              valor_estimado: aval.valor,
-              mes_referencia: mes,
-              ano_referencia: ano,
-            };
-          }
-        }
-        setCalculos(map);
-
-        const { data: ent } = await supabase.from("beneficios_entregas")
-          .select("id,beneficio_id,mes_referencia,ano_referencia,data_entrega,valor_estimado,entregue")
-          .eq("funcionario_id", f.id)
-          .order("ano_referencia", { ascending: false })
-          .order("mes_referencia", { ascending: false })
-          .limit(24);
-        setHistorico((ent ?? []) as Entrega[]);
+      // Cartão do mês corrente (referência para cálculo ao vivo)
+      const hoje = new Date();
+      let debito = 0;
+      let faltas = 0;
+      try {
+        const cartao = await carregarCartao(f.id, hoje.getFullYear(), hoje.getMonth() + 1);
+        faltas = cartao.totalFaltas;
+        debito = cartao.dias.reduce(
+          (s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s),
+          0,
+        );
+      } catch (err) {
+        console.warn("[beneficios] falha ao carregar cartão", err);
       }
+
+      // Para cada benefício, descobre o mês "aberto" do ciclo (após aprovações
+      // o mês avança automaticamente para o funcionário).
+      const ctxs: BeneficioCtx[] = [];
+      for (const b of lista) {
+        const ciclosBen = ciclos
+          .filter((c) => c.beneficio_id === b.id)
+          .sort((a, b2) =>
+            a.ano_referencia !== b2.ano_referencia
+              ? b2.ano_referencia - a.ano_referencia
+              : b2.mes_referencia - a.mes_referencia,
+          );
+        const aberto = proximoMesDisponivel(ciclosBen);
+        const cicloAtual = ciclosBen.find(
+          (c) => c.mes_referencia === aberto.mes && c.ano_referencia === aberto.ano,
+        );
+
+        const { data: cs } = await supabase
+          .from("beneficios_calculos")
+          .select("*")
+          .eq("funcionario_id", f.id)
+          .eq("beneficio_id", b.id)
+          .eq("mes_referencia", aberto.mes)
+          .eq("ano_referencia", aberto.ano)
+          .maybeSingle();
+        const stored = (cs ?? null) as Calc | null;
+        const manter = stored && (
+          ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status) ||
+          !!stored.motivo_admin
+        );
+        let calc: Calc | null = null;
+        if (manter) {
+          calc = stored;
+        } else {
+          const aval = avaliarDireito(b, debito, faltas);
+          calc = {
+            id: stored?.id ?? "live",
+            beneficio_id: b.id,
+            total_atraso_minutos: debito,
+            dias_com_atraso: 0,
+            faltas_injustificadas: faltas,
+            tem_direito: aval.tem_direito,
+            status: aval.status,
+            motivo_perda: aval.motivo,
+            motivo_admin: stored?.motivo_admin ?? null,
+            valor_estimado: aval.valor,
+            mes_referencia: aberto.mes,
+            ano_referencia: aberto.ano,
+          };
+        }
+        ctxs.push({
+          beneficio: b,
+          mes: aberto.mes,
+          ano: aberto.ano,
+          calc,
+          dataPrevista: cicloAtual?.data_prevista_entrega ?? null,
+          cicloAprovado: cicloAtual?.status === "aprovado",
+        });
+      }
+      setContextos(ctxs);
+
+      const { data: ent } = await supabase
+        .from("beneficios_entregas")
+        .select("id,beneficio_id,mes_referencia,ano_referencia,data_entrega,valor_estimado,entregue")
+        .eq("funcionario_id", f.id)
+        .order("ano_referencia", { ascending: false })
+        .order("mes_referencia", { ascending: false })
+        .limit(24);
+      setHistorico((ent ?? []) as Entrega[]);
       setLoading(false);
     })();
-  }, [user, mes, ano, recarga]);
+  }, [user, recarga]);
 
-  // Realtime: ciclo (aprovação/data), cálculos (reprovação admin) e entregas
+  // Realtime: sem filtros (com filtro, postgres_changes exige REPLICA IDENTITY
+  // FULL e às vezes não entrega eventos). Recarrega ao detectar qualquer
+  // mudança nas tabelas relacionadas.
   useEffect(() => {
-    if (!funcId) return;
+    if (!funcId || !empresaId) return;
     const reload = () => setRecarga((n) => n + 1);
     const ch = supabase
       .channel(`func-beneficios-${funcId}`)
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_ciclos" } as never, reload)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_calculos", filter: `funcionario_id=eq.${funcId}` } as never, reload)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_entregas", filter: `funcionario_id=eq.${funcId}` } as never, reload)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_calculos" } as never, reload)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_entregas" } as never, reload)
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
-  }, [funcId]);
-
+  }, [funcId, empresaId]);
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
   if (!funcId) return <p className="text-sm text-muted-foreground">Cadastro de funcionário não encontrado.</p>;
@@ -167,8 +214,8 @@ function MeusBeneficios() {
         <p className="text-sm text-muted-foreground">Acompanhe o status dos seus benefícios por assiduidade.</p>
       </div>
 
-      {beneficios.map((b) => (
-        <BeneficioCard key={b.id} beneficio={b} calc={calculos[b.id] ?? null} mes={mes} ano={ano} dataPrevistaOverride={datasPrevistas[b.id] ?? null} />
+      {contextos.map((ctx) => (
+        <BeneficioCard key={ctx.beneficio.id} ctx={ctx} />
       ))}
 
       <Card>
@@ -182,7 +229,7 @@ function MeusBeneficios() {
                 <tr>
                   <th className="text-left p-2">Benefício</th>
                   <th className="text-left p-2">Mês</th>
-                  <th className="text-left p-2">Data entrega</th>
+                  <th className="text-left p-2">Data</th>
                   <th className="text-left p-2">Valor</th>
                   <th className="text-left p-2">Status</th>
                 </tr>
@@ -190,13 +237,22 @@ function MeusBeneficios() {
               <tbody className="divide-y">
                 {historico.map((e) => {
                   const ben = beneficios.find((x) => x.id === e.beneficio_id);
+                  const semDireito = !e.entregue && Number(e.valor_estimado) === 0;
+                  const statusLabel = e.entregue ? "PAGO" : semDireito ? "SEM DIREITO" : "PENDENTE";
+                  const statusClass = e.entregue
+                    ? "bg-emerald-500/20 text-emerald-700"
+                    : semDireito
+                    ? "bg-red-500/20 text-red-700"
+                    : "bg-amber-500/20 text-amber-700";
                   return (
                     <tr key={e.id}>
                       <td className="p-2">{ben?.nome ?? "—"}</td>
                       <td className="p-2">{mesNome(e.mes_referencia)}/{e.ano_referencia}</td>
                       <td className="p-2">{e.data_entrega ? new Date(e.data_entrega + "T00:00").toLocaleDateString("pt-BR") : "—"}</td>
-                      <td className="p-2 font-mono">{fmtBRL(e.valor_estimado)}</td>
-                      <td className="p-2">{e.entregue ? "Entregue" : "Pendente"}</td>
+                      <td className="p-2 font-mono">{fmtBRL(Number(e.valor_estimado))}</td>
+                      <td className="p-2">
+                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${statusClass}`}>{statusLabel}</span>
+                      </td>
                     </tr>
                   );
                 })}
@@ -209,7 +265,8 @@ function MeusBeneficios() {
   );
 }
 
-function BeneficioCard({ beneficio, calc, mes, ano, dataPrevistaOverride }: { beneficio: Beneficio; calc: Calc | null; mes: number; ano: number; dataPrevistaOverride: string | null }) {
+function BeneficioCard({ ctx }: { ctx: BeneficioCtx }) {
+  const { beneficio, mes, ano, calc, dataPrevista } = ctx;
   const atraso = calc?.total_atraso_minutos ?? 0;
   const limite = beneficio.limite_atraso_minutos;
   const alerta = beneficio.limite_alerta_minutos;
@@ -234,10 +291,9 @@ function BeneficioCard({ beneficio, calc, mes, ano, dataPrevistaOverride }: { be
     ? "Atenção: você está próximo do limite de atraso."
     : "Você ainda tem direito a este benefício este mês.";
 
-  const dataPrev = dataPrevistaOverride
-    ? new Date(dataPrevistaOverride + "T00:00:00").toLocaleDateString("pt-BR")
+  const dataPrev = dataPrevista
+    ? new Date(dataPrevista + "T00:00:00").toLocaleDateString("pt-BR")
     : new Date(ano, mes - 1, beneficio.dia_entrega).toLocaleDateString("pt-BR");
-
 
   return (
     <Card>
