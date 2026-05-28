@@ -108,14 +108,17 @@ function CartaoFuncPage() {
       const matriculaFinal = matriculaDaTela || matriculaDoBanco;
 
       if (!matriculaFinal) {
-        toast.error("Matrícula não encontrada no seu cadastro. Peça para a empresa salvar a matrícula novamente.");
+        toast.error("FUNC V9: matrícula não encontrada no cadastro. Peça para a empresa salvar a matrícula novamente.");
         return;
       }
 
       const funcionarioAtualizado = {
-        ...(funcionario ?? {}),
-        ...(funcionarioBanco ?? {}),
+        id: funcionarioBanco?.id ?? funcionario.id,
+        nome: funcionarioBanco?.nome ?? funcionario.nome,
+        cpf: funcionarioBanco?.cpf ?? funcionario.cpf,
+        cargo: funcionarioBanco?.cargo ?? funcionario.cargo,
         matricula: matriculaFinal,
+        empresa_id: funcionarioBanco?.empresa_id ?? funcionario.empresa_id,
       };
 
       const resumoAtual = await carregarCartao(funcionarioAtualizado.id, ano, mes);
@@ -180,9 +183,10 @@ function CartaoFuncPage() {
 
       salvarPdfArquivo(
         doc,
-        `V8-cartao-${funcionarioAtualizado.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`,
+        `FUNC-V9-cartao-${funcionarioAtualizado.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`,
       );
-      toast.success(`PDF V8 gerado com matrícula ${matriculaFinal}.`);
+
+      toast.success(`PDF FUNC V9 gerado com matrícula ${matriculaFinal}.`);
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
@@ -200,7 +204,7 @@ function CartaoFuncPage() {
         </div>
         <Button variant="outline" onClick={baixarPdf} disabled={!resumo}>
           <Download className="h-4 w-4 mr-1" />
-          PDF
+          PDF FUNC V9
         </Button>
       </div>
 
