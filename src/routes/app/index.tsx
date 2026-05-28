@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/")({
@@ -7,17 +7,20 @@ export const Route = createFileRoute("/app/")({
 });
 
 function AppIndex() {
-  const { role, loading } = useAuth();
+  const { role, loading, session } = useAuth();
   const navigate = useNavigate();
+  const [waited, setWaited] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
-    if (role === "funcionario") {
-      navigate({ to: "/app/funcionario" });
-    } else {
-      navigate({ to: "/app/empresa" });
-    }
-  }, [role, loading, navigate]);
+    const t = setTimeout(() => setWaited(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (loading || !session) return;
+    if (role === null && !waited) return;
+    navigate({ to: role === "funcionario" ? "/app/funcionario" : "/app/empresa", replace: true });
+  }, [role, loading, session, waited, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

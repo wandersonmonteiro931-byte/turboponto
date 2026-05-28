@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,37 +22,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(true);
+  const lastLoadedUid = useRef<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadProfile = async (uid: string) => {
-      const [{ data: profile }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("nome, empresa_id").eq("id", uid).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", uid),
-      ]);
-      setNome(profile?.nome ?? "");
-      setEmpresaId(profile?.empresa_id ?? null);
-      const r = roles?.[0]?.role as AppRole | undefined;
-      setRole(r ?? null);
+      if (lastLoadedUid.current === uid) return;
+      lastLoadedUid.current = uid;
+      try {
+        const [{ data: profile }, { data: roles }] = await Promise.all([
+          supabase.from("profiles").select("nome, empresa_id").eq("id", uid).maybeSingle(),
+          supabase.from("user_roles").select("role").eq("user_id", uid),
+        ]);
+        if (cancelled) return;
+        setNome(profile?.nome ?? "");
+        setEmpresaId(profile?.empresa_id ?? null);
+        const r = roles?.[0]?.role as AppRole | undefined;
+        setRole(r ?? null);
+      } catch (e) {
+        console.error("loadProfile error", e);
+      }
     };
 
+    // Set up listener FIRST (sync state updates only)
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
       if (s?.user) {
-        setTimeout(() => loadProfile(s.user.id), 0);
+        // defer DB read to avoid deadlock inside callback
+        setTimeout(() => { void loadProfile(s.user.id); }, 0);
       } else {
+        lastLoadedUid.current = null;
         setRole(null);
         setEmpresaId(null);
         setNome("");
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    // Then restore existing session
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      if (cancelled) return;
       setSession(s);
-      if (s?.user) loadProfile(s.user.id).finally(() => setLoading(false));
-      else setLoading(false);
+      if (s?.user) await loadProfile(s.user.id);
+      if (!cancelled) setLoading(false);
     });
 
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
