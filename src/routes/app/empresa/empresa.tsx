@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Building2, Upload } from "lucide-react";
+import { Building2, Upload, Wifi, X, Plus } from "lucide-react";
+import { getMeuIp } from "@/lib/ip-ponto.functions";
 
 export const Route = createFileRoute("/app/empresa/empresa")({
   component: EmpresaPage,
