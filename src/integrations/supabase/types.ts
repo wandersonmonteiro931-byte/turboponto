@@ -240,6 +240,7 @@ export type Database = {
           horas_extras_minutos: number
           id: string
           mes_referencia: number
+          motivo_admin: string | null
           motivo_perda: string | null
           status: string
           tem_direito: boolean
@@ -260,6 +261,7 @@ export type Database = {
           horas_extras_minutos?: number
           id?: string
           mes_referencia: number
+          motivo_admin?: string | null
           motivo_perda?: string | null
           status?: string
           tem_direito?: boolean
@@ -280,6 +282,7 @@ export type Database = {
           horas_extras_minutos?: number
           id?: string
           mes_referencia?: number
+          motivo_admin?: string | null
           motivo_perda?: string | null
           status?: string
           tem_direito?: boolean
