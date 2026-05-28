@@ -72,6 +72,8 @@ function EmpresaPage() {
           intervalo_almoco_min: data.intervalo_almoco_min ?? 60,
           tolerancia_atraso_min: data.tolerancia_atraso_min ?? 10,
           afastado_pode_bater_ponto: !!data.afastado_pode_bater_ponto,
+          restringir_ip_ponto: !!(data as { restringir_ip_ponto?: boolean }).restringir_ip_ponto,
+          ips_permitidos: ((data as { ips_permitidos?: string[] }).ips_permitidos ?? []) as string[],
         });
       }
       setLoading(false);
