@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const lastLoadedUid = useRef<string | null>(null);
 
   useEffect(() => {
