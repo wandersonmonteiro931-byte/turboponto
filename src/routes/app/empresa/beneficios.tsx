@@ -39,6 +39,7 @@ type LinhaCalc = {
   tem_direito: boolean;
   status: string;
   motivo_perda: string | null;
+  motivo_admin: string | null;
   valor_estimado: number;
   funcionarios: { nome: string; cargo: string | null } | null;
 };
