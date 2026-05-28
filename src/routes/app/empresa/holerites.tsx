@@ -613,7 +613,7 @@ function EditorDialog({
             <Fld label="Ano"><Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} /></Fld>
             <Fld label="Período início"><Input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} /></Fld>
             <Fld label="Período fim"><Input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} /></Fld>
-            <Fld label="Data de pagamento"><Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></Fld>
+            <Fld label="Data de pagamento"><Input type="date" value={dataPagamento} onChange={(e) => { setDataPagamento(e.target.value); setDataPagamentoTocada(true); }} /></Fld>
             <Fld label="Salário contratual"><Input type="number" step="0.01" value={salarioContratual} onChange={(e) => setSalarioContratual(Number(e.target.value))} /></Fld>
             <Fld label="Banco / Agência"><Input value={bancoAg} onChange={(e) => setBancoAg(e.target.value)} placeholder="237/02402" /></Fld>
             <Fld label="Conta"><Input value={conta} onChange={(e) => setConta(e.target.value)} /></Fld>
