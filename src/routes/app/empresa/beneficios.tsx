@@ -601,9 +601,23 @@ function BeneficiosPage() {
                         <td className="p-2">
                           <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
                         </td>
-                        <td className="p-2 text-xs text-muted-foreground">{c.motivo_perda ?? "—"}</td>
+                        <td className="p-2 text-xs text-muted-foreground">
+                          {c.motivo_admin ? (
+                            <span className="text-red-700"><strong>Reprovado:</strong> {c.motivo_admin}</span>
+                          ) : (c.motivo_perda ?? "—")}
+                        </td>
                         {podeEditar && (
                           <td className="p-2 text-right space-x-1 whitespace-nowrap">
+                            {ehAdmin && !passadoFechado && c.status !== "entregue" && c.tem_direito && (
+                              <Button size="sm" variant="ghost" onClick={() => setReprovarAlvo(c)}>
+                                <XCircle className="h-3 w-3 mr-1" />Reprovar
+                              </Button>
+                            )}
+                            {ehAdmin && !passadoFechado && !c.tem_direito && (
+                              <Button size="sm" variant="ghost" onClick={() => void aprovarManual(c)}>
+                                <ThumbsUp className="h-3 w-3 mr-1" />Aprovar
+                              </Button>
+                            )}
                             {c.tem_direito && c.status === "tem_direito" && (
                               <Button size="sm" variant="outline" onClick={() => {
                                 const j = prompt("Justificativa para liberar:") ?? "";
