@@ -86,12 +86,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "Controle de ponto online, jornada, benefícios e holerites — Turbo Lanches." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xxzrlj01IVNc40u6VjLKRe7Nt7n2/social-images/social-1779932639381-WhatsApp_Image_2026-05-26_at_18.09.33.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xxzrlj01IVNc40u6VjLKRe7Nt7n2/social-images/social-1779932639381-WhatsApp_Image_2026-05-26_at_18.09.33.webp" },
+      { name: "theme-color", content: "#000000" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Turbo Ponto" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
   shellComponent: RootShell,
