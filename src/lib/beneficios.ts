@@ -190,7 +190,9 @@ export type CicloBeneficio = {
   aprovado_em: string | null;
   aprovado_por: string | null;
   observacao: string | null;
+  data_prevista_entrega: string | null;
 };
+
 
 export async function carregarCiclos(beneficioId: string): Promise<CicloBeneficio[]> {
   const { data, error } = await supabase
