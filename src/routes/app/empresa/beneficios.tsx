@@ -63,9 +63,12 @@ function BeneficiosPage() {
   const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
   const [beneficioId, setBeneficioId] = useState<string>("");
   const [calculos, setCalculos] = useState<LinhaCalc[]>([]);
+  const [ciclos, setCiclos] = useState<CicloBeneficio[]>([]);
   const [loading, setLoading] = useState(true);
   const [recalculando, setRecalculando] = useState(false);
+  const [aprovando, setAprovando] = useState(false);
   const [novoOpen, setNovoOpen] = useState(false);
+
 
   useEffect(() => {
     if (!empresaId) return;
