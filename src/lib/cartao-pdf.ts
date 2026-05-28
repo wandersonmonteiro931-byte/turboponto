@@ -206,7 +206,7 @@ export function gerarPdfCartao(opts: {
     minute: "2-digit",
   });
 
-  const matriculaFuncionario = textoSeguro(matriculaPdf ?? funcionario.matricula, "MATRICULA_NAO_RECEBIDA_V9");
+  const matriculaFuncionario = textoSeguro(matriculaPdf ?? funcionario.matricula, "MATRICULA_NAO_RECEBIDA");
   const nomeFuncionario = textoSeguro(funcionario.nome);
   const cargoFuncionario = textoSeguro(funcionario.cargo);
   const cpfFuncionario = textoSeguro(funcionario.cpf);
@@ -219,7 +219,7 @@ export function gerarPdfCartao(opts: {
 
   doc.setFont("courier", "bold");
   doc.setFontSize(9);
-  doc.text("CARTAO DE PONTO V9 TESTE", pageW / 2, y, { align: "center" });
+  doc.text("CARTAO DE PONTO FUNC V9", pageW / 2, y, { align: "center" });
 
   doc.setFont("courier", "normal");
   doc.setFontSize(7);
@@ -257,8 +257,8 @@ export function gerarPdfCartao(opts: {
   doc.setFont("courier", "bold");
   doc.text(`Matricula: ${matriculaFuncionario}`, ML, y);
   doc.setFont("courier", "normal");
-  doc.text(`Func: ${nomeFuncionario}`, ML + 42, y);
-  doc.text(`Cargo: ${cargoFuncionario}`, ML + 122, y);
+  doc.text(`Func: ${nomeFuncionario}`, ML + 46, y);
+  doc.text(`Cargo: ${cargoFuncionario}`, ML + 126, y);
 
   y += 3.2;
 
