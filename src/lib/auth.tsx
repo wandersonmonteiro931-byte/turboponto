@@ -70,7 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s?.user) {
         prepareUserProfile(s.user.id);
         // defer DB read to avoid deadlock inside callback
-        setTimeout(() => { void loadProfile(s.user.id); }, 0);
+        setTimeout(() => {
+          void loadProfile(s.user.id);
+        }, 0);
       } else {
         sessionRef.current = null;
         lastLoadedUid.current = null;
@@ -82,16 +84,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Then restore existing session — don't block loading on profile fetch
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (cancelled) return;
-      setCurrentSession(s);
-      if (s?.user) {
-        void loadProfile(s.user.id);
-      }
-      setLoading(false);
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        if (cancelled) return;
+        setCurrentSession(s);
+        if (s?.user) {
+          void loadProfile(s.user.id);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     // Safety net: never stay loading more than 4s
     const safety = setTimeout(() => {
@@ -117,7 +122,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, role, empresaId, nome, loading, profileLoaded, signOut }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        role,
+        empresaId,
+        nome,
+        loading,
+        profileLoaded,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
