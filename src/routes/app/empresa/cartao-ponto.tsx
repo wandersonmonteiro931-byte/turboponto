@@ -268,7 +268,7 @@ function CartaoEmpresaPage() {
 
       if (!matriculaFinal) {
         toast.error(
-          "Matrícula não encontrada. Abra o cadastro do funcionário, salve a matrícula novamente e tente gerar o PDF.",
+          "V9: matrícula não encontrada. Abra o cadastro do funcionário, salve a matrícula novamente e tente gerar o PDF.",
         );
         return;
       }
@@ -282,7 +282,6 @@ function CartaoEmpresaPage() {
       } as Func;
 
       const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
-
       const resumoAtual = await carregarCartao(funcId, ano, mes);
       setResumo(resumoAtual);
 
@@ -343,8 +342,8 @@ function CartaoEmpresaPage() {
         status: cartao?.status ?? "aberto",
       });
 
-      salvarPdfArquivo(doc, `V8-cartao-${f.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
-      toast.success(`PDF V8 gerado com matrícula ${matriculaFinal}.`);
+      salvarPdfArquivo(doc, `V9-cartao-${f.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+      toast.success(`PDF V9 gerado com matrícula ${matriculaFinal}.`);
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
@@ -376,7 +375,7 @@ function CartaoEmpresaPage() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={baixarPdf} disabled={!resumo}>
             <Download className="h-4 w-4 mr-1" />
-            PDF
+            PDF V9 TESTE
           </Button>
         </div>
       </div>
