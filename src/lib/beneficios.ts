@@ -190,7 +190,9 @@ export type CicloBeneficio = {
   aprovado_em: string | null;
   aprovado_por: string | null;
   observacao: string | null;
+  data_prevista_entrega: string | null;
 };
+
 
 export async function carregarCiclos(beneficioId: string): Promise<CicloBeneficio[]> {
   const { data, error } = await supabase
@@ -254,4 +256,25 @@ export async function aprovarCiclo(params: {
     status: "aberto",
   }, { onConflict: "beneficio_id,mes_referencia,ano_referencia", ignoreDuplicates: true });
 }
+
+/** Define/atualiza a data prevista de entrega do ciclo (admin pode alterar sempre). */
+export async function salvarDataPrevista(params: {
+  empresaId: string;
+  beneficioId: string;
+  mes: number;
+  ano: number;
+  data: string | null;
+}): Promise<void> {
+  const { empresaId, beneficioId, mes, ano, data } = params;
+  const { error } = await supabase.from("beneficios_ciclos").upsert({
+    empresa_id: empresaId,
+    beneficio_id: beneficioId,
+    mes_referencia: mes,
+    ano_referencia: ano,
+    status: "aberto",
+    data_prevista_entrega: data,
+  }, { onConflict: "beneficio_id,mes_referencia,ano_referencia" });
+  if (error) throw error;
+}
+
 

@@ -311,6 +311,7 @@ export type Database = {
           aprovado_por: string | null
           beneficio_id: string
           created_at: string
+          data_prevista_entrega: string | null
           empresa_id: string
           id: string
           mes_referencia: number
@@ -324,6 +325,7 @@ export type Database = {
           aprovado_por?: string | null
           beneficio_id: string
           created_at?: string
+          data_prevista_entrega?: string | null
           empresa_id: string
           id?: string
           mes_referencia: number
@@ -337,6 +339,7 @@ export type Database = {
           aprovado_por?: string | null
           beneficio_id?: string
           created_at?: string
+          data_prevista_entrega?: string | null
           empresa_id?: string
           id?: string
           mes_referencia?: number

@@ -16,10 +16,11 @@ import {
 import { toast } from "sonner";
 import {
   STATUS_BENEFICIO, mesNome, recalcularMes,
-  carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo,
+  carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo, salvarDataPrevista,
   type Beneficio, type CicloBeneficio,
 } from "@/lib/beneficios";
 import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck } from "lucide-react";
+
 
 
 export const Route = createFileRoute("/app/empresa/beneficios")({
@@ -322,9 +323,33 @@ function BeneficiosPage() {
     return { total, comDireito, semDireito, proximos, aEntregar };
   }, [calculos, beneficioAtual]);
 
-  const diaEntrega = beneficioAtual
-    ? new Date(ano, mes - 1, beneficioAtual.dia_entrega).toLocaleDateString("pt-BR")
-    : "—";
+  const cicloSelecionado = useMemo(
+    () => ciclos.find((c) => c.mes_referencia === mes && c.ano_referencia === ano) ?? null,
+    [ciclos, mes, ano],
+  );
+  const dataPrevistaPadrao = beneficioAtual
+    ? `${ano}-${String(mes).padStart(2, "0")}-${String(Math.min(beneficioAtual.dia_entrega, new Date(ano, mes, 0).getDate())).padStart(2, "0")}`
+    : "";
+  const dataPrevistaValor = cicloSelecionado?.data_prevista_entrega ?? dataPrevistaPadrao;
+
+  const alterarDataPrevista = async (novaData: string) => {
+    if (!empresaId || !beneficioAtual) return;
+    try {
+      await salvarDataPrevista({
+        empresaId,
+        beneficioId,
+        mes,
+        ano,
+        data: novaData || null,
+      });
+      const cs = await carregarCiclos(beneficioId);
+      setCiclos(cs);
+      toast.success("Data prevista atualizada");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar data");
+    }
+  };
+
 
   if (!empresaId) return <p className="text-sm text-muted-foreground">Cadastre primeiro os dados da empresa.</p>;
 
@@ -392,7 +417,25 @@ function BeneficiosPage() {
           <CardContent className="p-4 grid sm:grid-cols-4 gap-3">
             <Resumo label="Limite de atraso" value={fmtHorasMin(beneficioAtual.limite_atraso_minutos)} hint={`Alerta: ${fmtHorasMin(beneficioAtual.limite_alerta_minutos)}`} />
             <Resumo label="Horas apuradas" value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))} />
-            <Resumo label="Data prevista" value={diaEntrega} hint={`Dia ${beneficioAtual.dia_entrega} do mês`} />
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Data prevista de pagamento</div>
+              {ehAdmin ? (
+                <Input
+                  type="date"
+                  value={dataPrevistaValor}
+                  onChange={(e) => void alterarDataPrevista(e.target.value)}
+                  className="h-9"
+                />
+              ) : (
+                <div className="text-sm font-semibold">
+                  {dataPrevistaValor ? new Date(dataPrevistaValor + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                </div>
+              )}
+              <div className="text-[11px] text-muted-foreground">
+                {cicloSelecionado?.data_prevista_entrega ? "Definida pelo admin" : `Padrão: dia ${beneficioAtual.dia_entrega}`}
+              </div>
+            </div>
+
             <div className="flex items-end gap-2">
               <Button onClick={recalcular} disabled={recalculando || !podeRecalcular} variant="outline" className="flex-1">
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalculando ? "animate-spin" : ""}`} />
