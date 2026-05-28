@@ -417,7 +417,25 @@ function BeneficiosPage() {
           <CardContent className="p-4 grid sm:grid-cols-4 gap-3">
             <Resumo label="Limite de atraso" value={fmtHorasMin(beneficioAtual.limite_atraso_minutos)} hint={`Alerta: ${fmtHorasMin(beneficioAtual.limite_alerta_minutos)}`} />
             <Resumo label="Horas apuradas" value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))} />
-            <Resumo label="Data prevista" value={diaEntrega} hint={`Dia ${beneficioAtual.dia_entrega} do mês`} />
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Data prevista de pagamento</div>
+              {ehAdmin ? (
+                <Input
+                  type="date"
+                  value={dataPrevistaValor}
+                  onChange={(e) => void alterarDataPrevista(e.target.value)}
+                  className="h-9"
+                />
+              ) : (
+                <div className="text-sm font-semibold">
+                  {dataPrevistaValor ? new Date(dataPrevistaValor + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                </div>
+              )}
+              <div className="text-[11px] text-muted-foreground">
+                {cicloSelecionado?.data_prevista_entrega ? "Definida pelo admin" : `Padrão: dia ${beneficioAtual.dia_entrega}`}
+              </div>
+            </div>
+
             <div className="flex items-end gap-2">
               <Button onClick={recalcular} disabled={recalculando || !podeRecalcular} variant="outline" className="flex-1">
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalculando ? "animate-spin" : ""}`} />
