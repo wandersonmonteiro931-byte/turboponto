@@ -78,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      clearTimeout(safety);
       sub.subscription.unsubscribe();
     };
   }, []);
