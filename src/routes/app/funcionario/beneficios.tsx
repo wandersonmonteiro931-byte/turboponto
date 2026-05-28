@@ -48,11 +48,14 @@ function MeusBeneficios() {
   const [beneficios, setBeneficios] = useState<Beneficio[]>([]);
   const [calculos, setCalculos] = useState<Record<string, Calc | null>>({});
   const [historico, setHistorico] = useState<Entrega[]>([]);
+  const [datasPrevistas, setDatasPrevistas] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
+  const [recarga, setRecarga] = useState(0);
 
   const hoje = new Date();
   const mes = hoje.getMonth() + 1;
   const ano = hoje.getFullYear();
+
 
   useEffect(() => {
     if (!user) return;
