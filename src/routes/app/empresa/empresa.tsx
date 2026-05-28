@@ -138,7 +138,9 @@ function EmpresaPage() {
         intervalo_almoco_min: form.intervalo_almoco_min,
         tolerancia_atraso_min: form.tolerancia_atraso_min,
         afastado_pode_bater_ponto: form.afastado_pode_bater_ponto,
-      }).eq("id", empresaId!);
+        restringir_ip_ponto: form.restringir_ip_ponto,
+        ips_permitidos: form.ips_permitidos,
+      } as never).eq("id", empresaId!);
       if (error) throw error;
       toast.success("Dados atualizados");
     } catch (err) {
