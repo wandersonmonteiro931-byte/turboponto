@@ -141,15 +141,18 @@ function BeneficiosPage() {
     if (!empresaId || !beneficioAtual) { void carregar(); return; }
     void (async () => {
       setLoading(true);
-      try {
-        await recalcularMes(empresaId, beneficioAtual, mes, ano);
-      } catch (e) {
-        console.warn("[beneficios] auto recalc falhou", e);
+      // Não recalcula meses futuros (sem aprovação do anterior) nem ciclos já fechados
+      if (podeRecalcular) {
+        try {
+          await recalcularMes(empresaId, beneficioAtual, mes, ano);
+        } catch (e) {
+          console.warn("[beneficios] auto recalc falhou", e);
+        }
       }
       await carregar();
     })();
     /* eslint-disable-next-line */
-  }, [empresaId, beneficioId, beneficioAtual, mes, ano]);
+  }, [empresaId, beneficioId, beneficioAtual, mes, ano, podeRecalcular]);
 
   // Realtime: recalcula automaticamente sempre que qualquer dado que
   // influencia o cálculo do benefício mudar em outra seção do app
@@ -161,13 +164,16 @@ function BeneficiosPage() {
       if (pending) clearTimeout(pending);
       pending = setTimeout(async () => {
         try {
-          await recalcularMes(empresaId, beneficioAtual, mes, ano);
+          if (podeRecalcular) {
+            await recalcularMes(empresaId, beneficioAtual, mes, ano);
+          }
           await carregar();
         } catch (e) {
           console.warn("[beneficios] realtime recalc falhou", e);
         }
       }, 400);
     };
+
     const tables = [
       "registros_ponto",
       "dias_falta",
