@@ -294,7 +294,7 @@ export function gerarPdfCartao(opts: {
     y += 3.2;
 
     doc.text(
-      `Admissao FFFFFFF: ${fmtDataBR(resumo.dataAdmissao)}${
+      `Admissao: ${fmtDataBR(resumo.dataAdmissao)}${
         resumo.dataDesligamento ? `   Desligamento: ${fmtDataBR(resumo.dataDesligamento)}` : ""
       }`,
       ML,
