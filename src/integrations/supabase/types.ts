@@ -304,6 +304,56 @@ export type Database = {
           },
         ]
       }
+      beneficios_ciclos: {
+        Row: {
+          ano_referencia: number
+          aprovado_em: string | null
+          aprovado_por: string | null
+          beneficio_id: string
+          created_at: string
+          empresa_id: string
+          id: string
+          mes_referencia: number
+          observacao: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ano_referencia: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          beneficio_id: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          mes_referencia: number
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ano_referencia?: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          beneficio_id?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          mes_referencia?: number
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beneficios_ciclos_beneficio_id_fkey"
+            columns: ["beneficio_id"]
+            isOneToOne: false
+            referencedRelation: "beneficios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beneficios_entregas: {
         Row: {
           ano_referencia: number
