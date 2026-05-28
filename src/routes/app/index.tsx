@@ -9,12 +9,13 @@ export const Route = createFileRoute("/app/")({
 function AppIndex() {
   const { role, loading, session, profileLoaded } = useAuth();
   const navigate = useNavigate();
+  const destino = role === "admin" || role === "gerente" ? "/app/empresa" : "/app/funcionario";
 
   useEffect(() => {
     if (loading || !session) return;
     if (!profileLoaded) return;
-    navigate({ to: role === "admin" || role === "gerente" ? "/app/empresa" : "/app/funcionario", replace: true });
-  }, [role, loading, session, profileLoaded, navigate]);
+    navigate({ to: destino, replace: true });
+  }, [destino, loading, session, profileLoaded, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

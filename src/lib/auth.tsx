@@ -25,13 +25,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const lastLoadedUid = useRef<string | null>(null);
+  const sessionRef = useRef<Session | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadProfile = async (uid: string) => {
+    const setCurrentSession = (s: Session | null) => {
+      sessionRef.current = s;
+      setSession(s);
+    };
+
+    const prepareUserProfile = (uid: string) => {
       if (lastLoadedUid.current === uid) return;
       lastLoadedUid.current = uid;
+      setProfileLoaded(false);
+      setRole(null);
+      setEmpresaId(null);
+      setNome("");
+    };
+
+    const loadProfile = async (uid: string) => {
+      prepareUserProfile(uid);
       try {
         const [{ data: profile }, { data: roles }] = await Promise.all([
           supabase.from("profiles").select("nome, empresa_id").eq("id", uid).maybeSingle(),
@@ -41,9 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNome(profile?.nome ?? "");
         setEmpresaId(profile?.empresa_id ?? null);
         const r = roles?.[0]?.role as AppRole | undefined;
-        setRole(r ?? null);
+        setRole(r ?? "funcionario");
       } catch (e) {
         console.error("loadProfile error", e);
+        if (!cancelled) setRole("funcionario");
       } finally {
         if (!cancelled) setProfileLoaded(true);
       }
@@ -51,11 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Set up listener FIRST (sync state updates only)
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
+      setCurrentSession(s);
       if (s?.user) {
+        prepareUserProfile(s.user.id);
         // defer DB read to avoid deadlock inside callback
-        setTimeout(() => { void loadProfile(s.user.id); }, 0);
+        setTimeout(() => {
+          void loadProfile(s.user.id);
+        }, 0);
       } else {
+        sessionRef.current = null;
         lastLoadedUid.current = null;
         setRole(null);
         setEmpresaId(null);
@@ -65,20 +84,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Then restore existing session — don't block loading on profile fetch
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (cancelled) return;
-      setSession(s);
-      if (s?.user) {
-        void loadProfile(s.user.id);
-      }
-      setLoading(false);
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        if (cancelled) return;
+        setCurrentSession(s);
+        if (s?.user) {
+          void loadProfile(s.user.id);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     // Safety net: never stay loading more than 4s
     const safety = setTimeout(() => {
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+        if (sessionRef.current) {
+          setRole((current) => current ?? "funcionario");
+          setProfileLoaded(true);
+        }
+      }
     }, 4000);
 
     return () => {
@@ -94,7 +122,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, role, empresaId, nome, loading, profileLoaded, signOut }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        role,
+        empresaId,
+        nome,
+        loading,
+        profileLoaded,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
