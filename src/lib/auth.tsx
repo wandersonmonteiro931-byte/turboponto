@@ -44,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(r ?? null);
       } catch (e) {
         console.error("loadProfile error", e);
+      } finally {
+        if (!cancelled) setProfileLoaded(true);
       }
     };
 
