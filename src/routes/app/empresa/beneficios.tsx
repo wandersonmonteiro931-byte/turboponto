@@ -71,6 +71,8 @@ function BeneficiosPage() {
   const [recalculando, setRecalculando] = useState(false);
   const [aprovando, setAprovando] = useState(false);
   const [novoOpen, setNovoOpen] = useState(false);
+  const [reprovarAlvo, setReprovarAlvo] = useState<LinhaCalc | null>(null);
+  const [reprovarMotivo, setReprovarMotivo] = useState("");
 
 
   useEffect(() => {
