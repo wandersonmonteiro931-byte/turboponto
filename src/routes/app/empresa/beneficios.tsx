@@ -16,9 +16,11 @@ import {
 import { toast } from "sonner";
 import {
   STATUS_BENEFICIO, mesNome, recalcularMes,
-  type Beneficio,
+  carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo,
+  type Beneficio, type CicloBeneficio,
 } from "@/lib/beneficios";
-import { AlertCircle, CheckCircle2, FileText, RefreshCw, Truck } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck } from "lucide-react";
+
 
 export const Route = createFileRoute("/app/empresa/beneficios")({
   component: BeneficiosPage,
