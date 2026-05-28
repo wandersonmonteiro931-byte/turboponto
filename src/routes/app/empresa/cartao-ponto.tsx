@@ -253,9 +253,8 @@ function CartaoEmpresaPage() {
 
       const { data: funcionarioBanco, error: funcPdfError } = await supabase
         .from("funcionarios")
-        .select("*")
+        .select("id,nome,cpf,cargo,matricula")
         .eq("id", funcId)
-        .eq("empresa_id", empresaId)
         .maybeSingle();
 
       if (funcPdfError) {
@@ -263,27 +262,24 @@ function CartaoEmpresaPage() {
         return;
       }
 
-      const matriculaDaLista = extrairMatriculaFuncionario(fLista as unknown as Record<string, unknown>);
-      const matriculaDoBanco = extrairMatriculaFuncionario(funcionarioBanco as Record<string, unknown>);
-      const matriculaFinal = matriculaDoBanco || matriculaDaLista;
-
-      const f = {
-        ...(fLista ?? {}),
-        ...(funcionarioBanco ?? {}),
-        matricula: matriculaFinal,
-      } as Func;
-
-      if (!f?.id) {
-        toast.error("Funcionário não encontrado.");
-        return;
-      }
+      const matriculaDaTela = fLista?.matricula ? String(fLista.matricula).trim() : "";
+      const matriculaDoBanco = funcionarioBanco?.matricula ? String(funcionarioBanco.matricula).trim() : "";
+      const matriculaFinal = matriculaDaTela || matriculaDoBanco;
 
       if (!matriculaFinal) {
         toast.error(
-          "A matrícula não foi encontrada no registro do funcionário. Abra o cadastro, salve a matrícula novamente e gere o PDF.",
+          "Não encontrei matrícula para este funcionário. Abra o cadastro, confira o campo Matrícula, salve novamente e tente gerar o PDF.",
         );
         return;
       }
+
+      const f = {
+        id: funcionarioBanco?.id ?? fLista?.id ?? funcId,
+        nome: funcionarioBanco?.nome ?? fLista?.nome ?? "-",
+        cpf: funcionarioBanco?.cpf ?? fLista?.cpf ?? null,
+        cargo: funcionarioBanco?.cargo ?? fLista?.cargo ?? null,
+        matricula: matriculaFinal,
+      } as Func;
 
       const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
 
@@ -349,7 +345,7 @@ function CartaoEmpresaPage() {
         status: cartao?.status ?? "aberto",
       });
 
-      salvarPdfArquivo(doc, `cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
+      salvarPdfArquivo(doc, `cartao-${f.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
       toast.success(`PDF gerado com matrícula ${matriculaFinal}.`);
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
@@ -399,6 +395,7 @@ function CartaoEmpresaPage() {
                 {funcs.map((f) => (
                   <SelectItem key={f.id} value={f.id}>
                     {f.nome}
+                    {f.matricula ? ` #${f.matricula}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
