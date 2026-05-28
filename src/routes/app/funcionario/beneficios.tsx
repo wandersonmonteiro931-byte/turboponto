@@ -142,16 +142,15 @@ function MeusBeneficios() {
     })();
   }, [user, mes, ano, recarga]);
 
-  // Realtime: data prevista pode mudar a qualquer momento (admin altera)
+  // Realtime: ciclo (aprovação/data), cálculos (reprovação admin) e entregas
   useEffect(() => {
     if (!funcId) return;
+    const reload = () => setRecarga((n) => n + 1);
     const ch = supabase
-      .channel(`func-beneficios-ciclos-${funcId}`)
-      .on(
-        "postgres_changes" as never,
-        { event: "*", schema: "public", table: "beneficios_ciclos" } as never,
-        () => setRecarga((n) => n + 1),
-      )
+      .channel(`func-beneficios-${funcId}`)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_ciclos" } as never, reload)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_calculos", filter: `funcionario_id=eq.${funcId}` } as never, reload)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_entregas", filter: `funcionario_id=eq.${funcId}` } as never, reload)
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
   }, [funcId]);
