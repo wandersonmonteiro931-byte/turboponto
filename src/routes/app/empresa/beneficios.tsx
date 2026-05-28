@@ -671,6 +671,30 @@ function BeneficiosPage() {
             }
           }
         }} />}
+
+      <Dialog open={!!reprovarAlvo} onOpenChange={(o) => { if (!o) { setReprovarAlvo(null); setReprovarMotivo(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reprovar benefício</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Reprovar <strong>{reprovarAlvo?.funcionarios?.nome}</strong> para {mesNome(mes)}/{ano}.
+              O motivo informado será exibido para o funcionário.
+            </p>
+            <Fld label="Motivo">
+              <Textarea
+                value={reprovarMotivo}
+                onChange={(e) => setReprovarMotivo(e.target.value)}
+                placeholder="Ex: Faltou ao trabalho sem justificativa em 15/05"
+                rows={4}
+              />
+            </Fld>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setReprovarAlvo(null); setReprovarMotivo(""); }}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => void confirmarReprovar()}>Confirmar reprovação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
