@@ -74,6 +74,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "google", content: "notranslate" },
+      { httpEquiv: "Content-Language", content: "pt-BR" },
       { title: "Turbo Ponto — Turbo Lanches" },
       { name: "description", content: "Controle de ponto online, jornada, benefícios e holerites — Turbo Lanches." },
       { name: "author", content: "Turbo Lanches" },
