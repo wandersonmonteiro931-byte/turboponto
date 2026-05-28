@@ -241,7 +241,7 @@ function CartaoEmpresaPage() {
       }
 
       if (!matriculaFinal) {
-        toast.warning("Este funcionário está sem matrícula salva no cadastro.");
+        toast.warning("Matrícula não encontrada no cadastro deste funcionário.");
       }
 
       const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
@@ -291,6 +291,7 @@ function CartaoEmpresaPage() {
       const doc = gerarPdfCartao({
         empresa: emp,
         funcionario: f,
+        matriculaPdf: f.matricula,
         jornada,
         jornadas: vincs,
         ano,

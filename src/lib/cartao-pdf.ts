@@ -169,6 +169,7 @@ function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
 export function gerarPdfCartao(opts: {
   empresa: EmpresaInfo;
   funcionario: FuncionarioInfo;
+  matriculaPdf?: string | number | null;
   jornada?: JornadaInfo | null;
   jornadas?: VinculoAtivoComDias[];
   ano: number;
@@ -176,7 +177,7 @@ export function gerarPdfCartao(opts: {
   resumo: ResumoCartao;
   status: string;
 }): jsPDF {
-  const { empresa, funcionario, jornada, jornadas, ano, mes, resumo } = opts;
+  const { empresa, funcionario, matriculaPdf, jornada, jornadas, ano, mes, resumo } = opts;
 
   const tol = resumo.toleranciaMinutos ?? 5;
 
@@ -205,7 +206,7 @@ export function gerarPdfCartao(opts: {
     minute: "2-digit",
   });
 
-  const matriculaFuncionario = textoSeguro(funcionario.matricula);
+  const matriculaFuncionario = textoSeguro(matriculaPdf ?? funcionario.matricula);
   const nomeFuncionario = textoSeguro(funcionario.nome);
   const cargoFuncionario = textoSeguro(funcionario.cargo);
   const cpfFuncionario = textoSeguro(funcionario.cpf);
