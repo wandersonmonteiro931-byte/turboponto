@@ -442,7 +442,13 @@ function EditorDialog({
     const ult = new Date(ano, mes, 0).getDate();
     setPeriodoInicio(`${ano}-${String(mes).padStart(2, "0")}-01`);
     setPeriodoFim(`${ano}-${String(mes).padStart(2, "0")}-${String(ult).padStart(2, "0")}`);
-  }, [mes, ano]);
+    // Default: dia 05 do mês seguinte (apenas se usuário ainda não escolheu manualmente)
+    if (!dataPagamentoTocada) {
+      const proxMes = mes === 12 ? 1 : mes + 1;
+      const proxAno = mes === 12 ? ano + 1 : ano;
+      setDataPagamento(`${proxAno}-${String(proxMes).padStart(2, "0")}-05`);
+    }
+  }, [mes, ano, dataPagamentoTocada]);
 
   const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
   const entraNoLiquido = (l: LancEdit) => {
