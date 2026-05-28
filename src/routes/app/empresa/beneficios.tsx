@@ -7,28 +7,35 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  STATUS_BENEFICIO, mesNome, recalcularMes,
-  carregarCiclos, proximoMesDisponivel, compMesAno, aprovarCiclo, salvarDataPrevista,
-  reprovarCalculo, aprovarCalculo, reabrirCiclo,
-  type Beneficio, type CicloBeneficio,
+  STATUS_BENEFICIO,
+  mesNome,
+  recalcularMes,
+  carregarCiclos,
+  proximoMesDisponivel,
+  compMesAno,
+  aprovarCiclo,
+  salvarDataPrevista,
+  reprovarCalculo,
+  aprovarCalculo,
+  reabrirCiclo,
+  type Beneficio,
+  type CicloBeneficio,
 } from "@/lib/beneficios";
 import { AlertCircle, CheckCircle2, FileText, Lock, RefreshCw, Truck, XCircle, ThumbsUp } from "lucide-react";
-
-
 
 export const Route = createFileRoute("/app/empresa/beneficios")({
   component: BeneficiosPage,
 });
 
-type Func = { id: string; nome: string; cargo: string | null };
+type Func = {
+  id: string;
+  nome: string;
+  cargo: string | null;
+};
 
 type LinhaCalc = {
   id: string;
@@ -41,7 +48,10 @@ type LinhaCalc = {
   motivo_perda: string | null;
   motivo_admin: string | null;
   valor_estimado: number;
-  funcionarios: { nome: string; cargo: string | null } | null;
+  funcionarios: {
+    nome: string;
+    cargo: string | null;
+  } | null;
 };
 
 const fmtHorasMin = (minutos: number | null | undefined) => {
@@ -53,10 +63,12 @@ const fmtHorasMin = (minutos: number | null | undefined) => {
 
 function BeneficiosPage() {
   const { empresaId, role, user } = useAuth();
+
   const podeEditar = role === "admin" || role === "gerente";
   const ehAdmin = role === "admin";
 
   const hoje = new Date();
+
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [funcionarioId, setFuncionarioId] = useState("todos");
@@ -67,36 +79,43 @@ function BeneficiosPage() {
   const [beneficioId, setBeneficioId] = useState<string>("");
   const [calculos, setCalculos] = useState<LinhaCalc[]>([]);
   const [ciclos, setCiclos] = useState<CicloBeneficio[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [recalculando, setRecalculando] = useState(false);
   const [aprovando, setAprovando] = useState(false);
   const [novoOpen, setNovoOpen] = useState(false);
+
   const [reprovarAlvo, setReprovarAlvo] = useState<LinhaCalc | null>(null);
   const [reprovarMotivo, setReprovarMotivo] = useState("");
 
-
   useEffect(() => {
     if (!empresaId) return;
+
     void (async () => {
       const [{ data: f }, { data: b }] = await Promise.all([
         supabase.from("funcionarios").select("id,nome,cargo").eq("empresa_id", empresaId).order("nome"),
         supabase.from("beneficios").select("*").eq("empresa_id", empresaId).order("created_at"),
       ]);
+
       setFuncs((f ?? []) as Func[]);
       setBeneficios((b ?? []) as Beneficio[]);
-      if (b && b.length > 0 && !beneficioId) setBeneficioId(b[0].id);
+
+      if (b && b.length > 0 && !beneficioId) {
+        setBeneficioId(b[0].id);
+      }
     })();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId]);
 
-  const beneficioAtual = useMemo(
-    () => beneficios.find((b) => b.id === beneficioId) ?? null,
-    [beneficios, beneficioId],
-  );
+  const beneficioAtual = useMemo(() => beneficios.find((b) => b.id === beneficioId) ?? null, [beneficios, beneficioId]);
 
-  // Carrega ciclos toda vez que o benefício muda
   useEffect(() => {
-    if (!beneficioId) { setCiclos([]); return; }
+    if (!beneficioId) {
+      setCiclos([]);
+      return;
+    }
+
     void (async () => {
       try {
         const cs = await carregarCiclos(beneficioId);
@@ -107,46 +126,57 @@ function BeneficiosPage() {
     })();
   }, [beneficioId]);
 
-  // Mes/Ano do ciclo atualmente em aberto (primeiro mês não aprovado)
   const cicloDisponivel = useMemo(() => proximoMesDisponivel(ciclos), [ciclos]);
   const selecionado = { mes, ano };
   const cmp = compMesAno(selecionado, cicloDisponivel);
+
   const cicloSelecionadoAprovado = useMemo(
     () => ciclos.find((c) => c.mes_referencia === mes && c.ano_referencia === ano && c.status === "aprovado") ?? null,
     [ciclos, mes, ano],
   );
-  // Bloqueia cálculo e edição quando o mês selecionado é posterior ao ciclo em aberto
+
   const futuroBloqueado = cmp > 0;
-  // Mês passado já aprovado: leitura apenas
   const passadoFechado = cmp < 0 || !!cicloSelecionadoAprovado;
   const podeRecalcular = podeEditar && !futuroBloqueado && !passadoFechado;
 
-
   const carregar = async () => {
     if (!empresaId) return;
+
     if (!beneficioId) {
       setCalculos([]);
       setLoading(false);
       return;
     }
+
     setLoading(true);
+
     const { data, error } = await supabase
       .from("beneficios_calculos")
-      .select("id,funcionario_id,total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,motivo_admin,valor_estimado,funcionarios(nome,cargo)")
+      .select(
+        "id,funcionario_id,total_atraso_minutos,dias_com_atraso,faltas_injustificadas,tem_direito,status,motivo_perda,motivo_admin,valor_estimado,funcionarios(nome,cargo)",
+      )
       .eq("empresa_id", empresaId)
       .eq("beneficio_id", beneficioId)
       .eq("mes_referencia", mes)
       .eq("ano_referencia", ano);
-    if (error) toast.error(error.message);
+
+    if (error) {
+      toast.error(error.message);
+    }
+
     setCalculos((data ?? []) as unknown as LinhaCalc[]);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (!empresaId || !beneficioAtual) { void carregar(); return; }
+    if (!empresaId || !beneficioAtual) {
+      void carregar();
+      return;
+    }
+
     void (async () => {
       setLoading(true);
-      // Não recalcula meses futuros (sem aprovação do anterior) nem ciclos já fechados
+
       if (podeRecalcular) {
         try {
           await recalcularMes(empresaId, beneficioAtual, mes, ano);
@@ -154,24 +184,27 @@ function BeneficiosPage() {
           console.warn("[beneficios] auto recalc falhou", e);
         }
       }
+
       await carregar();
     })();
-    /* eslint-disable-next-line */
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId, beneficioId, beneficioAtual, mes, ano, podeRecalcular]);
 
-  // Realtime: recalcula automaticamente sempre que qualquer dado que
-  // influencia o cálculo do benefício mudar em outra seção do app
-  // (cartão de ponto, faltas, justificativas, jornada, holerite, etc.).
   useEffect(() => {
     if (!empresaId || !beneficioAtual) return;
+
     let pending: ReturnType<typeof setTimeout> | null = null;
+
     const trigger = () => {
       if (pending) clearTimeout(pending);
+
       pending = setTimeout(async () => {
         try {
           if (podeRecalcular) {
             await recalcularMes(empresaId, beneficioAtual, mes, ano);
           }
+
           await carregar();
         } catch (e) {
           console.warn("[beneficios] realtime recalc falhou", e);
@@ -188,39 +221,45 @@ function BeneficiosPage() {
       "funcionarios",
       "beneficios",
       "beneficios_entregas",
-      // NÃO escutar beneficios_calculos: esta tela é quem grava nela,
-      // o que causaria um loop de recálculo via realtime.
     ];
 
     const channel = supabase.channel(`beneficios-rt-${empresaId}`);
+
     for (const t of tables) {
-      channel.on(
-        "postgres_changes" as never,
-        { event: "*", schema: "public", table: t } as never,
-        trigger as never,
-      );
+      channel.on("postgres_changes" as never, { event: "*", schema: "public", table: t } as never, trigger as never);
     }
+
     channel.subscribe();
+
     const onFocus = () => trigger();
+
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
+
     return () => {
       if (pending) clearTimeout(pending);
+
       void supabase.removeChannel(channel);
+
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-    /* eslint-disable-next-line */
-  }, [empresaId, beneficioAtual, mes, ano]);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaId, beneficioAtual, mes, ano, podeRecalcular]);
 
   const recalcular = async () => {
     if (!empresaId || !beneficioAtual) return;
+
     if (!podeRecalcular) {
-      toast.info(passadoFechado ? "Ciclo já aprovado — não pode ser recalculado." : "Aprove o ciclo anterior primeiro.");
+      toast.info(
+        passadoFechado ? "Ciclo já aprovado — não pode ser recalculado." : "Aprove o ciclo anterior primeiro.",
+      );
       return;
     }
+
     setRecalculando(true);
+
     try {
       const r = await recalcularMes(empresaId, beneficioAtual, mes, ano);
       toast.success(`${r.atualizados} cálculo(s) atualizado(s)`);
@@ -234,16 +273,27 @@ function BeneficiosPage() {
 
   const aprovarMes = async () => {
     if (!empresaId || !beneficioAtual || !user) return;
+
     if (cmp !== 0) {
       toast.info("Só é possível aprovar o ciclo em aberto.");
       return;
     }
-    if (!confirm(`Aprovar ${mesNome(mes)}/${ano} e abrir o próximo mês? Esta ação não pode ser desfeita.`)) return;
+
+    if (!confirm(`Aprovar ${mesNome(mes)}/${ano} e abrir o próximo mês? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
     setAprovando(true);
+
     try {
       await aprovarCiclo({
-        empresaId, beneficioId, mes, ano, usuarioId: user.id,
+        empresaId,
+        beneficioId,
+        mes,
+        ano,
+        usuarioId: user.id,
       });
+
       await supabase.from("beneficios_logs").insert({
         empresa_id: empresaId,
         beneficio_id: beneficioId,
@@ -253,8 +303,10 @@ function BeneficiosPage() {
         status_novo: "aprovado",
         justificativa: null,
       });
+
       const cs = await carregarCiclos(beneficioId);
       setCiclos(cs);
+
       toast.success(`Ciclo de ${mesNome(mes)}/${ano} aprovado. Próximo mês liberado.`);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Erro ao aprovar ciclo");
@@ -263,14 +315,17 @@ function BeneficiosPage() {
     }
   };
 
-
   const mudarStatus = async (linha: LinhaCalc, novoStatus: string, justificativa: string) => {
     if (!empresaId || !user) return;
+
     const anterior = linha.status;
-    const { error } = await supabase.from("beneficios_calculos")
-      .update({ status: novoStatus })
-      .eq("id", linha.id);
-    if (error) return toast.error(error.message);
+
+    const { error } = await supabase.from("beneficios_calculos").update({ status: novoStatus }).eq("id", linha.id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
     await supabase.from("beneficios_logs").insert({
       empresa_id: empresaId,
@@ -284,18 +339,23 @@ function BeneficiosPage() {
     });
 
     if (novoStatus === "entregue") {
-      await supabase.from("beneficios_entregas").upsert({
-        empresa_id: empresaId,
-        funcionario_id: linha.funcionario_id,
-        beneficio_id: beneficioId,
-        mes_referencia: mes,
-        ano_referencia: ano,
-        data_entrega: new Date().toISOString().slice(0, 10),
-        valor_estimado: linha.valor_estimado,
-        entregue: true,
-        entregue_por: user.id,
-        observacao: justificativa,
-      }, { onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia" });
+      await supabase.from("beneficios_entregas").upsert(
+        {
+          empresa_id: empresaId,
+          funcionario_id: linha.funcionario_id,
+          beneficio_id: beneficioId,
+          mes_referencia: mes,
+          ano_referencia: ano,
+          data_entrega: new Date().toISOString().slice(0, 10),
+          valor_estimado: linha.valor_estimado,
+          entregue: true,
+          entregue_por: user.id,
+          observacao: justificativa,
+        },
+        {
+          onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia",
+        },
+      );
     }
 
     toast.success("Atualizado");
@@ -303,115 +363,135 @@ function BeneficiosPage() {
   };
 
   const confirmarReprovar = async () => {
-  if (!reprovarAlvo || !empresaId || !user) return;
+    if (!reprovarAlvo || !empresaId || !user) return;
 
-  const motivo = reprovarMotivo.trim();
+    const motivo = reprovarMotivo.trim();
 
-  if (!motivo) {
-    toast.error("Informe o motivo da reprovação");
-    return;
-  }
+    if (!motivo) {
+      toast.error("Informe o motivo da reprovação");
+      return;
+    }
 
-  const anterior = reprovarAlvo.status;
+    const anterior = reprovarAlvo.status;
 
-  try {
-    await reprovarCalculo({
-      calculoId: reprovarAlvo.id,
-      motivo,
-    });
+    try {
+      await reprovarCalculo({
+        calculoId: reprovarAlvo.id,
+        motivo,
+      });
 
-    await supabase
-      .from("beneficios_entregas")
-      .update({
-        entregue: false,
-        valor_estimado: 0,
-        observacao: motivo,
-        data_entrega: null,
-      })
-      .eq("empresa_id", empresaId)
-      .eq("funcionario_id", reprovarAlvo.funcionario_id)
-      .eq("beneficio_id", beneficioId)
-      .eq("mes_referencia", mes)
-      .eq("ano_referencia", ano);
+      await supabase.from("beneficios_entregas").upsert(
+        {
+          empresa_id: empresaId,
+          funcionario_id: reprovarAlvo.funcionario_id,
+          beneficio_id: beneficioId,
+          mes_referencia: mes,
+          ano_referencia: ano,
+          entregue: false,
+          valor_estimado: 0,
+          observacao: motivo,
+          data_entrega: null,
+          entregue_por: null,
+        },
+        {
+          onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia",
+        },
+      );
 
-    await supabase.from("beneficios_logs").insert({
-      empresa_id: empresaId,
-      funcionario_id: reprovarAlvo.funcionario_id,
-      beneficio_id: beneficioId,
-      usuario_id: user.id,
-      acao: "reprovado_admin",
-      status_anterior: anterior,
-      status_novo: "nao_tem_direito",
-      justificativa: motivo,
-    });
+      await supabase.from("beneficios_logs").insert({
+        empresa_id: empresaId,
+        funcionario_id: reprovarAlvo.funcionario_id,
+        beneficio_id: beneficioId,
+        usuario_id: user.id,
+        acao: "reprovado_admin",
+        status_anterior: anterior,
+        status_novo: "nao_tem_direito",
+        justificativa: motivo,
+      });
 
-    toast.success("Benefício reprovado");
-    setReprovarAlvo(null);
-    setReprovarMotivo("");
-    await carregar();
-  } catch (e: unknown) {
-    toast.error(e instanceof Error ? e.message : "Erro ao reprovar");
-  }
-};
+      toast.success("Benefício reprovado");
+
+      setReprovarAlvo(null);
+      setReprovarMotivo("");
+
+      await carregar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao reprovar");
+    }
+  };
 
   const aprovarManual = async (linha: LinhaCalc) => {
-  if (!empresaId || !user || !beneficioAtual) return;
+    if (!empresaId || !user || !beneficioAtual) return;
 
-  const valorRestaurado = beneficioAtual.valor_maximo;
+    const valorRestaurado = beneficioAtual.valor_maximo;
 
-  try {
-    await aprovarCalculo({
-      calculoId: linha.id,
-      valorEstimado: valorRestaurado,
-    });
+    try {
+      await aprovarCalculo({
+        calculoId: linha.id,
+        valorEstimado: valorRestaurado,
+      });
 
-    await supabase.from("beneficios_entregas").upsert(
-      {
+      await supabase.from("beneficios_entregas").upsert(
+        {
+          empresa_id: empresaId,
+          funcionario_id: linha.funcionario_id,
+          beneficio_id: beneficioId,
+          mes_referencia: mes,
+          ano_referencia: ano,
+          entregue: false,
+          valor_estimado: valorRestaurado,
+          observacao: "Direito restaurado pela empresa",
+          data_entrega: null,
+          entregue_por: null,
+        },
+        {
+          onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia",
+        },
+      );
+
+      await supabase.from("beneficios_logs").insert({
         empresa_id: empresaId,
         funcionario_id: linha.funcionario_id,
         beneficio_id: beneficioId,
-        mes_referencia: mes,
-        ano_referencia: ano,
-        entregue: false,
-        valor_estimado: valorRestaurado,
-        observacao: "Direito restaurado pela empresa",
-        data_entrega: null,
-      },
-      {
-        onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia",
-      },
-    );
+        usuario_id: user.id,
+        acao: "aprovado_admin",
+        status_anterior: linha.status,
+        status_novo: "tem_direito",
+        justificativa: null,
+      });
 
-    await supabase.from("beneficios_logs").insert({
-      empresa_id: empresaId,
-      funcionario_id: linha.funcionario_id,
-      beneficio_id: beneficioId,
-      usuario_id: user.id,
-      acao: "aprovado_admin",
-      status_anterior: linha.status,
-      status_novo: "tem_direito",
-      justificativa: null,
-    });
-
-    toast.success("Direito restaurado");
-    await carregar();
-  } catch (e: unknown) {
-    toast.error(e instanceof Error ? e.message : "Erro ao aprovar");
-  }
-};
+      toast.success("Direito restaurado");
+      await carregar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aprovar");
+    }
+  };
 
   const linhasFiltradas = useMemo(() => {
     return calculos.filter((c) => {
-      if (funcionarioId !== "todos" && c.funcionario_id !== funcionarioId) return false;
-      if (filtroStatus === "todos") return true;
-      if (filtroStatus === "tem_direito") return c.tem_direito;
-      if (filtroStatus === "nao_tem_direito") return !c.tem_direito;
+      if (funcionarioId !== "todos" && c.funcionario_id !== funcionarioId) {
+        return false;
+      }
+
+      if (filtroStatus === "todos") {
+        return true;
+      }
+
+      if (filtroStatus === "tem_direito") {
+        return c.tem_direito;
+      }
+
+      if (filtroStatus === "nao_tem_direito") {
+        return !c.tem_direito;
+      }
+
       if (filtroStatus === "proximo_limite") {
         return beneficioAtual
           ? c.total_atraso_minutos >= beneficioAtual.limite_alerta_minutos &&
-            c.total_atraso_minutos <= beneficioAtual.limite_atraso_minutos
+              c.total_atraso_minutos <= beneficioAtual.limite_atraso_minutos
           : false;
       }
+
       return c.status === filtroStatus;
     });
   }, [calculos, funcionarioId, filtroStatus, beneficioAtual]);
@@ -421,23 +501,39 @@ function BeneficiosPage() {
     const comDireito = calculos.filter((c) => c.tem_direito).length;
     const semDireito = total - comDireito;
     const proximos = beneficioAtual
-      ? calculos.filter((c) => c.total_atraso_minutos >= beneficioAtual.limite_alerta_minutos && c.total_atraso_minutos <= beneficioAtual.limite_atraso_minutos).length
+      ? calculos.filter(
+          (c) =>
+            c.total_atraso_minutos >= beneficioAtual.limite_alerta_minutos &&
+            c.total_atraso_minutos <= beneficioAtual.limite_atraso_minutos,
+        ).length
       : 0;
     const aEntregar = calculos.filter((c) => c.status === "liberado").length;
-    return { total, comDireito, semDireito, proximos, aEntregar };
+
+    return {
+      total,
+      comDireito,
+      semDireito,
+      proximos,
+      aEntregar,
+    };
   }, [calculos, beneficioAtual]);
 
   const cicloSelecionado = useMemo(
     () => ciclos.find((c) => c.mes_referencia === mes && c.ano_referencia === ano) ?? null,
     [ciclos, mes, ano],
   );
+
   const dataPrevistaPadrao = beneficioAtual
-    ? `${ano}-${String(mes).padStart(2, "0")}-${String(Math.min(beneficioAtual.dia_entrega, new Date(ano, mes, 0).getDate())).padStart(2, "0")}`
+    ? `${ano}-${String(mes).padStart(2, "0")}-${String(
+        Math.min(beneficioAtual.dia_entrega, new Date(ano, mes, 0).getDate()),
+      ).padStart(2, "0")}`
     : "";
+
   const dataPrevistaValor = cicloSelecionado?.data_prevista_entrega ?? dataPrevistaPadrao;
 
   const alterarDataPrevista = async (novaData: string) => {
     if (!empresaId || !beneficioAtual) return;
+
     try {
       await salvarDataPrevista({
         empresaId,
@@ -446,16 +542,19 @@ function BeneficiosPage() {
         ano,
         data: novaData || null,
       });
+
       const cs = await carregarCiclos(beneficioId);
       setCiclos(cs);
+
       toast.success("Data prevista atualizada");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar data");
     }
   };
 
-
-  if (!empresaId) return <p className="text-sm text-muted-foreground">Cadastre primeiro os dados da empresa.</p>;
+  if (!empresaId) {
+    return <p className="text-sm text-muted-foreground">Cadastre primeiro os dados da empresa.</p>;
+  }
 
   return (
     <div className="space-y-4">
@@ -464,44 +563,67 @@ function BeneficiosPage() {
           <h2 className="text-xl font-bold">Benefícios</h2>
           <p className="text-sm text-muted-foreground">Controle de cesta básica por assiduidade e demais benefícios.</p>
         </div>
+
         {ehAdmin && <Button onClick={() => setNovoOpen(true)}>Novo benefício</Button>}
       </div>
 
-      {/* Seleção benefício/mês/ano */}
       <Card>
         <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
           <Fld label="Benefício">
             <Select value={beneficioId} onValueChange={setBeneficioId}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
               <SelectContent>
-                {beneficios.map((b) => <SelectItem key={b.id} value={b.id}>{b.nome}</SelectItem>)}
+                {beneficios.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Fld>
+
           <Fld label="Mês">
             <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) =>
-                  <SelectItem key={m} value={String(m)}>{mesNome(m)}</SelectItem>)}
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {mesNome(m)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Fld>
+
           <Fld label="Ano">
             <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} />
           </Fld>
+
           <Fld label="Funcionário">
             <Select value={funcionarioId} onValueChange={setFuncionarioId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
-                {funcs.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+                {funcs.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Fld>
+
           <Fld label="Status">
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="tem_direito">Com direito</SelectItem>
@@ -515,14 +637,23 @@ function BeneficiosPage() {
         </CardContent>
       </Card>
 
-      {/* Resumo do benefício */}
       {beneficioAtual && (
         <Card>
           <CardContent className="p-4 grid sm:grid-cols-4 gap-3">
-            <Resumo label="Limite de atraso" value={fmtHorasMin(beneficioAtual.limite_atraso_minutos)} hint={`Alerta: ${fmtHorasMin(beneficioAtual.limite_alerta_minutos)}`} />
-            <Resumo label="Horas apuradas" value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))} />
+            <Resumo
+              label="Limite de atraso"
+              value={fmtHorasMin(beneficioAtual.limite_atraso_minutos)}
+              hint={`Alerta: ${fmtHorasMin(beneficioAtual.limite_alerta_minutos)}`}
+            />
+
+            <Resumo
+              label="Horas apuradas"
+              value={fmtHorasMin(calculos.reduce((s, c) => s + Number(c.total_atraso_minutos || 0), 0))}
+            />
+
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">Data prevista de pagamento</div>
+
               {ehAdmin ? (
                 <Input
                   type="date"
@@ -535,13 +666,21 @@ function BeneficiosPage() {
                   {dataPrevistaValor ? new Date(dataPrevistaValor + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
                 </div>
               )}
+
               <div className="text-[11px] text-muted-foreground">
-                {cicloSelecionado?.data_prevista_entrega ? "Definida pelo admin" : `Padrão: dia ${beneficioAtual.dia_entrega}`}
+                {cicloSelecionado?.data_prevista_entrega
+                  ? "Definida pelo admin"
+                  : `Padrão: dia ${beneficioAtual.dia_entrega}`}
               </div>
             </div>
 
             <div className="flex items-end gap-2">
-              <Button onClick={recalcular} disabled={recalculando || !podeRecalcular} variant="outline" className="flex-1">
+              <Button
+                onClick={recalcular}
+                disabled={recalculando || !podeRecalcular}
+                variant="outline"
+                className="flex-1"
+              >
                 <RefreshCw className={`h-4 w-4 mr-2 ${recalculando ? "animate-spin" : ""}`} />
                 Recalcular mês
               </Button>
@@ -550,13 +689,20 @@ function BeneficiosPage() {
         </Card>
       )}
 
-      {/* Banner: ciclo em aberto (admin pode aprovar) */}
       {beneficioAtual && cmp === 0 && ehAdmin && (
         <div className="border rounded-md px-3 py-2 bg-primary/5 border-primary/30 flex items-center justify-between gap-3 flex-wrap">
           <div className="text-sm">
-            Ciclo de <strong>{mesNome(mes)}/{ano}</strong> em aberto.
-            Após aprovar, o mês de <strong>{mesNome(mes === 12 ? 1 : mes + 1)}/{mes === 12 ? ano + 1 : ano}</strong> ficará disponível.
+            Ciclo de{" "}
+            <strong>
+              {mesNome(mes)}/{ano}
+            </strong>{" "}
+            em aberto. Após aprovar, o mês de{" "}
+            <strong>
+              {mesNome(mes === 12 ? 1 : mes + 1)}/{mes === 12 ? ano + 1 : ano}
+            </strong>{" "}
+            ficará disponível.
           </div>
+
           <Button size="sm" onClick={aprovarMes} disabled={aprovando}>
             <CheckCircle2 className="h-4 w-4 mr-2" />
             {aprovando ? "Aprovando..." : "Aprovar mês e abrir próximo"}
@@ -564,26 +710,35 @@ function BeneficiosPage() {
         </div>
       )}
 
-      {/* Banner: ciclo aprovado */}
       {beneficioAtual && cicloSelecionadoAprovado && (
         <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
           <div className="flex items-start gap-2 text-sm text-blue-900">
             <CheckCircle2 className="h-4 w-4 mt-0.5" />
             <span>
               Ciclo de {mesNome(mes)}/{ano} aprovado em{" "}
-              {new Date(cicloSelecionadoAprovado.aprovado_em ?? "").toLocaleDateString("pt-BR")}.
-              {ehAdmin ? " Reabra para editar." : " Somente leitura."}
+              {new Date(cicloSelecionadoAprovado.aprovado_em ?? "").toLocaleDateString("pt-BR")}.{" "}
+              {ehAdmin ? "Reabra para editar." : "Somente leitura."}
             </span>
           </div>
+
           {ehAdmin && (
             <Button
               size="sm"
               variant="outline"
               onClick={async () => {
                 if (!beneficioId || !user || !empresaId) return;
-                if (!confirm(`Reabrir o ciclo de ${mesNome(mes)}/${ano}? Você poderá editar e aprovar novamente.`)) return;
+
+                if (!confirm(`Reabrir o ciclo de ${mesNome(mes)}/${ano}? Você poderá editar e aprovar novamente.`)) {
+                  return;
+                }
+
                 try {
-                  await reabrirCiclo({ beneficioId, mes, ano });
+                  await reabrirCiclo({
+                    beneficioId,
+                    mes,
+                    ano,
+                  });
+
                   await supabase.from("beneficios_logs").insert({
                     empresa_id: empresaId,
                     beneficio_id: beneficioId,
@@ -593,8 +748,10 @@ function BeneficiosPage() {
                     status_novo: "aberto",
                     justificativa: null,
                   });
+
                   const cs = await carregarCiclos(beneficioId);
                   setCiclos(cs);
+
                   toast.success("Ciclo reaberto para edição.");
                 } catch (e: unknown) {
                   toast.error(e instanceof Error ? e.message : "Erro ao reabrir ciclo");
@@ -608,28 +765,40 @@ function BeneficiosPage() {
         </div>
       )}
 
-      {/* Banner: mês futuro aguardando aprovação */}
       {beneficioAtual && futuroBloqueado && (
-        <Alerta tone="amber" icon={<Lock className="h-4 w-4" />}
-          texto={`Aguardando aprovação do ciclo de ${mesNome(cicloDisponivel.mes)}/${cicloDisponivel.ano} para iniciar este mês. Nenhum cálculo será feito.`} />
+        <Alerta
+          tone="amber"
+          icon={<Lock className="h-4 w-4" />}
+          texto={`Aguardando aprovação do ciclo de ${mesNome(
+            cicloDisponivel.mes,
+          )}/${cicloDisponivel.ano} para iniciar este mês. Nenhum cálculo será feito.`}
+        />
       )}
 
-      {/* Alertas */}
       {beneficioAtual && totais.proximos > 0 && (
-        <Alerta tone="amber" icon={<AlertCircle className="h-4 w-4" />}
-          texto={`${totais.proximos} funcionário(s) próximo(s) do limite de atraso.`} />
+        <Alerta
+          tone="amber"
+          icon={<AlertCircle className="h-4 w-4" />}
+          texto={`${totais.proximos} funcionário(s) próximo(s) do limite de atraso.`}
+        />
       )}
+
       {beneficioAtual && totais.aEntregar > 0 && (
-        <Alerta tone="blue" icon={<Truck className="h-4 w-4" />}
-          texto={`${totais.aEntregar} cesta(s) liberada(s) aguardando entrega.`} />
+        <Alerta
+          tone="blue"
+          icon={<Truck className="h-4 w-4" />}
+          texto={`${totais.aEntregar} cesta(s) liberada(s) aguardando entrega.`}
+        />
       )}
+
       {beneficioAtual && hoje.getDate() >= beneficioAtual.dia_entrega && totais.aEntregar > 0 && cmp === 0 && (
-        <Alerta tone="red" icon={<AlertCircle className="h-4 w-4" />}
-          texto={`Dia ${beneficioAtual.dia_entrega} chegou e ainda há cestas pendentes.`} />
+        <Alerta
+          tone="red"
+          icon={<AlertCircle className="h-4 w-4" />}
+          texto={`Dia ${beneficioAtual.dia_entrega} chegou e ainda há cestas pendentes.`}
+        />
       )}
 
-
-      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Stat label="Funcionários" value={totais.total} />
         <Stat label="Com direito" value={totais.comDireito} color="text-green-600" />
@@ -638,7 +807,6 @@ function BeneficiosPage() {
         <Stat label="A entregar" value={totais.aEntregar} color="text-blue-600" />
       </div>
 
-      {/* Tabela */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -646,7 +814,11 @@ function BeneficiosPage() {
           ) : !beneficioId ? (
             <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
               <p>Nenhum benefício cadastrado ainda.</p>
-              {ehAdmin && <Button size="sm" onClick={() => setNovoOpen(true)}>Criar benefício</Button>}
+              {ehAdmin && (
+                <Button size="sm" onClick={() => setNovoOpen(true)}>
+                  Criar benefício
+                </Button>
+              )}
             </div>
           ) : linhasFiltradas.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
@@ -655,10 +827,14 @@ function BeneficiosPage() {
                   ? "Mês ainda não liberado — aprove o ciclo anterior primeiro."
                   : "Nenhum cálculo para esse período."}
               </p>
-              {podeRecalcular && <Button size="sm" onClick={recalcular}>Calcular agora</Button>}
+
+              {podeRecalcular && (
+                <Button size="sm" onClick={recalcular}>
+                  Calcular agora
+                </Button>
+              )}
             </div>
           ) : (
-
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -673,73 +849,106 @@ function BeneficiosPage() {
                     {podeEditar && <th className="text-right p-2">Ações</th>}
                   </tr>
                 </thead>
+
                 <tbody className="divide-y">
                   {linhasFiltradas.map((c) => {
-                    const st = STATUS_BENEFICIO[c.status] ?? { label: c.status, color: "bg-muted" };
-                    const proxLimite = beneficioAtual && c.total_atraso_minutos >= beneficioAtual.limite_alerta_minutos && c.total_atraso_minutos <= beneficioAtual.limite_atraso_minutos;
+                    const st = STATUS_BENEFICIO[c.status] ?? {
+                      label: c.status,
+                      color: "bg-muted",
+                    };
+
+                    const proxLimite =
+                      beneficioAtual &&
+                      c.total_atraso_minutos >= beneficioAtual.limite_alerta_minutos &&
+                      c.total_atraso_minutos <= beneficioAtual.limite_atraso_minutos;
+
                     return (
                       <tr key={c.id} className="hover:bg-muted/30">
                         <td className="p-2 font-medium">{c.funcionarios?.nome ?? "—"}</td>
+
                         <td className="p-2 text-muted-foreground">{c.funcionarios?.cargo ?? "—"}</td>
+
                         <td className={`p-2 font-mono ${proxLimite ? "text-amber-600 font-bold" : ""}`}>
                           {fmtHorasMin(c.total_atraso_minutos)}
                           {proxLimite && <span className="ml-1 text-[10px]">⚠</span>}
                         </td>
+
                         <td className="p-2">{c.dias_com_atraso}</td>
+
                         <td className="p-2">{c.faltas_injustificadas}</td>
+
                         <td className="p-2">
-                          <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                          <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${st.color}`}>
+                            {st.label}
+                          </span>
                         </td>
+
                         <td className="p-2 text-xs text-muted-foreground">
                           {c.motivo_admin ? (
-                            <span className="text-red-700"><strong>Reprovado:</strong> {c.motivo_admin}</span>
-                          ) : (c.motivo_perda ?? "—")}
+                            <span className="text-red-700">
+                              <strong>Reprovado:</strong> {c.motivo_admin}
+                            </span>
+                          ) : (
+                            (c.motivo_perda ?? "—")
+                          )}
                         </td>
-                       {podeEditar && (
-  <td className="p-2 text-right space-x-1 whitespace-nowrap">
-    {ehAdmin && (c.tem_direito || c.status === "tem_direito" || c.status === "liberado" || c.status === "entregue") && (
-      <Button size="sm" variant="ghost" onClick={() => setReprovarAlvo(c)}>
-        <XCircle className="h-3 w-3 mr-1" />Reprovar
-      </Button>
-    )}
 
-    {ehAdmin && (!c.tem_direito || c.status === "nao_tem_direito") && (
-      <Button size="sm" variant="ghost" onClick={() => void aprovarManual(c)}>
-        <ThumbsUp className="h-3 w-3 mr-1" />Aprovar
-      </Button>
-    )}
+                        {podeEditar && (
+                          <td className="p-2 text-right space-x-1 whitespace-nowrap">
+                            {ehAdmin &&
+                              (c.tem_direito ||
+                                c.status === "tem_direito" ||
+                                c.status === "liberado" ||
+                                c.status === "entregue") && (
+                                <Button size="sm" variant="ghost" onClick={() => setReprovarAlvo(c)}>
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Reprovar
+                                </Button>
+                              )}
 
-    {c.tem_direito && c.status === "tem_direito" && (
-      <Button size="sm" variant="outline" onClick={() => {
-        const j = prompt("Justificativa para liberar:") ?? "";
-        void mudarStatus(c, "liberado", j);
-      }}>
-        <CheckCircle2 className="h-3 w-3 mr-1" />Liberar
-      </Button>
-    )}
+                            {ehAdmin && (!c.tem_direito || c.status === "nao_tem_direito") && (
+                              <Button size="sm" variant="ghost" onClick={() => void aprovarManual(c)}>
+                                <ThumbsUp className="h-3 w-3 mr-1" />
+                                Aprovar
+                              </Button>
+                            )}
 
-    {c.status === "liberado" && (
-      <Button size="sm" onClick={() => {
-        const j = prompt("Observação da entrega (opcional):") ?? "";
-        void mudarStatus(c, "entregue", j);
-      }}>
-        <Truck className="h-3 w-3 mr-1" />Entregue
-      </Button>
-    )}
+                            {c.tem_direito && c.status === "tem_direito" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const j = prompt("Justificativa para liberar:") ?? "";
+                                  void mudarStatus(c, "liberado", j);
+                                }}
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Liberar
+                              </Button>
+                            )}
 
-    {(c.status === "entregue" || c.status === "liberado") && (
-      <Link
-        to="/recibo/$calcId"
-        params={{ calcId: c.id }}
-        target="_blank"
-      >
-        <Button size="sm" variant="ghost">
-          <FileText className="h-3 w-3 mr-1" />Recibo
-        </Button>
-      </Link>
-    )}
-  </td>
-)}
+                            {c.status === "liberado" && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const j = prompt("Observação da entrega (opcional):") ?? "";
+                                  void mudarStatus(c, "entregue", j);
+                                }}
+                              >
+                                <Truck className="h-3 w-3 mr-1" />
+                                Entregue
+                              </Button>
+                            )}
+
+                            {(c.status === "entregue" || c.status === "liberado") && (
+                              <Link to="/recibo/$calcId" params={{ calcId: c.id }} target="_blank">
+                                <Button size="sm" variant="ghost">
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  Recibo
+                                </Button>
+                              </Link>
+                            )}
+                          </td>
                         )}
                       </tr>
                     );
@@ -751,31 +960,58 @@ function BeneficiosPage() {
         </CardContent>
       </Card>
 
-      {ehAdmin && <NovoBeneficioDialog open={novoOpen} onClose={() => setNovoOpen(false)} empresaId={empresaId}
-        onSaved={async (novoId) => {
-          const { data } = await supabase.from("beneficios").select("*").eq("empresa_id", empresaId).order("created_at");
-          const lista = (data ?? []) as Beneficio[];
-          setBeneficios(lista);
-          const novo = lista.find((b) => b.id === novoId) ?? lista[lista.length - 1];
-          if (novo) {
-            setBeneficioId(novo.id);
-            try {
-              const r = await recalcularMes(empresaId, novo, mes, ano);
-              toast.success(`Benefício disponibilizado para ${r.atualizados} funcionário(s)`);
-            } catch (e: unknown) {
-              toast.error(e instanceof Error ? e.message : "Erro ao calcular benefício");
-            }
-          }
-        }} />}
+      {ehAdmin && (
+        <NovoBeneficioDialog
+          open={novoOpen}
+          onClose={() => setNovoOpen(false)}
+          empresaId={empresaId}
+          onSaved={async (novoId) => {
+            const { data } = await supabase
+              .from("beneficios")
+              .select("*")
+              .eq("empresa_id", empresaId)
+              .order("created_at");
 
-      <Dialog open={!!reprovarAlvo} onOpenChange={(o) => { if (!o) { setReprovarAlvo(null); setReprovarMotivo(""); } }}>
+            const lista = (data ?? []) as Beneficio[];
+
+            setBeneficios(lista);
+
+            const novo = lista.find((b) => b.id === novoId) ?? lista[lista.length - 1];
+
+            if (novo) {
+              setBeneficioId(novo.id);
+
+              try {
+                const r = await recalcularMes(empresaId, novo, mes, ano);
+                toast.success(`Benefício disponibilizado para ${r.atualizados} funcionário(s)`);
+              } catch (e: unknown) {
+                toast.error(e instanceof Error ? e.message : "Erro ao calcular benefício");
+              }
+            }
+          }}
+        />
+      )}
+
+      <Dialog
+        open={!!reprovarAlvo}
+        onOpenChange={(o) => {
+          if (!o) {
+            setReprovarAlvo(null);
+            setReprovarMotivo("");
+          }
+        }}
+      >
         <DialogContent>
-          <DialogHeader><DialogTitle>Reprovar benefício</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Reprovar benefício</DialogTitle>
+          </DialogHeader>
+
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Reprovar <strong>{reprovarAlvo?.funcionarios?.nome}</strong> para {mesNome(mes)}/{ano}.
-              O motivo informado será exibido para o funcionário.
+              Reprovar <strong>{reprovarAlvo?.funcionarios?.nome}</strong> para {mesNome(mes)}/{ano}. O motivo informado
+              será exibido para o funcionário.
             </p>
+
             <Fld label="Motivo">
               <Textarea
                 value={reprovarMotivo}
@@ -785,9 +1021,21 @@ function BeneficiosPage() {
               />
             </Fld>
           </div>
+
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setReprovarAlvo(null); setReprovarMotivo(""); }}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => void confirmarReprovar()}>Confirmar reprovação</Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setReprovarAlvo(null);
+                setReprovarMotivo("");
+              }}
+            >
+              Cancelar
+            </Button>
+
+            <Button variant="destructive" onClick={() => void confirmarReprovar()}>
+              Confirmar reprovação
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -796,15 +1044,22 @@ function BeneficiosPage() {
 }
 
 function Fld({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><Label className="mb-1 block text-xs">{label}</Label>{children}</div>;
+  return (
+    <div>
+      <Label className="mb-1 block text-xs">{label}</Label>
+      {children}
+    </div>
+  );
 }
 
 function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <Card><CardContent className="p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-2xl font-bold ${color ?? ""}`}>{value}</div>
-    </CardContent></Card>
+    <Card>
+      <CardContent className="p-3">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={`text-2xl font-bold ${color ?? ""}`}>{value}</div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -824,16 +1079,26 @@ function Alerta({ tone, icon, texto }: { tone: "amber" | "blue" | "red"; icon: R
     blue: "border-blue-500/30 bg-blue-500/10 text-blue-700",
     red: "border-red-500/30 bg-red-500/10 text-red-700",
   };
+
   return (
     <div className={`border rounded-md px-3 py-2 text-sm flex items-center gap-2 ${map[tone]}`}>
-      {icon}{texto}
+      {icon}
+      {texto}
     </div>
   );
 }
 
 function NovoBeneficioDialog({
-  open, onClose, empresaId, onSaved,
-}: { open: boolean; onClose: () => void; empresaId: string; onSaved: (id: string) => void }) {
+  open,
+  onClose,
+  empresaId,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  empresaId: string;
+  onSaved: (id: string) => void;
+}) {
   const [nome, setNome] = useState("");
   const [valor, setValor] = useState(300);
   const [dia, setDia] = useState(5);
@@ -843,40 +1108,83 @@ function NovoBeneficioDialog({
   const [salvando, setSalvando] = useState(false);
 
   const salvar = async () => {
-    if (!nome) return toast.error("Informe o nome");
+    if (!nome) {
+      toast.error("Informe o nome");
+      return;
+    }
+
     setSalvando(true);
-    const { data, error } = await supabase.from("beneficios").insert({
-      empresa_id: empresaId,
-      nome, tipo: "outro",
-      valor_maximo: valor,
-      dia_entrega: dia,
-      limite_atraso_minutos: limite,
-      limite_alerta_minutos: alerta,
-      regra_descricao: regra,
-    }).select("id").single();
+
+    const { data, error } = await supabase
+      .from("beneficios")
+      .insert({
+        empresa_id: empresaId,
+        nome,
+        tipo: "outro",
+        valor_maximo: valor,
+        dia_entrega: dia,
+        limite_atraso_minutos: limite,
+        limite_alerta_minutos: alerta,
+        regra_descricao: regra,
+      })
+      .select("id")
+      .single();
+
     setSalvando(false);
-    if (error || !data) return toast.error(error?.message ?? "Erro ao salvar");
+
+    if (error || !data) {
+      toast.error(error?.message ?? "Erro ao salvar");
+      return;
+    }
+
     toast.success("Benefício criado");
-    onSaved(data.id); onClose();
+    onSaved(data.id);
+    onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Novo benefício</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Novo benefício</DialogTitle>
+        </DialogHeader>
+
         <div className="space-y-3">
-          <Fld label="Nome"><Input value={nome} onChange={(e) => setNome(e.target.value)} /></Fld>
+          <Fld label="Nome">
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+          </Fld>
+
           <div className="grid grid-cols-2 gap-3">
-            <Fld label="Valor máximo (R$)"><Input type="number" step="0.01" value={valor} onChange={(e) => setValor(Number(e.target.value))} /></Fld>
-            <Fld label="Dia de entrega"><Input type="number" min="1" max="31" value={dia} onChange={(e) => setDia(Number(e.target.value))} /></Fld>
-            <Fld label="Limite atraso (min)"><Input type="number" value={limite} onChange={(e) => setLimite(Number(e.target.value))} /></Fld>
-            <Fld label="Alerta atraso (min)"><Input type="number" value={alerta} onChange={(e) => setAlerta(Number(e.target.value))} /></Fld>
+            <Fld label="Valor máximo (R$)">
+              <Input type="number" step="0.01" value={valor} onChange={(e) => setValor(Number(e.target.value))} />
+            </Fld>
+
+            <Fld label="Dia de entrega">
+              <Input type="number" min="1" max="31" value={dia} onChange={(e) => setDia(Number(e.target.value))} />
+            </Fld>
+
+            <Fld label="Limite atraso (min)">
+              <Input type="number" value={limite} onChange={(e) => setLimite(Number(e.target.value))} />
+            </Fld>
+
+            <Fld label="Alerta atraso (min)">
+              <Input type="number" value={alerta} onChange={(e) => setAlerta(Number(e.target.value))} />
+            </Fld>
           </div>
-          <Fld label="Regra"><Textarea value={regra} onChange={(e) => setRegra(e.target.value)} /></Fld>
+
+          <Fld label="Regra">
+            <Textarea value={regra} onChange={(e) => setRegra(e.target.value)} />
+          </Fld>
         </div>
+
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={salvar} disabled={salvando}>Salvar</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+
+          <Button onClick={salvar} disabled={salvando}>
+            Salvar
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
