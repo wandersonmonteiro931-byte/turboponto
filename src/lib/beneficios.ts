@@ -257,7 +257,8 @@ export async function aprovarCiclo(params: {
   }, { onConflict: "beneficio_id,mes_referencia,ano_referencia", ignoreDuplicates: true });
 }
 
-/** Define/atualiza a data prevista de entrega do ciclo (admin pode alterar sempre). */
+/** Define/atualiza a data prevista de entrega do ciclo (admin pode alterar sempre).
+ *  Preserva o status atual do ciclo — não reabre ciclos aprovados. */
 export async function salvarDataPrevista(params: {
   empresaId: string;
   beneficioId: string;
@@ -266,15 +267,32 @@ export async function salvarDataPrevista(params: {
   data: string | null;
 }): Promise<void> {
   const { empresaId, beneficioId, mes, ano, data } = params;
-  const { error } = await supabase.from("beneficios_ciclos").upsert({
-    empresa_id: empresaId,
-    beneficio_id: beneficioId,
-    mes_referencia: mes,
-    ano_referencia: ano,
-    status: "aberto",
-    data_prevista_entrega: data,
-  }, { onConflict: "beneficio_id,mes_referencia,ano_referencia" });
-  if (error) throw error;
+  const { data: existente } = await supabase
+    .from("beneficios_ciclos")
+    .select("id")
+    .eq("beneficio_id", beneficioId)
+    .eq("mes_referencia", mes)
+    .eq("ano_referencia", ano)
+    .maybeSingle();
+
+  if (existente?.id) {
+    const { error } = await supabase
+      .from("beneficios_ciclos")
+      .update({ data_prevista_entrega: data })
+      .eq("id", existente.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("beneficios_ciclos").insert({
+      empresa_id: empresaId,
+      beneficio_id: beneficioId,
+      mes_referencia: mes,
+      ano_referencia: ano,
+      status: "aberto",
+      data_prevista_entrega: data,
+    });
+    if (error) throw error;
+  }
 }
+
 
 
