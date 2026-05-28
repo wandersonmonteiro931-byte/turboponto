@@ -59,16 +59,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Then restore existing session
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+    // Then restore existing session — don't block loading on profile fetch
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (cancelled) return;
       setSession(s);
-      if (s?.user) await loadProfile(s.user.id);
+      if (s?.user) {
+        void loadProfile(s.user.id);
+      }
+      setLoading(false);
+    }).catch(() => {
       if (!cancelled) setLoading(false);
     });
 
+    // Safety net: never stay loading more than 4s
+    const safety = setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 4000);
+
     return () => {
       cancelled = true;
+      clearTimeout(safety);
       sub.subscription.unsubscribe();
     };
   }, []);
