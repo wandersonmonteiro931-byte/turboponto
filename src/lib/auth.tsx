@@ -11,6 +11,7 @@ interface AuthState {
   empresaId: string | null;
   nome: string;
   loading: boolean;
+  profileLoaded: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const lastLoadedUid = useRef<string | null>(null);
 
   useEffect(() => {
@@ -42,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(r ?? null);
       } catch (e) {
         console.error("loadProfile error", e);
+      } finally {
+        if (!cancelled) setProfileLoaded(true);
       }
     };
 
@@ -56,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(null);
         setEmpresaId(null);
         setNome("");
+        setProfileLoaded(false);
       }
     });
 
@@ -89,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, role, empresaId, nome, loading, signOut }}
+      value={{ session, user: session?.user ?? null, role, empresaId, nome, loading, profileLoaded, signOut }}
     >
       {children}
     </AuthContext.Provider>
