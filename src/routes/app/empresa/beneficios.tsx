@@ -209,6 +209,10 @@ function BeneficiosPage() {
 
   const recalcular = async () => {
     if (!empresaId || !beneficioAtual) return;
+    if (!podeRecalcular) {
+      toast.info(passadoFechado ? "Ciclo já aprovado — não pode ser recalculado." : "Aprove o ciclo anterior primeiro.");
+      return;
+    }
     setRecalculando(true);
     try {
       const r = await recalcularMes(empresaId, beneficioAtual, mes, ano);
@@ -220,6 +224,38 @@ function BeneficiosPage() {
       setRecalculando(false);
     }
   };
+
+  const aprovarMes = async () => {
+    if (!empresaId || !beneficioAtual || !user) return;
+    if (cmp !== 0) {
+      toast.info("Só é possível aprovar o ciclo em aberto.");
+      return;
+    }
+    if (!confirm(`Aprovar ${mesNome(mes)}/${ano} e abrir o próximo mês? Esta ação não pode ser desfeita.`)) return;
+    setAprovando(true);
+    try {
+      await aprovarCiclo({
+        empresaId, beneficioId, mes, ano, usuarioId: user.id,
+      });
+      await supabase.from("beneficios_logs").insert({
+        empresa_id: empresaId,
+        beneficio_id: beneficioId,
+        usuario_id: user.id,
+        acao: `ciclo_aprovado: ${mes}/${ano}`,
+        status_anterior: "aberto",
+        status_novo: "aprovado",
+        justificativa: null,
+      });
+      const cs = await carregarCiclos(beneficioId);
+      setCiclos(cs);
+      toast.success(`Ciclo de ${mesNome(mes)}/${ano} aprovado. Próximo mês liberado.`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aprovar ciclo");
+    } finally {
+      setAprovando(false);
+    }
+  };
+
 
   const mudarStatus = async (linha: LinhaCalc, novoStatus: string, justificativa: string) => {
     if (!empresaId || !user) return;
