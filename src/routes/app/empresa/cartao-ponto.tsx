@@ -212,12 +212,11 @@ function CartaoEmpresaPage() {
         toast.error("Selecione um funcionário.");
         return;
       }
-
       const fLista = funcs.find((x) => x.id === funcId);
 
       const { data: funcionarioPdf, error: funcPdfError } = await supabase
         .from("funcionarios")
-        .select("*")
+        .select("id,nome,cpf,cargo,matricula")
         .eq("id", funcId)
         .maybeSingle();
 
@@ -226,41 +225,30 @@ function CartaoEmpresaPage() {
         return;
       }
 
-      const row = (funcionarioPdf ?? {}) as Record<string, unknown>;
+      const matriculaDaLista = fLista?.matricula ? String(fLista.matricula).trim() : "";
+      const matriculaDoBanco = funcionarioPdf?.matricula ? String(funcionarioPdf.matricula).trim() : "";
+      const matriculaFinal = matriculaDoBanco || matriculaDaLista || null;
 
-      const matriculaPdf =
-        row.matricula != null && String(row.matricula).trim() !== ""
-          ? String(row.matricula).trim()
-          : fLista?.matricula != null && String(fLista.matricula).trim() !== ""
-            ? String(fLista.matricula).trim()
-            : null;
+      const f = {
+        ...(fLista ?? {}),
+        ...(funcionarioPdf ?? {}),
+        matricula: matriculaFinal,
+      } as Func;
 
-      const f: Func | undefined = funcionarioPdf
-        ? {
-            id: String(row.id ?? funcId),
-            nome: String(row.nome ?? fLista?.nome ?? "Funcionário"),
-            cpf: row.cpf == null ? (fLista?.cpf ?? null) : String(row.cpf),
-            cargo: row.cargo == null ? (fLista?.cargo ?? null) : String(row.cargo),
-            matricula: matriculaPdf,
-          }
-        : fLista;
-
-      if (!f) {
+      if (!f?.id) {
         toast.error("Funcionário não encontrado.");
         return;
       }
 
-      if (!f.matricula) {
-        toast.warning("A matrícula não foi encontrada no cadastro deste funcionário.");
+      if (!matriculaFinal) {
+        toast.warning("Este funcionário está sem matrícula salva no cadastro.");
       }
 
       const emp = empresaInfo ?? { nome_fantasia: "-", cnpj: null, endereco: null };
-
-      // Recarrega o cartão para refletir todas as alterações recentes.
+      // Recarrega o cartão para refletir todas as alterações recentes
       const resumoAtual = await carregarCartao(funcId, ano, mes);
       setResumo(resumoAtual);
-
-      // Busca jornada ativa do funcionário.
+      // Busca jornada ativa do funcionário (dia de seg-sex como referência)
       const { data: vinc } = await supabase
         .from("funcionarios_jornadas")
         .select("jornadas(nome), jornada_id")
@@ -271,7 +259,6 @@ function CartaoEmpresaPage() {
         .maybeSingle();
 
       const v = vinc as { jornadas: { nome: string } | null; jornada_id: string } | null;
-
       let jornada: {
         nome: string;
         entrada: string | null;
@@ -279,13 +266,11 @@ function CartaoEmpresaPage() {
         intervalo_saida: string | null;
         intervalo_retorno: string | null;
       } | null = null;
-
       if (v?.jornada_id) {
         const { data: jd } = await supabase
           .from("jornadas_dias")
           .select("dia_semana,horario_entrada,horario_saida,horario_intervalo_saida,horario_intervalo_retorno,trabalha")
           .eq("jornada_id", v.jornada_id);
-
         const refDia = (jd ?? []).find((x) => x.trabalha) as
           | {
               horario_entrada: string | null;
@@ -294,7 +279,6 @@ function CartaoEmpresaPage() {
               horario_intervalo_retorno: string | null;
             }
           | undefined;
-
         jornada = {
           nome: v.jornadas?.nome ?? "JORNADA",
           entrada: refDia?.horario_entrada?.slice(0, 5) ?? null,
@@ -303,17 +287,10 @@ function CartaoEmpresaPage() {
           intervalo_retorno: refDia?.horario_intervalo_retorno?.slice(0, 5) ?? null,
         };
       }
-
       const vincs = await carregarVinculosAtivos(f.id);
-
       const doc = gerarPdfCartao({
         empresa: emp,
-        funcionario: {
-          nome: f.nome,
-          cpf: f.cpf,
-          cargo: f.cargo,
-          matricula: f.matricula,
-        },
+        funcionario: f,
         jornada,
         jornadas: vincs,
         ano,
@@ -321,7 +298,6 @@ function CartaoEmpresaPage() {
         resumo: resumoAtual,
         status: cartao?.status ?? "aberto",
       });
-
       salvarPdfArquivo(doc, `cartao-${f.nome}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
       toast.success("PDF gerado.");
     } catch (e) {
