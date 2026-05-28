@@ -78,10 +78,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Controle de ponto online, jornada, benefícios e holerites — Turbo Lanches." },
       { name: "author", content: "Turbo Lanches" },
       { property: "og:title", content: "Turbo Ponto — Turbo Lanches" },
-      { property: "og:description", content: "Controle de ponto online da Turbo Lanches." },
+      { property: "og:description", content: "Controle de ponto online, jornada, benefícios e holerites — Turbo Lanches." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@TurboLanches" },
+      { name: "twitter:title", content: "Turbo Ponto — Turbo Lanches" },
+      { name: "twitter:description", content: "Controle de ponto online, jornada, benefícios e holerites — Turbo Lanches." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xxzrlj01IVNc40u6VjLKRe7Nt7n2/social-images/social-1779932639381-WhatsApp_Image_2026-05-26_at_18.09.33.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/xxzrlj01IVNc40u6VjLKRe7Nt7n2/social-images/social-1779932639381-WhatsApp_Image_2026-05-26_at_18.09.33.webp" },
     ],
     links: [
       {
