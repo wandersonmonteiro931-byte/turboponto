@@ -303,51 +303,102 @@ function BeneficiosPage() {
   };
 
   const confirmarReprovar = async () => {
-    if (!reprovarAlvo || !empresaId || !user) return;
-    const motivo = reprovarMotivo.trim();
-    if (!motivo) { toast.error("Informe o motivo da reprovação"); return; }
-    const anterior = reprovarAlvo.status;
-    try {
-      await reprovarCalculo({ calculoId: reprovarAlvo.id, motivo });
-      await supabase.from("beneficios_logs").insert({
-        empresa_id: empresaId,
-        funcionario_id: reprovarAlvo.funcionario_id,
-        beneficio_id: beneficioId,
-        usuario_id: user.id,
-        acao: `reprovado_admin`,
-        status_anterior: anterior,
-        status_novo: "nao_tem_direito",
-        justificativa: motivo,
-      });
-      toast.success("Funcionário reprovado");
-      setReprovarAlvo(null);
-      setReprovarMotivo("");
-      await carregar();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao reprovar");
-    }
-  };
+  if (!reprovarAlvo || !empresaId || !user) return;
+
+  const motivo = reprovarMotivo.trim();
+
+  if (!motivo) {
+    toast.error("Informe o motivo da reprovação");
+    return;
+  }
+
+  const anterior = reprovarAlvo.status;
+
+  try {
+    await reprovarCalculo({
+      calculoId: reprovarAlvo.id,
+      motivo,
+    });
+
+    await supabase
+      .from("beneficios_entregas")
+      .update({
+        entregue: false,
+        valor_estimado: 0,
+        observacao: motivo,
+        data_entrega: null,
+      })
+      .eq("empresa_id", empresaId)
+      .eq("funcionario_id", reprovarAlvo.funcionario_id)
+      .eq("beneficio_id", beneficioId)
+      .eq("mes_referencia", mes)
+      .eq("ano_referencia", ano);
+
+    await supabase.from("beneficios_logs").insert({
+      empresa_id: empresaId,
+      funcionario_id: reprovarAlvo.funcionario_id,
+      beneficio_id: beneficioId,
+      usuario_id: user.id,
+      acao: "reprovado_admin",
+      status_anterior: anterior,
+      status_novo: "nao_tem_direito",
+      justificativa: motivo,
+    });
+
+    toast.success("Benefício reprovado");
+    setReprovarAlvo(null);
+    setReprovarMotivo("");
+    await carregar();
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : "Erro ao reprovar");
+  }
+};
 
   const aprovarManual = async (linha: LinhaCalc) => {
-    if (!empresaId || !user) return;
-    try {
-      await aprovarCalculo({ calculoId: linha.id });
-      await supabase.from("beneficios_logs").insert({
+  if (!empresaId || !user || !beneficioAtual) return;
+
+  const valorRestaurado = beneficioAtual.valor_maximo;
+
+  try {
+    await aprovarCalculo({
+      calculoId: linha.id,
+      valorEstimado: valorRestaurado,
+    });
+
+    await supabase.from("beneficios_entregas").upsert(
+      {
         empresa_id: empresaId,
         funcionario_id: linha.funcionario_id,
         beneficio_id: beneficioId,
-        usuario_id: user.id,
-        acao: `aprovado_admin`,
-        status_anterior: linha.status,
-        status_novo: "tem_direito",
-        justificativa: null,
-      });
-      toast.success("Direito restaurado");
-      await carregar();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao aprovar");
-    }
-  };
+        mes_referencia: mes,
+        ano_referencia: ano,
+        entregue: false,
+        valor_estimado: valorRestaurado,
+        observacao: "Direito restaurado pela empresa",
+        data_entrega: null,
+      },
+      {
+        onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia",
+      },
+    );
+
+    await supabase.from("beneficios_logs").insert({
+      empresa_id: empresaId,
+      funcionario_id: linha.funcionario_id,
+      beneficio_id: beneficioId,
+      usuario_id: user.id,
+      acao: "aprovado_admin",
+      status_anterior: linha.status,
+      status_novo: "tem_direito",
+      justificativa: null,
+    });
+
+    toast.success("Direito restaurado");
+    await carregar();
+  } catch (e: unknown) {
+    toast.error(e instanceof Error ? e.message : "Erro ao aprovar");
+  }
+};
 
   const linhasFiltradas = useMemo(() => {
     return calculos.filter((c) => {
@@ -644,44 +695,51 @@ function BeneficiosPage() {
                             <span className="text-red-700"><strong>Reprovado:</strong> {c.motivo_admin}</span>
                           ) : (c.motivo_perda ?? "—")}
                         </td>
-                        {podeEditar && (
-                          <td className="p-2 text-right space-x-1 whitespace-nowrap">
-                            {ehAdmin && !passadoFechado && c.status !== "entregue" && c.tem_direito && (
-                              <Button size="sm" variant="ghost" onClick={() => setReprovarAlvo(c)}>
-                                <XCircle className="h-3 w-3 mr-1" />Reprovar
-                              </Button>
-                            )}
-                            {ehAdmin && !passadoFechado && !c.tem_direito && (
-                              <Button size="sm" variant="ghost" onClick={() => void aprovarManual(c)}>
-                                <ThumbsUp className="h-3 w-3 mr-1" />Aprovar
-                              </Button>
-                            )}
-                            {c.tem_direito && c.status === "tem_direito" && (
-                              <Button size="sm" variant="outline" onClick={() => {
-                                const j = prompt("Justificativa para liberar:") ?? "";
-                                void mudarStatus(c, "liberado", j);
-                              }}>
-                                <CheckCircle2 className="h-3 w-3 mr-1" />Liberar
-                              </Button>
-                            )}
-                            {c.status === "liberado" && (
-                              <Button size="sm" onClick={() => {
-                                const j = prompt("Observação da entrega (opcional):") ?? "";
-                                void mudarStatus(c, "entregue", j);
-                              }}>
-                                <Truck className="h-3 w-3 mr-1" />Entregue
-                              </Button>
-                            )}
-                            {(c.status === "entregue" || c.status === "liberado") && (
-                              <Link
-                                to="/recibo/$calcId"
-                                params={{ calcId: c.id }}
-                                target="_blank"
-                              >
-                                <Button size="sm" variant="ghost"><FileText className="h-3 w-3 mr-1" />Recibo</Button>
-                              </Link>
-                            )}
-                          </td>
+                       {podeEditar && (
+  <td className="p-2 text-right space-x-1 whitespace-nowrap">
+    {ehAdmin && (c.tem_direito || c.status === "tem_direito" || c.status === "liberado" || c.status === "entregue") && (
+      <Button size="sm" variant="ghost" onClick={() => setReprovarAlvo(c)}>
+        <XCircle className="h-3 w-3 mr-1" />Reprovar
+      </Button>
+    )}
+
+    {ehAdmin && (!c.tem_direito || c.status === "nao_tem_direito") && (
+      <Button size="sm" variant="ghost" onClick={() => void aprovarManual(c)}>
+        <ThumbsUp className="h-3 w-3 mr-1" />Aprovar
+      </Button>
+    )}
+
+    {c.tem_direito && c.status === "tem_direito" && (
+      <Button size="sm" variant="outline" onClick={() => {
+        const j = prompt("Justificativa para liberar:") ?? "";
+        void mudarStatus(c, "liberado", j);
+      }}>
+        <CheckCircle2 className="h-3 w-3 mr-1" />Liberar
+      </Button>
+    )}
+
+    {c.status === "liberado" && (
+      <Button size="sm" onClick={() => {
+        const j = prompt("Observação da entrega (opcional):") ?? "";
+        void mudarStatus(c, "entregue", j);
+      }}>
+        <Truck className="h-3 w-3 mr-1" />Entregue
+      </Button>
+    )}
+
+    {(c.status === "entregue" || c.status === "liberado") && (
+      <Link
+        to="/recibo/$calcId"
+        params={{ calcId: c.id }}
+        target="_blank"
+      >
+        <Button size="sm" variant="ghost">
+          <FileText className="h-3 w-3 mr-1" />Recibo
+        </Button>
+      </Link>
+    )}
+  </td>
+)}
                         )}
                       </tr>
                     );
