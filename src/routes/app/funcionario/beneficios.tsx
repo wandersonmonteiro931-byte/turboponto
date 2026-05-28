@@ -164,7 +164,7 @@ function MeusBeneficios() {
       </div>
 
       {beneficios.map((b) => (
-        <BeneficioCard key={b.id} beneficio={b} calc={calculos[b.id] ?? null} mes={mes} ano={ano} />
+        <BeneficioCard key={b.id} beneficio={b} calc={calculos[b.id] ?? null} mes={mes} ano={ano} dataPrevistaOverride={datasPrevistas[b.id] ?? null} />
       ))}
 
       <Card>
