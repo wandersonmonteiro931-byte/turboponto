@@ -13,7 +13,7 @@ import {
   inferirTipo, avaliar, diaComercialISO,
 } from "@/lib/ponto";
 import { formatMinutos } from "@/lib/format";
-import { getMeuIp } from "@/lib/ip-ponto.functions";
+import { getMeuIp, normalizeIp } from "@/lib/ip-ponto.functions";
 
 type Props = {
   size?: "default" | "lg";
@@ -124,9 +124,10 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
       const e = emp as { restringir_ip_ponto?: boolean; ips_permitidos?: string[] } | null;
       if (e?.restringir_ip_ponto) {
         const { ip } = await getMeuIp();
-        const lista = e.ips_permitidos ?? [];
-        if (!ip || !lista.includes(ip)) {
-          toast.error(`Você não está em uma rede autorizada para bater ponto.${ip ? ` (IP: ${ip})` : ""}`);
+        const ipNorm = normalizeIp(ip);
+        const lista = (e.ips_permitidos ?? []).map((x) => normalizeIp(x)).filter(Boolean) as string[];
+        if (!ipNorm || !lista.includes(ipNorm)) {
+          toast.error(`Você não está em uma rede autorizada para bater ponto.${ipNorm ? ` (IP: ${ipNorm})` : ""}`);
           setEnviando(false);
           return;
         }
