@@ -108,15 +108,17 @@ function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
 
   const entDiff = minDiff(d.programado.entrada, d.registrado.entrada);
 
-  if (entDiff != null && Math.abs(entDiff) > tolMin) {
-    if (entDiff > 0) {
+  // Tolerância aplica-se apenas a atraso (entrada tarde) e hora extra (saída tarde).
+  // Antecipações (entrar antes / sair antes) NÃO são absorvidas pela tolerância.
+  if (entDiff != null) {
+    if (entDiff > tolMin) {
       out.push({
         label: "ATRASO",
         qtde: entDiff,
         credito: false,
         debito: true,
       });
-    } else {
+    } else if (entDiff < 0) {
       out.push({
         label: "ENTRADA ANTECIPADA",
         qtde: -entDiff,
@@ -128,15 +130,15 @@ function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
 
   const saiDiff = minDiff(d.programado.saida_final, d.registrado.saida_final);
 
-  if (saiDiff != null && Math.abs(saiDiff) > tolMin) {
-    if (saiDiff > 0) {
+  if (saiDiff != null) {
+    if (saiDiff > tolMin) {
       out.push({
         label: "HORA EXTRA",
         qtde: saiDiff,
         credito: true,
         debito: false,
       });
-    } else {
+    } else if (saiDiff < 0) {
       out.push({
         label: "SAÍDA ANTECIPADA",
         qtde: -saiDiff,
