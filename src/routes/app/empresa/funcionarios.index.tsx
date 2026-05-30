@@ -99,12 +99,8 @@ function FuncionariosPage() {
     const nome = funcionario.nome || "este funcionário";
 
     const confirmar = window.confirm(
-      `Excluir definitivamente ${nome}?
-
-` +
-        "Essa ação vai tentar apagar o funcionário e os dados vinculados dele diretamente pelo sistema, sem precisar acessar o Supabase.
-
-" +
+      `Excluir definitivamente ${nome}?\n\n` +
+        "Essa ação vai tentar apagar o funcionário e os dados vinculados dele diretamente pelo sistema, sem precisar acessar o Supabase.\n\n" +
         "Essa ação não pode ser desfeita.",
     );
 
