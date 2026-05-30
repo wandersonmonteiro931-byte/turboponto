@@ -304,12 +304,12 @@ export async function carregarCartao(
     let creditoHoraExtra = 0;
     if (pe != null && e != null) {
       const diffE = diffRelogioAssinado(pe, e);
-      if (diffE < -toleranciaMin) creditoEntradaAntec = -diffE;
+      if (diffE < 0) creditoEntradaAntec = -diffE;
     }
     if (psf != null && sf != null) {
       const diffS = diffRelogioAssinado(psf, sf);
       if (diffS > LIMITE_EXTRA_MIN) creditoHoraExtra = diffS;
-      else if (diffS < -toleranciaMin) debitoSaidaAntec = -diffS;
+      else if (diffS < 0) debitoSaidaAntec = -diffS;
     }
     let extras = creditoHoraExtra;
 
