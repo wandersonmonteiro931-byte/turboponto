@@ -6,14 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Search, UserCircle2, Power, PowerOff, Pencil } from "lucide-react";
+import { Plus, Search, UserCircle2, Power, PowerOff, Pencil, Trash2 } from "lucide-react";
 import { criarFuncionario } from "@/lib/funcionarios.functions";
 import { getAccessToken } from "@/lib/session";
 
@@ -47,9 +43,53 @@ function FuncionariosPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [openNew, setOpenNew] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const reload = async () => {
-    if (!empresaId) { setLoading(false); return; }
+    const excluirFuncionario = async (funcionario: Funcionario) => {
+      if (!isAdmin) return;
+
+      const nome = funcionario.nome || "este funcionário";
+
+      const confirmar = window.confirm(
+        `Excluir definitivamente ${nome}?\n\n` +
+          "Essa ação vai apagar o funcionário e remover os dados vinculados dele do sistema, como registros de ponto, cartão de ponto, banco de horas, faltas, justificativas, holerites, benefícios, jornadas vinculadas, notificações e demais históricos.\n\n" +
+          "Essa ação não pode ser desfeita.",
+      );
+
+      if (!confirmar) return;
+
+      const texto = window.prompt(`Para confirmar a exclusão definitiva de ${nome}, digite EXCLUIR.`);
+
+      if ((texto ?? "").trim().toUpperCase() !== "EXCLUIR") {
+        toast.info("Exclusão cancelada.");
+        return;
+      }
+
+      setDeletingId(funcionario.id);
+
+      try {
+        const { error } = await (supabase as any).rpc("excluir_funcionario_completo", {
+          p_funcionario_id: funcionario.id,
+        });
+
+        if (error) throw error;
+
+        toast.success("Funcionário excluído do sistema.");
+        setList((prev) => prev.filter((item) => item.id !== funcionario.id));
+        await reload();
+      } catch (err) {
+        console.error("[funcionarios] erro ao excluir funcionário", err);
+        toast.error(err instanceof Error ? err.message : "Erro ao excluir funcionário.");
+      } finally {
+        setDeletingId(null);
+      }
+    };
+
+    if (!empresaId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase
       .from("funcionarios")
@@ -61,7 +101,9 @@ function FuncionariosPage() {
     setLoading(false);
   };
 
-  useEffect(() => { reload(); }, [empresaId]);
+  useEffect(() => {
+    reload();
+  }, [empresaId]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -91,12 +133,54 @@ function FuncionariosPage() {
     reload();
   };
 
+  const excluirFuncionario = async (funcionario: Funcionario) => {
+    if (!isAdmin) return;
+
+    const nome = funcionario.nome || "este funcionário";
+
+    const confirmar = window.confirm(
+      `Excluir definitivamente ${nome}?\n\n` +
+        "Essa ação vai apagar o funcionário e remover os dados vinculados dele do sistema, como registros de ponto, cartão de ponto, banco de horas, faltas, justificativas, holerites, benefícios, jornadas vinculadas, notificações e demais históricos.\n\n" +
+        "Essa ação não pode ser desfeita.",
+    );
+
+    if (!confirmar) return;
+
+    const texto = window.prompt(`Para confirmar a exclusão definitiva de ${nome}, digite EXCLUIR.`);
+
+    if ((texto ?? "").trim().toUpperCase() !== "EXCLUIR") {
+      toast.info("Exclusão cancelada.");
+      return;
+    }
+
+    setDeletingId(funcionario.id);
+
+    try {
+      const { error } = await (supabase as any).rpc("excluir_funcionario_completo", {
+        p_funcionario_id: funcionario.id,
+      });
+
+      if (error) throw error;
+
+      toast.success("Funcionário excluído do sistema.");
+      setList((prev) => prev.filter((item) => item.id !== funcionario.id));
+      await reload();
+    } catch (err) {
+      console.error("[funcionarios] erro ao excluir funcionário", err);
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir funcionário.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   if (!empresaId) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <p className="text-sm text-muted-foreground mb-4">Cadastre primeiro os dados da empresa.</p>
-          <Link to="/app/empresa/empresa"><Button>Ir para Empresa</Button></Link>
+          <Link to="/app/empresa/empresa">
+            <Button>Ir para Empresa</Button>
+          </Link>
         </CardContent>
       </Card>
     );
@@ -107,11 +191,18 @@ function FuncionariosPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Buscar por nome, matrícula, CPF ou cargo" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            placeholder="Buscar por nome, matrícula, CPF ou cargo"
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <div className="flex gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
               <SelectItem value="ativo">Ativos</SelectItem>
@@ -122,9 +213,17 @@ function FuncionariosPage() {
           {isAdmin && (
             <Dialog open={openNew} onOpenChange={setOpenNew}>
               <DialogTrigger asChild>
-                <Button className="font-semibold"><Plus className="h-4 w-4 mr-1" />Novo</Button>
+                <Button className="font-semibold">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Novo
+                </Button>
               </DialogTrigger>
-              <NovoFuncionarioDialog onDone={() => { setOpenNew(false); reload(); }} />
+              <NovoFuncionarioDialog
+                onDone={() => {
+                  setOpenNew(false);
+                  reload();
+                }}
+              />
             </Dialog>
           )}
         </div>
@@ -146,13 +245,28 @@ function FuncionariosPage() {
                     className="flex items-center gap-3 flex-1 min-w-0"
                   >
                     <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0">
-                      {f.foto_url ? <img src={f.foto_url} className="h-full w-full object-cover" /> : <UserCircle2 className="h-6 w-6 text-muted-foreground" />}
+                      {f.foto_url ? (
+                        <img src={f.foto_url} className="h-full w-full object-cover" />
+                      ) : (
+                        <UserCircle2 className="h-6 w-6 text-muted-foreground" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{f.nome}{f.matricula ? <span className="ml-2 text-xs text-muted-foreground font-mono">#{f.matricula}</span> : null}</div>
-                      <div className="text-xs text-muted-foreground truncate">{f.cargo ?? "—"} · {f.email ?? f.cpf ?? "—"}</div>
+                      <div className="font-medium truncate">
+                        {f.nome}
+                        {f.matricula ? (
+                          <span className="ml-2 text-xs text-muted-foreground font-mono">#{f.matricula}</span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {f.cargo ?? "—"} · {f.email ?? f.cpf ?? "—"}
+                      </div>
                     </div>
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${statusColor[f.status] ?? "bg-muted"}`}>{f.status}</span>
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${statusColor[f.status] ?? "bg-muted"}`}
+                    >
+                      {f.status}
+                    </span>
                   </Link>
                   <div className="flex gap-1 items-center">
                     <Button size="sm" variant="outline" asChild title="Editar">
@@ -176,10 +290,26 @@ function FuncionariosPage() {
                           </Button>
                         )}
                         {f.status !== "desligado" && (
-                          <Button size="sm" variant="ghost" onClick={() => { if (confirm("Desligar este funcionário?")) setStatus(f.id, "desligado"); }} title="Desligar">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (confirm("Desligar este funcionário?")) setStatus(f.id, "desligado");
+                            }}
+                            title="Desligar"
+                          >
                             <PowerOff className="h-4 w-4 text-red-600" />
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={deletingId === f.id}
+                          onClick={() => excluirFuncionario(f)}
+                          title="Excluir definitivamente"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-700" />
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -195,8 +325,17 @@ function FuncionariosPage() {
 
 function NovoFuncionarioDialog({ onDone }: { onDone: () => void }) {
   const [form, setForm] = useState({
-    nome: "", cpf: "", rg: "", data_nascimento: "", telefone: "", email: "",
-    endereco: "", cargo: "", salario: "", data_admissao: "", senha: "",
+    nome: "",
+    cpf: "",
+    rg: "",
+    data_nascimento: "",
+    telefone: "",
+    email: "",
+    endereco: "",
+    cargo: "",
+    salario: "",
+    data_admissao: "",
+    senha: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -241,17 +380,45 @@ function NovoFuncionarioDialog({ onDone }: { onDone: () => void }) {
         <DialogTitle>Novo funcionário</DialogTitle>
       </DialogHeader>
       <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <F label="Nome completo *" full><Input required value={form.nome} onChange={(e) => upd("nome", e.target.value)} /></F>
-        <F label="CPF"><Input value={form.cpf} onChange={(e) => upd("cpf", e.target.value)} /></F>
-        <F label="RG"><Input value={form.rg} onChange={(e) => upd("rg", e.target.value)} /></F>
-        <F label="Data de nascimento"><Input type="date" value={form.data_nascimento} onChange={(e) => upd("data_nascimento", e.target.value)} /></F>
-        <F label="Telefone"><Input value={form.telefone} onChange={(e) => upd("telefone", e.target.value)} /></F>
-        <F label="E-mail de acesso *" full><Input type="email" required value={form.email} onChange={(e) => upd("email", e.target.value)} /></F>
-        <F label="Endereço" full><Input value={form.endereco} onChange={(e) => upd("endereco", e.target.value)} /></F>
-        <F label="Cargo / função"><Input value={form.cargo} onChange={(e) => upd("cargo", e.target.value)} /></F>
-        <F label="Salário (R$)"><Input type="number" step="0.01" min="0" value={form.salario} onChange={(e) => upd("salario", e.target.value)} /></F>
-        <F label="Data de admissão"><Input type="date" value={form.data_admissao} onChange={(e) => upd("data_admissao", e.target.value)} /></F>
-        <F label="Senha inicial *"><Input type="text" minLength={6} required value={form.senha} onChange={(e) => upd("senha", e.target.value)} /></F>
+        <F label="Nome completo *" full>
+          <Input required value={form.nome} onChange={(e) => upd("nome", e.target.value)} />
+        </F>
+        <F label="CPF">
+          <Input value={form.cpf} onChange={(e) => upd("cpf", e.target.value)} />
+        </F>
+        <F label="RG">
+          <Input value={form.rg} onChange={(e) => upd("rg", e.target.value)} />
+        </F>
+        <F label="Data de nascimento">
+          <Input type="date" value={form.data_nascimento} onChange={(e) => upd("data_nascimento", e.target.value)} />
+        </F>
+        <F label="Telefone">
+          <Input value={form.telefone} onChange={(e) => upd("telefone", e.target.value)} />
+        </F>
+        <F label="E-mail de acesso *" full>
+          <Input type="email" required value={form.email} onChange={(e) => upd("email", e.target.value)} />
+        </F>
+        <F label="Endereço" full>
+          <Input value={form.endereco} onChange={(e) => upd("endereco", e.target.value)} />
+        </F>
+        <F label="Cargo / função">
+          <Input value={form.cargo} onChange={(e) => upd("cargo", e.target.value)} />
+        </F>
+        <F label="Salário (R$)">
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={form.salario}
+            onChange={(e) => upd("salario", e.target.value)}
+          />
+        </F>
+        <F label="Data de admissão">
+          <Input type="date" value={form.data_admissao} onChange={(e) => upd("data_admissao", e.target.value)} />
+        </F>
+        <F label="Senha inicial *">
+          <Input type="text" minLength={6} required value={form.senha} onChange={(e) => upd("senha", e.target.value)} />
+        </F>
         <DialogFooter className="md:col-span-2 mt-2">
           <Button type="submit" disabled={saving} className="font-semibold">
             {saving ? "Cadastrando..." : "Cadastrar funcionário"}
