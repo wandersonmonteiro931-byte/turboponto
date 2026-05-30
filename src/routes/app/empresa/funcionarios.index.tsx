@@ -46,46 +46,6 @@ function FuncionariosPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const reload = async () => {
-    const excluirFuncionario = async (funcionario: Funcionario) => {
-      if (!isAdmin) return;
-
-      const nome = funcionario.nome || "este funcionário";
-
-      const confirmar = window.confirm(
-        `Excluir definitivamente ${nome}?\n\n` +
-          "Essa ação vai apagar o funcionário e remover os dados vinculados dele do sistema, como registros de ponto, cartão de ponto, banco de horas, faltas, justificativas, holerites, benefícios, jornadas vinculadas, notificações e demais históricos.\n\n" +
-          "Essa ação não pode ser desfeita.",
-      );
-
-      if (!confirmar) return;
-
-      const texto = window.prompt(`Para confirmar a exclusão definitiva de ${nome}, digite EXCLUIR.`);
-
-      if ((texto ?? "").trim().toUpperCase() !== "EXCLUIR") {
-        toast.info("Exclusão cancelada.");
-        return;
-      }
-
-      setDeletingId(funcionario.id);
-
-      try {
-        const { error } = await (supabase as any).rpc("excluir_funcionario_completo", {
-          p_funcionario_id: funcionario.id,
-        });
-
-        if (error) throw error;
-
-        toast.success("Funcionário excluído do sistema.");
-        setList((prev) => prev.filter((item) => item.id !== funcionario.id));
-        await reload();
-      } catch (err) {
-        console.error("[funcionarios] erro ao excluir funcionário", err);
-        toast.error(err instanceof Error ? err.message : "Erro ao excluir funcionário.");
-      } finally {
-        setDeletingId(null);
-      }
-    };
-
     if (!empresaId) {
       setLoading(false);
       return;
@@ -139,14 +99,20 @@ function FuncionariosPage() {
     const nome = funcionario.nome || "este funcionário";
 
     const confirmar = window.confirm(
-      `Excluir definitivamente ${nome}?\n\n` +
-        "Essa ação vai apagar o funcionário e remover os dados vinculados dele do sistema, como registros de ponto, cartão de ponto, banco de horas, faltas, justificativas, holerites, benefícios, jornadas vinculadas, notificações e demais históricos.\n\n" +
+      `Excluir definitivamente ${nome}?
+
+` +
+        "Essa ação vai tentar apagar o funcionário e os dados vinculados dele diretamente pelo sistema, sem precisar acessar o Supabase.
+
+" +
         "Essa ação não pode ser desfeita.",
     );
 
     if (!confirmar) return;
 
-    const texto = window.prompt(`Para confirmar a exclusão definitiva de ${nome}, digite EXCLUIR.`);
+    const texto = window.prompt(
+      `Para confirmar a exclusão definitiva de ${nome}, digite EXCLUIR.`,
+    );
 
     if ((texto ?? "").trim().toUpperCase() !== "EXCLUIR") {
       toast.info("Exclusão cancelada.");
@@ -156,18 +122,62 @@ function FuncionariosPage() {
     setDeletingId(funcionario.id);
 
     try {
-      const { error } = await (supabase as any).rpc("excluir_funcionario_completo", {
-        p_funcionario_id: funcionario.id,
-      });
+      const tabelasComFuncionarioId = [
+        "registros_ponto",
+        "cartoes_ponto",
+        "banco_horas_movimentos",
+        "dias_falta",
+        "justificativas_aplicadas",
+        "funcionarios_jornadas",
+        "holerites",
+        "beneficios_calculos",
+        "beneficios_entregas",
+        "beneficios_logs",
+        "notificacoes",
+        "avisos_leituras",
+        "avisos",
+        "employee_advances",
+      ];
 
-      if (error) throw error;
+      for (const tabela of tabelasComFuncionarioId) {
+        const { error } = await (supabase as any)
+          .from(tabela)
+          .delete()
+          .eq("funcionario_id", funcionario.id);
+
+        if (error) {
+          console.warn(`[funcionarios] não foi possível limpar ${tabela}`, error);
+        }
+      }
+
+      const { error: funcionarioError } = await supabase
+        .from("funcionarios")
+        .delete()
+        .eq("id", funcionario.id);
+
+      if (funcionarioError) throw funcionarioError;
+
+      if (funcionario.usuario_id) {
+        const { error: profileError } = await (supabase as any)
+          .from("profiles")
+          .delete()
+          .eq("id", funcionario.usuario_id);
+
+        if (profileError) {
+          console.warn("[funcionarios] não foi possível remover profile", profileError);
+        }
+      }
 
       toast.success("Funcionário excluído do sistema.");
       setList((prev) => prev.filter((item) => item.id !== funcionario.id));
       await reload();
     } catch (err) {
       console.error("[funcionarios] erro ao excluir funcionário", err);
-      toast.error(err instanceof Error ? err.message : "Erro ao excluir funcionário.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Erro ao excluir funcionário. Pode haver uma regra do banco bloqueando a exclusão.",
+      );
     } finally {
       setDeletingId(null);
     }
