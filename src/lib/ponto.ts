@@ -108,14 +108,18 @@ export function avaliar(
   // Se o horário programado é noturno (>= 18:00) e estamos de madrugada (< 06:00),
   // tratamos como continuação do mesmo dia (somamos 24h).
   if (diff < -12 * 60) diff += 1440;
-  if (Math.abs(diff) <= toleranciaMin) return { atraso: Math.max(0, diff), status: "no_horario" };
-  // Saídas: cedo = antecipada, tarde = hora extra
+  // Tolerância aplica-se apenas ao lado "negativo" da jornada do empregador:
+  // atraso na entrada/retorno e hora extra na saída. Antecipações (sair mais cedo
+  // ou entrar antes) NÃO devem ser absorvidas pela tolerância.
+  // Saídas: cedo = antecipada (sem tolerância), tarde = hora extra (tolera)
   if (tipo === "saida_final" || tipo === "saida_intervalo") {
     if (diff < 0) return { atraso: 0, status: "saida_antecipada" };
+    if (diff <= toleranciaMin) return { atraso: 0, status: "no_horario" };
     return { atraso: diff, status: "hora_extra" };
   }
-  // Entradas / retorno: cedo = antecipada, tarde = atrasado
+  // Entradas / retorno: cedo = antecipada (sem tolerância), tarde = atrasado (tolera)
   if (diff < 0) return { atraso: 0, status: "entrada_antecipada" };
+  if (diff <= toleranciaMin) return { atraso: 0, status: "no_horario" };
   return { atraso: diff, status: "atrasado" };
 }
 
