@@ -293,23 +293,38 @@ export async function carregarCartao(
       if (psi != null && pri != null) cargaProg -= diffRelogio(psi, pri);
     }
 
-    // Créditos/débitos por categoria (regra solicitada):
-    // - Entrada antecipada → CRÉDITO
-    // - Saída antecipada   → DÉBITO
-    // - Entrada em atraso  → DÉBITO (já contabilizado em "atraso")
-    // - Hora extra: somente após o horário previsto de saída + 10 minutos → CRÉDITO
-    const LIMITE_EXTRA_MIN = 10;
+    // Créditos/débitos por categoria (regra CLT art. 58 §1º):
+    // - Tolerância de até `toleranciaMin` minutos por batida (padrão 5),
+    //   limitada a 10 minutos no total do dia, é IGNORADA (sem crédito nem débito).
+    // - Acima da tolerância: atraso/saída antecipada vira DÉBITO; entrada
+    //   antecipada / hora extra vira CRÉDITO sobre o tempo TOTAL (sem subtrair tolerância).
+    const TOL_DIARIA_MAX = 10;
     let creditoEntradaAntec = 0;
     let debitoSaidaAntec = 0;
     let creditoHoraExtra = 0;
+    let tolUsadaDia = 0;
+    const aplicarTolerancia = (absMin: number): number => {
+      const disponivel = Math.max(0, Math.min(toleranciaMin, TOL_DIARIA_MAX - tolUsadaDia));
+      const absorvido = Math.min(absMin, disponivel);
+      tolUsadaDia += absorvido;
+      return absMin - absorvido;
+    };
     if (pe != null && e != null) {
       const diffE = diffRelogioAssinado(pe, e);
-      if (diffE < 0) creditoEntradaAntec = -diffE;
+      if (diffE < 0) {
+        const restante = aplicarTolerancia(-diffE);
+        if (restante > 0) creditoEntradaAntec = -diffE;
+      }
     }
     if (psf != null && sf != null) {
       const diffS = diffRelogioAssinado(psf, sf);
-      if (diffS > LIMITE_EXTRA_MIN) creditoHoraExtra = diffS;
-      else if (diffS < 0) debitoSaidaAntec = -diffS;
+      if (diffS > 0) {
+        const restante = aplicarTolerancia(diffS);
+        if (restante > 0) creditoHoraExtra = diffS;
+      } else if (diffS < 0) {
+        const restante = aplicarTolerancia(-diffS);
+        if (restante > 0) debitoSaidaAntec = -diffS;
+      }
     }
     let extras = creditoHoraExtra;
 
