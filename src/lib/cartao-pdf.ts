@@ -1,5 +1,11 @@
 import jsPDF from "jspdf";
-import { DIAS_SEMANA_CURTO, NOMES_MES, formatMin, type ResumoCartao, type DiaCartao } from "@/lib/cartao";
+import {
+  DIAS_SEMANA_CURTO,
+  NOMES_MES,
+  formatMin,
+  type ResumoCartao,
+  type DiaCartao,
+} from "@/lib/cartao";
 import { resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export type EmpresaInfo = {
@@ -206,7 +212,10 @@ export function gerarPdfCartao(opts: {
     minute: "2-digit",
   });
 
-  const matriculaFuncionario = textoSeguro(matriculaPdf ?? funcionario.matricula, "MATRICULA_NAO_RECEBIDA");
+  const matriculaFuncionario = textoSeguro(
+    matriculaPdf ?? funcionario.matricula,
+    "MATRICULA_NAO_RECEBIDA",
+  );
   const nomeFuncionario = textoSeguro(funcionario.nome);
   const cargoFuncionario = textoSeguro(funcionario.cargo);
   const cpfFuncionario = textoSeguro(funcionario.cpf);
@@ -465,7 +474,10 @@ export function gerarPdfCartao(opts: {
       falta &&
       (!justificativas.length ||
         justificativas.some(
-          (j) => j.tipo.categoria === "falta" && j.tipo.desconta_salario && j.tipo.afeta_assiduidade !== "nao",
+          (j) =>
+            j.tipo.categoria === "falta" &&
+            j.tipo.desconta_salario &&
+            j.tipo.afeta_assiduidade !== "nao",
         ));
 
     const cargaProgDia = (() => {
@@ -542,13 +554,21 @@ export function gerarPdfCartao(opts: {
       .filter((i) => i.debito && (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA"))
       .reduce((s, i) => s + i.qtde, 0);
 
+    const creditoJaRepresentadoPorIrreg = irregs
+      .filter((i) => i.credito && (i.label === "HORA EXTRA" || i.label === "ENTRADA ANTECIPADA"))
+      .reduce((s, i) => s + i.qtde, 0);
+
     if (d.bancoHorasMinutos > 0) {
       creditos += d.bancoHorasMinutos;
 
-      linhas.push({
-        label: "CRÉDITO BCO DE HORAS",
-        qtde: fmtMinHHMM(d.bancoHorasMinutos),
-      });
+      const restante = d.bancoHorasMinutos - creditoJaRepresentadoPorIrreg;
+
+      if (restante > 0) {
+        linhas.push({
+          label: "CRÉDITO BCO DE HORAS",
+          qtde: fmtMinHHMM(restante),
+        });
+      }
     }
 
     if (d.bancoHorasMinutos < 0) {
