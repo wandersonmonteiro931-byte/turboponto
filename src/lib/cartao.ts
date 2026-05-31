@@ -259,16 +259,8 @@ export async function carregarCartao(
         reg.retorno_intervalo = prog.retorno_intervalo;
     }
 
-    // Atraso = soma das entradas (entrada + retorno) após tolerância
+    // Atraso é calculado mais abaixo, junto com a tolerância diária compartilhada.
     let atraso = 0;
-    for (const k of ["entrada", "retorno_intervalo"] as const) {
-      const p = hm(prog[k]);
-      const r = hm(reg[k]);
-      if (p != null && r != null) {
-        const diff = diffRelogioAssinado(p, r);
-        if (diff > toleranciaMin) atraso += diff;
-      }
-    }
 
     // Trabalhado = (saida_final - entrada) - (retorno - saida_intervalo)
     let trabalhado = 0;
