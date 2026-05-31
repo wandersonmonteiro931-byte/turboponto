@@ -124,10 +124,8 @@ export async function carregarCartao(
   const { carregarVinculosAtivos, escolherJornadaParaData } = await import("@/lib/jornadas");
   const vinculos = await carregarVinculosAtivos(funcionarioId);
 
-  // Tolerância: usa a maior tolerância entre as jornadas ativas (fallback 5).
-  const toleranciaMin = vinculos.length
-    ? Math.max(...vinculos.map((v) => v.tolerancia_atraso_minutos || 0), 0) || 5
-    : 5;
+  // Tolerância CLT (art. 58 §1º): 5 minutos por batida, máximo 10 minutos por dia.
+  const toleranciaMin = 5;
 
 
   const { data: registros } = await supabase
