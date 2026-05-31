@@ -301,6 +301,18 @@ export async function carregarCartao(
       tolUsadaDia += absorvido;
       return absMin - absorvido;
     };
+    // Atrasos em entrada/retorno do intervalo
+    for (const k of ["entrada", "retorno_intervalo"] as const) {
+      const p = hm(prog[k]);
+      const r = hm(reg[k]);
+      if (p != null && r != null) {
+        const diff = diffRelogioAssinado(p, r);
+        if (diff > 0) {
+          const restante = aplicarTolerancia(diff);
+          if (restante > 0) atraso += diff;
+        }
+      }
+    }
     if (pe != null && e != null) {
       const diffE = diffRelogioAssinado(pe, e);
       if (diffE < 0) {
@@ -308,9 +320,6 @@ export async function carregarCartao(
         if (restante > 0) creditoEntradaAntec = -diffE;
       }
     }
-    if (psf != null && sf != null) {
-      const diffS = diffRelogioAssinado(psf, sf);
-      if (diffS > 0) {
         const restante = aplicarTolerancia(diffS);
         if (restante > 0) creditoHoraExtra = diffS;
       } else if (diffS < 0) {
