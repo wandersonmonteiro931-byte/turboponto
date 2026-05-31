@@ -320,6 +320,9 @@ export async function carregarCartao(
         if (restante > 0) creditoEntradaAntec = -diffE;
       }
     }
+    if (psf != null && sf != null) {
+      const diffS = diffRelogioAssinado(psf, sf);
+      if (diffS > 0) {
         const restante = aplicarTolerancia(diffS);
         if (restante > 0) creditoHoraExtra = diffS;
       } else if (diffS < 0) {
