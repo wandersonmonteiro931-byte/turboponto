@@ -106,45 +106,43 @@ type Irregularidade = {
 function irregularidadesDoDia(d: DiaCartao, tolMin: number): Irregularidade[] {
   const out: Irregularidade[] = [];
 
-  const entDiff = minDiff(d.programado.entrada, d.registrado.entrada);
+  // Tolerância CLT: até `tolMin` por batida, máximo 10 min no dia.
+  const TOL_DIARIA_MAX = 10;
+  let tolUsada = 0;
+  const aplicar = (absMin: number): number => {
+    const disponivel = Math.max(0, Math.min(tolMin, TOL_DIARIA_MAX - tolUsada));
+    const absorvido = Math.min(absMin, disponivel);
+    tolUsada += absorvido;
+    return absMin - absorvido;
+  };
 
-  // Tolerância aplica-se apenas a atraso (entrada tarde) e hora extra (saída tarde).
-  // Antecipações (entrar antes / sair antes) NÃO são absorvidas pela tolerância.
+  const entDiff = minDiff(d.programado.entrada, d.registrado.entrada);
   if (entDiff != null) {
-    if (entDiff > tolMin) {
-      out.push({
-        label: "ATRASO",
-        qtde: entDiff,
-        credito: false,
-        debito: true,
-      });
+    if (entDiff > 0) {
+      const restante = aplicar(entDiff);
+      if (restante > 0) {
+        out.push({ label: "ATRASO", qtde: entDiff, credito: false, debito: true });
+      }
     } else if (entDiff < 0) {
-      out.push({
-        label: "ENTRADA ANTECIPADA",
-        qtde: -entDiff,
-        credito: false,
-        debito: false,
-      });
+      const restante = aplicar(-entDiff);
+      if (restante > 0) {
+        out.push({ label: "ENTRADA ANTECIPADA", qtde: -entDiff, credito: true, debito: false });
+      }
     }
   }
 
   const saiDiff = minDiff(d.programado.saida_final, d.registrado.saida_final);
-
   if (saiDiff != null) {
-    if (saiDiff > tolMin) {
-      out.push({
-        label: "HORA EXTRA",
-        qtde: saiDiff,
-        credito: true,
-        debito: false,
-      });
+    if (saiDiff > 0) {
+      const restante = aplicar(saiDiff);
+      if (restante > 0) {
+        out.push({ label: "HORA EXTRA", qtde: saiDiff, credito: true, debito: false });
+      }
     } else if (saiDiff < 0) {
-      out.push({
-        label: "SAÍDA ANTECIPADA",
-        qtde: -saiDiff,
-        credito: false,
-        debito: true,
-      });
+      const restante = aplicar(-saiDiff);
+      if (restante > 0) {
+        out.push({ label: "SAÍDA ANTECIPADA", qtde: -saiDiff, credito: false, debito: true });
+      }
     }
   }
 
