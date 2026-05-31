@@ -542,13 +542,21 @@ export function gerarPdfCartao(opts: {
       .filter((i) => i.debito && (i.label === "ATRASO" || i.label === "SAÍDA ANTECIPADA"))
       .reduce((s, i) => s + i.qtde, 0);
 
+    const creditoJaRepresentadoPorIrreg = irregs
+      .filter((i) => i.credito && (i.label === "HORA EXTRA" || i.label === "ENTRADA ANTECIPADA"))
+      .reduce((s, i) => s + i.qtde, 0);
+
     if (d.bancoHorasMinutos > 0) {
       creditos += d.bancoHorasMinutos;
 
-      linhas.push({
-        label: "CRÉDITO BCO DE HORAS",
-        qtde: fmtMinHHMM(d.bancoHorasMinutos),
-      });
+      const restante = d.bancoHorasMinutos - creditoJaRepresentadoPorIrreg;
+
+      if (restante > 0) {
+        linhas.push({
+          label: "CRÉDITO BCO DE HORAS",
+          qtde: fmtMinHHMM(restante),
+        });
+      }
     }
 
     if (d.bancoHorasMinutos < 0) {
