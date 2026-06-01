@@ -623,6 +623,20 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
   const { funcionarioId, ano, mes, salario, linhas } = params;
   const novas = [...linhas];
 
+  const minutosDoSaldoInformativo = () => {
+    const linhaPositiva = novas.find((linha) => linha.codigo === "28651");
+    const linhaNegativa = novas.find((linha) => linha.codigo === "28652");
+
+    const horasPositivas = Number(linhaPositiva?.resultado || linhaPositiva?.qtde || 0);
+    const horasNegativas = Number(linhaNegativa?.resultado || linhaNegativa?.qtde || 0);
+
+    if (horasPositivas > 0) return Math.round(horasPositivas * 60);
+    if (horasNegativas < 0) return Math.round(horasNegativas * 60);
+    if (horasNegativas > 0) return -Math.round(horasNegativas * 60);
+
+    return 0;
+  };
+
   const aplicarLinha = (minutos: number) => {
     const idx = novas.findIndex((linha) => linha.codigo === "00120");
 
@@ -697,7 +711,25 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     if (ehDescontar) minutosDescontar += qtd;
   }
 
-  const minutosFechamento = minutosPagar > 0 ? minutosPagar : minutosDescontar > 0 ? -minutosDescontar : 0;
+  let minutosFechamento = minutosPagar > 0 ? minutosPagar : minutosDescontar > 0 ? -minutosDescontar : 0;
+
+  // Plano B obrigatório:
+  // se o botão "Fechar banco de horas" já liberou/fechou o cartão, mas por algum motivo
+  // a justificativa não voltou na consulta, usa o saldo informativo do próprio holerite.
+  if (minutosFechamento === 0) {
+    const { data: cartaoFechado } = await supabase
+      .from("cartoes_ponto")
+      .select("status")
+      .eq("funcionario_id", funcionarioId)
+      .eq("ano_referencia", ano)
+      .eq("mes_referencia", mes)
+      .maybeSingle();
+
+    const statusCartao = String((cartaoFechado as { status?: string } | null)?.status || "");
+    if (statusCartao === "fechado" || statusCartao === "liberado") {
+      minutosFechamento = minutosDoSaldoInformativo();
+    }
+  }
 
   aplicarLinha(minutosFechamento);
 
@@ -829,8 +861,8 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   const valorHora = salario > 0 ? salario / 220 : 0;
 
   const linhaHE50 = novas.find((linha) => linha.codigo === "00090");
-  const horasExtras = Number(linhaHE50?.qtde || 0);
   const valorHorasExtras50 = Number(linhaHE50?.provento || 0);
+  const horasExtras = valorHorasExtras50 > 0 ? Number(linhaHE50?.qtde || 0) : 0;
 
   const linhaSalario = novas.find((linha) => linha.codigo === "00005");
   const diasSalario = Number(linhaSalario?.qtde || 0);
@@ -901,7 +933,12 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
     valorAdicionalNoturno,
   );
   aplicarLinhaObrigatoria("00075", "DSR SOBRE ADICIONAL NOTURNO", dsrReflexo, valorDsrAdicionalNoturno);
-  aplicarLinhaObrigatoria("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50);
+  const idxDsrHe = novas.findIndex((linha) => linha.codigo === "00115");
+  if (valorDsrHe50 > 0) {
+    aplicarLinhaObrigatoria("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50);
+  } else if (idxDsrHe >= 0) {
+    novas.splice(idxDsrHe, 1);
+  }
 
   // Recalcula o INSS depois de inserir adicional noturno e DSR.
   // Para esse caso de base baixa, usa a faixa de 7,5%; para bases maiores,
@@ -1440,7 +1477,12 @@ function EditorDialog({
                         linhas: linhasComValeTransporte.linhas,
                       });
 
-                      const linhasOrdenadas = ordenarLancamentosHolerite(fechamentoBancoHoras.linhas);
+                      const linhasSemDsrHeZerado = fechamentoBancoHoras.linhas.filter((linha) => {
+                        if (linha.codigo !== "00115") return true;
+                        return Number(linha.provento || 0) > 0;
+                      });
+
+                      const linhasOrdenadas = ordenarLancamentosHolerite(linhasSemDsrHeZerado);
 
                       setLancamentos(linhasOrdenadas);
 
@@ -1452,7 +1494,9 @@ function EditorDialog({
                       setFgtsMes(roundAutoHolerite(totalProventos * 0.08));
                       setBaseIrpf(roundAutoHolerite(Math.max(0, totalProventos - descontoInss)));
 
-                      toast.success("Holerite calculado");
+                      toast.success(
+                        fechamentoBancoHoras.aplicado ? "Holerite calculado com fechamento BH" : "Holerite calculado",
+                      );
                     } catch (e: unknown) {
                       toast.error(e instanceof Error ? e.message : "Erro ao recalcular");
                     } finally {
