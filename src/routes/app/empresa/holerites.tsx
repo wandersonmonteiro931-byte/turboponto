@@ -320,11 +320,11 @@ function HoleritesPage() {
           periodo_inicio: holeriteAtual.periodo_inicio,
           periodo_fim: holeriteAtual.periodo_fim,
           data_pagamento: holeriteAtual.data_pagamento,
-          banco_agencia: holeriteAtual.banco_agencia,
-          conta: holeriteAtual.conta,
-          num_dep_irrf: holeriteAtual.num_dep_irrf,
-          num_dep_sal_fam: holeriteAtual.num_dep_sal_fam,
-          salario_contratual: holeriteAtual.salario_contratual,
+          banco_agencia: func.banco_agencia ?? holeriteAtual.banco_agencia,
+          conta: func.conta ?? holeriteAtual.conta,
+          num_dep_irrf: func.num_dep_irrf ?? holeriteAtual.num_dep_irrf,
+          num_dep_sal_fam: func.num_dep_sal_fam ?? holeriteAtual.num_dep_sal_fam,
+          salario_contratual: func.salario ?? holeriteAtual.salario_contratual,
           total_proventos: totalProventosPdf,
           total_descontos: totalDescontosPdf,
           total_liquido: totalLiquidoPdf,
@@ -332,7 +332,7 @@ function HoleritesPage() {
           base_fgts: holeriteAtual.base_fgts,
           fgts_mes: holeriteAtual.fgts_mes,
           base_irpf: holeriteAtual.base_irpf,
-          lotacao: holeriteAtual.lotacao,
+          lotacao: func.lotacao ?? holeriteAtual.lotacao,
           observacoes: holeriteAtual.observacoes,
         },
         linhasPdf,
@@ -1545,6 +1545,22 @@ function EditorDialog({
     void (async () => {
       const { data: h } = await supabase.from("holerites").select("*").eq("id", holeriteId).maybeSingle();
       if (!h) return;
+
+      const { data: funcionarioAtual, error: funcionarioAtualErro } = await supabase
+        .from("funcionarios")
+        .select(
+          "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+        )
+        .eq("id", h.funcionario_id)
+        .maybeSingle();
+
+      if (funcionarioAtualErro) {
+        console.error("[holerites] erro ao buscar dados atuais do funcionário", funcionarioAtualErro);
+        toast.error(funcionarioAtualErro.message);
+      }
+
+      const fAtual = funcionarioAtual as Func | null;
+
       setFuncId(h.funcionario_id);
       setMes(h.mes_referencia);
       setAno(h.ano_referencia);
@@ -1553,16 +1569,20 @@ function EditorDialog({
       setPeriodoFim(h.periodo_fim ?? "");
       setDataPagamento(h.data_pagamento ?? "");
       setDataPagamentoTocada(!!h.data_pagamento);
-      setBancoAg(h.banco_agencia ?? "");
-      setConta(h.conta ?? "");
-      setNumDepIrrf(h.num_dep_irrf ?? 0);
-      setNumDepSalFam(h.num_dep_sal_fam ?? 0);
-      setSalarioContratual(Number(h.salario_contratual ?? 0));
+
+      // Dados cadastrais/contratuais devem ser sempre os atuais do cadastro do funcionário.
+      // Assim, ao abrir a edição, banco, conta, dependentes, salário e lotação já vêm atualizados.
+      setBancoAg(fAtual?.banco_agencia ?? h.banco_agencia ?? "");
+      setConta(fAtual?.conta ?? h.conta ?? "");
+      setNumDepIrrf(Number(fAtual?.num_dep_irrf ?? h.num_dep_irrf ?? 0));
+      setNumDepSalFam(Number(fAtual?.num_dep_sal_fam ?? h.num_dep_sal_fam ?? 0));
+      setSalarioContratual(Number(fAtual?.salario ?? h.salario_contratual ?? 0));
+      setLotacao(fAtual?.lotacao ?? h.lotacao ?? "");
+
       setSalContribInss(Number(h.sal_contrib_inss ?? 0));
       setBaseFgts(Number(h.base_fgts ?? 0));
       setFgtsMes(Number(h.fgts_mes ?? 0));
       setBaseIrpf(Number(h.base_irpf ?? 0));
-      setLotacao(h.lotacao ?? "");
       setObservacoes(h.observacoes ?? "");
       setLiberarJa(h.liberado);
       const { data: ls } = await supabase
@@ -1674,29 +1694,37 @@ function EditorDialog({
 
     setSalvando(true);
     try {
-      let f = funcs.find((x) => x.id === funcId) ?? null;
+      const { data: funcionarioBanco, error: funcionarioErro } = await supabase
+        .from("funcionarios")
+        .select(
+          "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+        )
+        .eq("id", funcId)
+        .maybeSingle();
 
-      // Correção: em alguns casos o funcionário não está na lista local
-      // por filtro de status ou tela aberta em edição. Antes o sistema dava
-      // return silencioso e parecia que o botão não fazia nada.
+      if (funcionarioErro) throw funcionarioErro;
+
+      let f = (funcionarioBanco as Func | null) ?? funcs.find((x) => x.id === funcId) ?? null;
+
       if (!f) {
-        const { data: funcionarioBanco, error: funcionarioErro } = await supabase
-          .from("funcionarios")
-          .select(
-            "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
-          )
-          .eq("id", funcId)
-          .maybeSingle();
-
-        if (funcionarioErro) throw funcionarioErro;
-
-        if (!funcionarioBanco) {
-          toast.error("Funcionário não encontrado. Atualize a página e tente novamente.");
-          return;
-        }
-
-        f = funcionarioBanco as Func;
+        toast.error("Funcionário não encontrado. Atualize a página e tente novamente.");
+        return;
       }
+
+      // Antes de salvar/PDF, força novamente os dados atuais do cadastro.
+      const bancoAgAtual = f.banco_agencia ?? bancoAg;
+      const contaAtual = f.conta ?? conta;
+      const lotacaoAtual = f.lotacao ?? lotacao;
+      const depIrrfAtual = Number(f.num_dep_irrf ?? numDepIrrf ?? 0);
+      const depSalFamAtual = Number(f.num_dep_sal_fam ?? numDepSalFam ?? 0);
+      const salarioAtual = Number(f.salario ?? salarioContratual ?? 0);
+
+      setBancoAg(bancoAgAtual);
+      setConta(contaAtual);
+      setLotacao(lotacaoAtual);
+      setNumDepIrrf(depIrrfAtual);
+      setNumDepSalFam(depSalFamAtual);
+      setSalarioContratual(salarioAtual);
       const { data: emp } = await supabase
         .from("empresas")
         .select("nome_fantasia,razao_social,cnpj,endereco,logo_url")
@@ -1843,7 +1871,7 @@ function EditorDialog({
           periodo_inicio: periodoInicio,
           periodo_fim: periodoFim,
           data_pagamento: dataPagamento,
-          banco_agencia: bancoAg,
+          banco_agencia: bancoAgAtual,
           conta,
           num_dep_irrf: numDepIrrf,
           num_dep_sal_fam: numDepSalFam,
@@ -1855,7 +1883,7 @@ function EditorDialog({
           base_fgts: baseFgts,
           fgts_mes: fgtsMes,
           base_irpf: baseIrpf,
-          lotacao,
+          lotacao: lotacaoAtual,
           observacoes,
         },
         linhas,
