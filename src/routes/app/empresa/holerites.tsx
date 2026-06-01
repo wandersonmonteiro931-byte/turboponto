@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { mesNome } from "@/lib/beneficios";
+import { mesNome, recalcularMes as recalcularBeneficioMes, type Beneficio } from "@/lib/beneficios";
 import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown, Loader2 } from "lucide-react";
 import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
 import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
@@ -460,7 +460,7 @@ const garantirQtdeHorasBenefHolerite = (linhas: LancEdit[]) => {
     {
       _k: crypto.randomUUID(),
       codigo: CODIGO_QTDE_HORAS_BENEF,
-      descricao: "QTDE HORAS BENEF",
+      descricao: "QTD HORAS CESTA BASICA",
       qtde: null,
       provento: 0,
       desconto: 0,
@@ -624,6 +624,93 @@ const normalizarTipoPontoHolerite = (tipo: string) => {
 
   return t;
 };
+
+async function atualizarHorasCestaBasicaPeloBeneficio(params: {
+  empresaId: string;
+  funcionarioId: string;
+  ano: number;
+  mes: number;
+  linhas: LancEdit[];
+}): Promise<{ linhas: LancEdit[]; minutos: number; origem: string }> {
+  const { empresaId, funcionarioId, ano, mes, linhas } = params;
+  const novas = [...linhas];
+
+  const setLinhaInformativa = (codigo: string, descricaoPadrao: string, horas: number) => {
+    const idx = novas.findIndex((linha) => linha.codigo === codigo);
+    const linha: LancEdit = {
+      _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
+      id: idx >= 0 ? novas[idx].id : undefined,
+      codigo,
+      descricao: idx >= 0 && novas[idx].descricao ? novas[idx].descricao : descricaoPadrao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: roundAutoHolerite(horas),
+    };
+
+    if (idx >= 0) novas[idx] = linha;
+    else novas.push(linha);
+  };
+
+  const { data: beneficiosAtivos, error: benErro } = await supabase
+    .from("beneficios")
+    .select("*")
+    .eq("empresa_id", empresaId)
+    .eq("status", "ativo")
+    .or("tipo.eq.cesta_basica,nome.ilike.%cesta%");
+
+  if (benErro) throw benErro;
+
+  const beneficioCesta = (beneficiosAtivos ?? [])[0] as Beneficio | undefined;
+
+  // Força atualização imediata da seção Benefícios antes de puxar para o holerite.
+  if (beneficioCesta) {
+    await recalcularBeneficioMes(empresaId, beneficioCesta, mes, ano);
+  }
+
+  let minutosBeneficio = 0;
+  let origem = "cartao";
+
+  if (beneficioCesta) {
+    const { data: calc, error: calcErro } = await supabase
+      .from("beneficios_calculos")
+      .select("total_atraso_minutos,faltas_injustificadas,dias_com_atraso,calculado_em")
+      .eq("empresa_id", empresaId)
+      .eq("beneficio_id", beneficioCesta.id)
+      .eq("funcionario_id", funcionarioId)
+      .eq("mes_referencia", mes)
+      .eq("ano_referencia", ano)
+      .maybeSingle();
+
+    if (calcErro) throw calcErro;
+
+    if (calc) {
+      minutosBeneficio = Math.max(0, Number(calc.total_atraso_minutos || 0));
+      origem = "beneficios_calculos";
+    }
+  }
+
+  // Plano B: se não houver benefício cadastrado/calculado, calcula direto do cartão de ponto
+  // usando todos os registros do mês de referência.
+  if (minutosBeneficio === 0) {
+    const { carregarCartao } = await import("@/lib/cartao");
+    const cartao = await carregarCartao(funcionarioId, ano, mes);
+    minutosBeneficio = cartao.dias.reduce((s, d) => {
+      if (d.bancoHorasMinutos < 0) return s + Math.abs(Number(d.bancoHorasMinutos || 0));
+      return s;
+    }, 0);
+  }
+
+  const horasBeneficio = roundAutoHolerite(minutosBeneficio / 60);
+
+  // 18445 é a rubrica original de QTD HORAS CESTA BASICA.
+  setLinhaInformativa("18445", "QTD HORAS CESTA BASICA", horasBeneficio);
+
+  // 09998 também fica sincronizada, como última rubrica informativa.
+  setLinhaInformativa("09998", "QTD HORAS CESTA BASICA", horasBeneficio);
+
+  return { linhas: novas, minutos: minutosBeneficio, origem };
+}
 
 async function adicionarFechamentoBancoHorasHolerite(params: {
   funcionarioId: string;
@@ -1096,13 +1183,13 @@ const formatHorasDecimais = (v: number | null | undefined) => {
 };
 
 const formatResultado = (l: LancEdit) => {
-  if (l.codigo === "09998") return formatHorasDecimais(Number(l.resultado || 0));
+  if (l.codigo === "09998" || l.codigo === "18445") return formatHorasDecimais(Number(l.resultado || 0));
   if (l.codigo === "09990") {
     const valor = Math.abs(Number(l.resultado || 0));
     return valor > 0 ? valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
   }
   if (l.resultado == null || Number(l.resultado) === 0) return "";
-  if (["18445", "28651", "28652"].includes(l.codigo)) return formatHorasDecimais(l.resultado);
+  if (["28651", "28652"].includes(l.codigo)) return formatHorasDecimais(l.resultado);
   return Number(l.resultado).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 };
 
@@ -1365,9 +1452,17 @@ function EditorDialog({
 
       // Monta a versão final das linhas ANTES de salvar.
       // Isso garante que PDF, totais da lista e lançamentos salvos fiquem iguais à tela atual.
+      const linhasComBeneficioAtualizado = await atualizarHorasCestaBasicaPeloBeneficio({
+        empresaId,
+        funcionarioId: funcId,
+        ano,
+        mes,
+        linhas: lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim()),
+      });
+
       const linhas = ordenarLancamentosHolerite(
         sincronizarDescricoesRubricasHolerite(
-          aplicarInsuficienciaSaldoHolerite(lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim())),
+          aplicarInsuficienciaSaldoHolerite(linhasComBeneficioAtualizado.linhas),
           rubricas,
         ),
       );
@@ -1708,7 +1803,15 @@ function EditorDialog({
                         linhas: fechamentoBancoHoras.linhas,
                       });
 
-                      const linhasComInsuficiencia = aplicarInsuficienciaSaldoHolerite(linhasComCompInsufAnterior);
+                      const horasCestaAtualizadas = await atualizarHorasCestaBasicaPeloBeneficio({
+                        empresaId,
+                        funcionarioId: funcId,
+                        ano,
+                        mes,
+                        linhas: linhasComCompInsufAnterior,
+                      });
+
+                      const linhasComInsuficiencia = aplicarInsuficienciaSaldoHolerite(horasCestaAtualizadas.linhas);
                       const linhasComDescricoesAtuais = sincronizarDescricoesRubricasHolerite(
                         linhasComInsuficiencia,
                         rubricas,
