@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Lock, Unlock, CheckCircle2, FileText, Trash2, X } from "lucide-react";
+import { Download, Lock, Unlock, CheckCircle2, FileText, Trash2, X, WalletCards } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   carregarCartao,
@@ -234,6 +234,100 @@ function CartaoEmpresaPage() {
     }
 
     return null;
+  };
+
+  const ultimoDiaMesSelecionado = () => new Date(ano, mes, 0).getDate();
+
+  const garantirTipoJustificativaBancoHoras = async (codigo: string, nome: string) => {
+    if (!empresaId) throw new Error("Empresa não localizada.");
+
+    const { data: existente, error: buscarErro } = await supabase
+      .from("justificativas_tipos")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .eq("codigo", codigo)
+      .maybeSingle();
+
+    if (buscarErro) throw buscarErro;
+    if (existente?.id) return existente.id as string;
+
+    const { data: novo, error: inserirErro } = await (supabase as any)
+      .from("justificativas_tipos")
+      .insert({
+        empresa_id: empresaId,
+        nome,
+        codigo,
+        categoria: "banco_horas",
+        ativo: true,
+        pode_aplicar_individual: true,
+        pode_aplicar_massa: true,
+        exige_observacao: false,
+        exige_anexo: false,
+        exige_aprovacao: false,
+        movimenta_banco_horas: "nenhum",
+        abona_ocorrencia: false,
+        desconta_salario: false,
+        desconta_dsr: false,
+        conta_dia_trabalhado: false,
+        exige_marcacao_ponto: false,
+        descricao: nome,
+      })
+      .select("id")
+      .single();
+
+    if (inserirErro) throw inserirErro;
+    return novo.id as string;
+  };
+
+  const fecharBancoDeHoras = async () => {
+    if (!empresaId || !funcId || !resumo) {
+      toast.error("Selecione funcionário, mês e ano antes de fechar o banco de horas.");
+      return;
+    }
+
+    const ultimoDia = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDiaMesSelecionado()).padStart(2, "0")}`;
+    const saldoMinutos = Number(resumo.totalBancoHoras || 0);
+
+    try {
+      if (saldoMinutos > 0) {
+        const tipoId = await garantirTipoJustificativaBancoHoras("FECHAMENTO_BH_PAGAR", "FECHAMENTO BANCO - PAGAR");
+
+        await (supabase as any).from("justificativas_aplicadas").insert({
+          empresa_id: empresaId,
+          funcionario_id: funcId,
+          data: ultimoDia,
+          tipo_id: tipoId,
+          quantidade_minutos: saldoMinutos,
+          observacao: "Fechamento mensal do banco de horas para pagamento em holerite.",
+        });
+      } else if (saldoMinutos < 0) {
+        const tipoId = await garantirTipoJustificativaBancoHoras("FECHAMENTO_BANCO_DESC", "FECHAMENTO BANCO - DESC");
+
+        await (supabase as any).from("justificativas_aplicadas").insert({
+          empresa_id: empresaId,
+          funcionario_id: funcId,
+          data: ultimoDia,
+          tipo_id: tipoId,
+          quantidade_minutos: Math.abs(saldoMinutos),
+          observacao: "Fechamento mensal do banco de horas para desconto em holerite.",
+        });
+      }
+
+      await persistir("liberado");
+
+      if (saldoMinutos > 0) {
+        toast.success(`Banco de horas fechado para pagar ${formatMin(saldoMinutos)} no holerite.`);
+      } else if (saldoMinutos < 0) {
+        toast.success(`Banco de horas fechado para descontar ${formatMin(Math.abs(saldoMinutos))} no holerite.`);
+      } else {
+        toast.success("Banco de horas fechado sem saldo para pagar/descontar.");
+      }
+
+      void carregar();
+    } catch (e) {
+      console.error("[cartao] erro ao fechar banco de horas", e);
+      toast.error(e instanceof Error ? e.message : "Erro ao fechar banco de horas.");
+    }
   };
 
   const persistir = async (status: "aberto" | "fechado" | "liberado") => {
@@ -468,6 +562,10 @@ function CartaoEmpresaPage() {
                     Reabrir
                   </Button>
                 )}
+                <Button size="sm" variant="outline" onClick={fecharBancoDeHoras}>
+                  <WalletCards className="h-4 w-4 mr-1" />
+                  Fechar banco de horas
+                </Button>
               </>
             )}
           </div>

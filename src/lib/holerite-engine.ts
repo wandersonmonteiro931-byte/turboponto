@@ -180,6 +180,49 @@ function calcINSS(base: number, faixas: FaixaINSS[]): number {
   return round(b * (f.aliquota / 100) - f.deducao);
 }
 
+async function carregarFechamentoBancoHorasFolha(
+  ctx: EngineCtx,
+  ini: string,
+  fim: string,
+): Promise<{ minutosPagar: number; minutosDescontar: number }> {
+  const { data } = await supabase
+    .from("justificativas_aplicadas")
+    .select("quantidade_minutos,tipo:justificativas_tipos(codigo,nome)")
+    .eq("funcionario_id", ctx.funcionarioId)
+    .gte("data", ini)
+    .lte("data", fim);
+
+  let minutosPagar = 0;
+  let minutosDescontar = 0;
+
+  for (const row of data ?? []) {
+    const tipo = (row as any).tipo;
+    const codigo = String(tipo?.codigo || "").toUpperCase();
+    const nome = String(tipo?.nome || "").toUpperCase();
+    const qtd = Math.max(0, Number((row as any).quantidade_minutos || 0));
+
+    if (
+      codigo === "FECHAMENTO_BH_PAGAR" ||
+      codigo === "FECHAMENTO_BANCO_PAGAR" ||
+      (nome.includes("FECHAMENTO") && nome.includes("BANCO") && nome.includes("PAGAR")) ||
+      (nome.includes("FECHAMENTO") && nome.includes("BH") && nome.includes("PAGAR"))
+    ) {
+      minutosPagar += qtd;
+    }
+
+    if (
+      codigo === "FECHAMENTO_BANCO_DESC" ||
+      codigo === "FECHAMENTO_BH_DESC" ||
+      (nome.includes("FECHAMENTO") && nome.includes("BANCO") && nome.includes("DESC")) ||
+      (nome.includes("FECHAMENTO") && nome.includes("BH") && nome.includes("DESC"))
+    ) {
+      minutosDescontar += qtd;
+    }
+  }
+
+  return { minutosPagar, minutosDescontar };
+}
+
 function justificativaAutorizaPagarHoraExtra(tipo: { codigo?: string | null; nome?: string | null }): boolean {
   const codigo = String(tipo.codigo || "")
     .trim()
@@ -446,6 +489,18 @@ export async function recalcular(
   // fechamento do banco autorizado.
   const horasAtraso = temFechamentoBancoDesc ? minAtraso / 60 : 0;
 
+  // Fechamento mensal do banco de horas:
+  // positivo = pagar em folha; negativo = descontar em folha; zero = não cria linha.
+  const fechamentoBH = await carregarFechamentoBancoHorasFolha(ctx, ini, fim);
+  const minutosFechamentoBH =
+    fechamentoBH.minutosPagar > 0
+      ? fechamentoBH.minutosPagar
+      : fechamentoBH.minutosDescontar > 0
+        ? -fechamentoBH.minutosDescontar
+        : 0;
+  const horasFechamentoBH = round(minutosFechamentoBH / 60);
+  const valorFechamentoBH = round(Math.abs(horasFechamentoBH) * valorHora);
+
   // Mantém linhas atuais; recalcula apenas as automáticas.
   const linhas: EngineLanc[] = linhasAtuais
     .filter((l) => {
@@ -688,6 +743,30 @@ export async function recalcular(
     } else if (idx9005 >= 0) {
       linhas.splice(idx9005, 1);
     }
+  }
+
+  // FECHAMENTO BH: paga se positivo, desconta se negativo, remove se zero.
+  const idxFechamentoBH = linhas.findIndex((l) => l.codigo === "00120");
+  if (minutosFechamentoBH !== 0 && porCodigo.has("00120")) {
+    const r = porCodigo.get("00120")!;
+    const payload: EngineLanc = {
+      _k: idxFechamentoBH >= 0 ? linhas[idxFechamentoBH]._k : crypto.randomUUID(),
+      id: idxFechamentoBH >= 0 ? linhas[idxFechamentoBH].id : undefined,
+      codigo: r.codigo,
+      descricao: r.descricao || "FECHAMENTO BH",
+      qtde: Math.abs(horasFechamentoBH),
+      provento: minutosFechamentoBH > 0 ? valorFechamentoBH : 0,
+      desconto: minutosFechamentoBH < 0 ? valorFechamentoBH : 0,
+      resultado: minutosFechamentoBH > 0 ? valorFechamentoBH : -valorFechamentoBH,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
+    };
+    if (idxFechamentoBH >= 0) linhas[idxFechamentoBH] = payload;
+    else linhas.push(payload);
+  } else if (idxFechamentoBH >= 0) {
+    linhas.splice(idxFechamentoBH, 1);
   }
 
   // ==== Informativos automáticos baseados no cartão de ponto ====
