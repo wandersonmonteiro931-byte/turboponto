@@ -150,7 +150,7 @@ function HoleritesPage() {
   const remover = async (h: Holerite) => {
     if (!confirm("Remover este holerite?")) return;
     if (h.pdf_url) {
-      const path = h.pdf_url.split(`/holerites/`)[1];
+      const path = h.pdf_url.split(`/holerites/`)[1]?.split("?")[0];
       if (path) await supabase.storage.from("holerites").remove([path]);
     }
     const { error } = await supabase.from("holerites").delete().eq("id", h.id);
@@ -160,11 +160,23 @@ function HoleritesPage() {
   };
 
   const download = async (h: Holerite) => {
-    if (!h.pdf_url) return toast.error("PDF ainda não foi gerado");
-    const path = h.pdf_url.split(`/holerites/`)[1];
-    if (!path) return;
+    const { data: atual, error: atualErr } = await supabase
+      .from("holerites")
+      .select("pdf_url")
+      .eq("id", h.id)
+      .maybeSingle();
+
+    if (atualErr) return toast.error(atualErr.message);
+
+    const pdfUrlAtual = atual?.pdf_url || h.pdf_url;
+    if (!pdfUrlAtual) return toast.error("PDF ainda não foi gerado");
+
+    const path = pdfUrlAtual.split(`/holerites/`)[1]?.split("?")[0];
+    if (!path) return toast.error("Caminho do PDF inválido");
+
     const { data, error } = await supabase.storage.from("holerites").download(path);
     if (error || !data) return toast.error(error?.message ?? "Erro ao baixar PDF");
+
     const blobUrl = URL.createObjectURL(data);
     const a = document.createElement("a");
     a.href = blobUrl;
@@ -1351,6 +1363,32 @@ function EditorDialog({
       const now = new Date().toISOString();
       const { data: u } = await supabase.auth.getUser();
 
+      // Monta a versão final das linhas ANTES de salvar.
+      // Isso garante que PDF, totais da lista e lançamentos salvos fiquem iguais à tela atual.
+      const linhas = ordenarLancamentosHolerite(
+        sincronizarDescricoesRubricasHolerite(
+          aplicarInsuficienciaSaldoHolerite(lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim())),
+          rubricas,
+        ),
+      );
+
+      const entraNoLiquidoLinhaFinal = (l: LancEdit) => {
+        if (l.codigo === "09990") return false;
+        if (l.codigo === "09995") return true;
+        const r = rubricaPorCodigo.get(l.codigo);
+        return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
+      };
+
+      const totalProvFinal = linhas.reduce(
+        (s, l) => (entraNoLiquidoLinhaFinal(l) ? s + Number(l.provento || 0) : s),
+        0,
+      );
+      const totalDescFinal = linhas.reduce(
+        (s, l) => (entraNoLiquidoLinhaFinal(l) ? s + Number(l.desconto || 0) : s),
+        0,
+      );
+      const totalLiqFinal = Math.max(0, totalProvFinal - totalDescFinal);
+
       // Upsert holerite (sem PDF ainda)
       const payload = {
         empresa_id: empresaId,
@@ -1366,9 +1404,9 @@ function EditorDialog({
         num_dep_irrf: numDepIrrf,
         num_dep_sal_fam: numDepSalFam,
         salario_contratual: salarioContratual,
-        total_proventos: totalProv,
-        total_descontos: totalDesc,
-        total_liquido: totalLiq,
+        total_proventos: totalProvFinal,
+        total_descontos: totalDescFinal,
+        total_liquido: totalLiqFinal,
         sal_contrib_inss: salContribInss,
         base_fgts: baseFgts,
         fgts_mes: fgtsMes,
@@ -1404,12 +1442,6 @@ function EditorDialog({
       }
       if (!hid) throw new Error("Falha ao criar holerite");
 
-      const linhas = ordenarLancamentosHolerite(
-        sincronizarDescricoesRubricasHolerite(
-          aplicarInsuficienciaSaldoHolerite(lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim())),
-          rubricas,
-        ),
-      );
       if (linhas.length > 0) {
         const { error } = await supabase.from("holerite_lancamentos").insert(
           linhas.map((l, i) => ({
@@ -1457,9 +1489,9 @@ function EditorDialog({
           num_dep_irrf: numDepIrrf,
           num_dep_sal_fam: numDepSalFam,
           salario_contratual: salarioContratual,
-          total_proventos: totalProv,
-          total_descontos: totalDesc,
-          total_liquido: totalLiq,
+          total_proventos: totalProvFinal,
+          total_descontos: totalDescFinal,
+          total_liquido: totalLiqFinal,
           sal_contrib_inss: salContribInss,
           base_fgts: baseFgts,
           fgts_mes: fgtsMes,
@@ -1470,16 +1502,37 @@ function EditorDialog({
         linhas,
       );
       const blob = doc.output("blob");
-      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2, "0")}-${folhaTipo}.pdf`;
+
+      // Caminho único a cada geração: evita baixar PDF antigo por cache do Storage/navegador.
+      const pdfVersion = new Date()
+        .toISOString()
+        .replace(/[^0-9]/g, "")
+        .slice(0, 14);
+      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2, "0")}-${folhaTipo}-${pdfVersion}.pdf`;
+
       const { error: upErr } = await supabase.storage.from("holerites").upload(path, blob, {
-        upsert: true,
+        upsert: false,
         contentType: "application/pdf",
+        cacheControl: "0",
       });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("holerites").getPublicUrl(path);
-      await supabase.from("holerites").update({ pdf_url: pub.publicUrl }).eq("id", hid);
 
-      toast.success("Holerite salvo");
+      const { data: pub } = supabase.storage.from("holerites").getPublicUrl(path);
+      const pdfUrlAtualizado = `${pub.publicUrl}?v=${pdfVersion}`;
+
+      const { error: pdfUpdateErr } = await supabase
+        .from("holerites")
+        .update({
+          pdf_url: pdfUrlAtualizado,
+          total_proventos: totalProvFinal,
+          total_descontos: totalDescFinal,
+          total_liquido: totalLiqFinal,
+        })
+        .eq("id", hid);
+
+      if (pdfUpdateErr) throw pdfUpdateErr;
+
+      toast.success("Holerite salvo e PDF atualizado");
       onSaved();
     } catch (e: unknown) {
       console.error("[holerites] erro ao salvar/gerar PDF", e);
