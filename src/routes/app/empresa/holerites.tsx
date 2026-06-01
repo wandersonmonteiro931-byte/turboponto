@@ -115,49 +115,78 @@ function HoleritesPage() {
     void carregar(); /* eslint-disable-next-line */
   }, [empresaId, mes, ano, funcionarioId, status]);
 
-  const liberar = async (ids: string[]) => {
-    if (!user || ids.length === 0 || !empresaId) return;
+  const validarPontoFechadoAntesLiberar = async (ids: string[]) => {
+    const { data: holeritesSelecionados, error: holErr } = await supabase
+      .from("holerites")
+      .select("id,funcionario_id,mes_referencia,ano_referencia,funcionarios(nome)")
+      .in("id", ids);
 
-    // Bloqueia liberação se o fechamento mensal (cartão de ponto) não estiver fechado/liberado.
-    const alvos = lista.filter((h) => ids.includes(h.id));
-    const periodos = Array.from(new Set(alvos.map((h) => `${h.ano_referencia}-${h.mes_referencia}`)));
-    const { data: fechs, error: fechErr } = await supabase
-      .from("fechamentos_mensais")
-      .select("mes_referencia,ano_referencia,status")
-      .eq("empresa_id", empresaId)
-      .in("ano_referencia", Array.from(new Set(alvos.map((h) => h.ano_referencia))))
-      .in("mes_referencia", Array.from(new Set(alvos.map((h) => h.mes_referencia))));
-    if (fechErr) return toast.error(fechErr.message);
-    const fechadosOk = new Set(
-      (fechs ?? [])
-        .filter((f) => f.status === "fechado" || f.status === "liberado")
-        .map((f) => `${f.ano_referencia}-${f.mes_referencia}`),
-    );
-    const bloqueados = periodos.filter((p) => !fechadosOk.has(p));
-    if (bloqueados.length > 0) {
-      const lista = bloqueados
-        .map((p) => {
-          const [a, m] = p.split("-");
-          return `${mesNome(Number(m))}/${a}`;
-        })
-        .join(", ");
-      return toast.error(
-        `Não é possível liberar. Feche o cartão de ponto em Fechamento Mensal antes: ${lista}`,
-      );
+    if (holErr) throw holErr;
+
+    const pendencias: string[] = [];
+
+    for (const h of holeritesSelecionados ?? []) {
+      const { data: cartao, error: cartaoErr } = await supabase
+        .from("cartoes_ponto")
+        .select("status")
+        .eq("funcionario_id", h.funcionario_id)
+        .eq("mes_referencia", h.mes_referencia)
+        .eq("ano_referencia", h.ano_referencia)
+        .maybeSingle();
+
+      if (cartaoErr) throw cartaoErr;
+
+      const nome = (h.funcionarios as { nome?: string } | null)?.nome ?? "Funcionário";
+      const ref = `${String(h.mes_referencia).padStart(2, "0")}/${h.ano_referencia}`;
+
+      if (!cartao) {
+        pendencias.push(`${nome} - ${ref}: cartão de ponto não foi fechado.`);
+        continue;
+      }
+
+      if (cartao.status !== "fechado" && cartao.status !== "liberado") {
+        pendencias.push(`${nome} - ${ref}: cartão de ponto está ${cartao.status || "aberto"}.`);
+      }
     }
 
-    const { error } = await supabase
-      .from("holerites")
-      .update({
-        liberado: true,
-        status: "liberado",
-        liberado_por: user.id,
-        liberado_em: new Date().toISOString(),
-      })
-      .in("id", ids);
-    if (error) return toast.error(error.message);
-    toast.success(`${ids.length} holerite(s) liberado(s)`);
-    await carregar();
+    if (pendencias.length > 0) {
+      throw new Error(
+        "Não é possível liberar holerite sem fechar o cartão de ponto corretamente:\\n\\n" + pendencias.join("\\n"),
+      );
+    }
+  };
+
+  const liberar = async (ids: string[]) => {
+    if (!user || ids.length === 0) return;
+
+    try {
+      await validarPontoFechadoAntesLiberar(ids);
+
+      const confirmar = window.confirm(
+        `Liberar ${ids.length} holerite(s) para o(s) funcionário(s)?\n\n` +
+          "Confirme apenas se o cartão de ponto do mês já foi fechado corretamente.",
+      );
+
+      if (!confirmar) return;
+
+      const { error } = await supabase
+        .from("holerites")
+        .update({
+          liberado: true,
+          status: "liberado",
+          liberado_por: user.id,
+          liberado_em: new Date().toISOString(),
+        })
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast.success(`${ids.length} holerite(s) liberado(s)`);
+      await carregar();
+    } catch (e) {
+      console.error("[holerites] bloqueio ao liberar holerite", e);
+      toast.error(e instanceof Error ? e.message : "Não foi possível liberar o holerite");
+    }
   };
 
   const negarAcesso = async (h: Holerite) => {
@@ -439,7 +468,11 @@ function HoleritesPage() {
           </Fld>
           <div className="flex items-end">
             {podeEditar && selecionados.size > 0 && (
-              <Button onClick={() => liberar(Array.from(selecionados))} className="w-full">
+              <Button
+                onClick={() => liberar(Array.from(selecionados))}
+                className="w-full"
+                title="Só libera holerites com cartão de ponto fechado"
+              >
                 <CheckCircle2 className="h-4 w-4 mr-1" />
                 Liberar ({selecionados.size})
               </Button>
@@ -1637,26 +1670,6 @@ function EditorDialog({
     if (!funcId) {
       toast.error("Selecione o funcionário");
       return;
-    }
-
-    if (liberarJa) {
-      const { data: fech, error: fechErr } = await supabase
-        .from("fechamentos_mensais")
-        .select("status")
-        .eq("empresa_id", empresaId)
-        .eq("mes_referencia", mes)
-        .eq("ano_referencia", ano)
-        .maybeSingle();
-      if (fechErr) {
-        toast.error(fechErr.message);
-        return;
-      }
-      if (!fech || (fech.status !== "fechado" && fech.status !== "liberado")) {
-        toast.error(
-          `Não é possível liberar. Feche o cartão de ponto de ${mesNome(mes)}/${ano} em Fechamento Mensal antes.`,
-        );
-        return;
-      }
     }
 
     setSalvando(true);
