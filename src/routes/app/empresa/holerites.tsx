@@ -38,6 +38,13 @@ type Func = {
   num_dep_irrf: number | null;
   num_dep_sal_fam: number | null;
   matricula: string | null;
+  vale_transporte?: boolean | null;
+  usa_vale_transporte?: boolean | null;
+  utiliza_vale_transporte?: boolean | null;
+  vt_ativo?: boolean | null;
+  vt_concedido?: number | null;
+  valor_vale_transporte?: number | null;
+  vale_transporte_valor?: number | null;
 };
 type Holerite = {
   id: string;
@@ -508,6 +515,80 @@ const normalizarTipoPontoHolerite = (tipo: string) => {
 
   return t;
 };
+
+async function adicionarValeTransporteAutomatico(params: {
+  funcionarioId: string;
+  ano: number;
+  mes: number;
+  linhas: LancEdit[];
+}): Promise<{ linhas: LancEdit[]; aplicado: boolean; valor: number }> {
+  const { funcionarioId, ano, mes, linhas } = params;
+  const novas = [...linhas];
+
+  const aplicarLinha = (codigo: string, descricao: string, qtde: number | null, provento: number, desconto: number) => {
+    const idx = novas.findIndex((linha) => linha.codigo === codigo);
+
+    if (desconto <= 0) {
+      if (idx >= 0) novas.splice(idx, 1);
+      return;
+    }
+
+    const linha: LancEdit = {
+      _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
+      id: idx >= 0 ? novas[idx].id : undefined,
+      codigo,
+      descricao,
+      qtde,
+      provento: roundAutoHolerite(provento),
+      desconto: roundAutoHolerite(desconto),
+      resultado: roundAutoHolerite(provento - desconto),
+    };
+
+    if (idx >= 0) novas[idx] = linha;
+    else novas.push(linha);
+  };
+
+  const { data: funcionario } = await supabase.from("funcionarios").select("*").eq("id", funcionarioId).maybeSingle();
+
+  const f = (funcionario || {}) as Record<string, unknown>;
+
+  // Aceita vários nomes de campo, porque os projetos anteriores usaram nomes diferentes.
+  const usaValeTransporte =
+    f.vale_transporte === true ||
+    f.usa_vale_transporte === true ||
+    f.utiliza_vale_transporte === true ||
+    f.vt_ativo === true ||
+    Number(f.vt_concedido || 0) > 0 ||
+    Number(f.valor_vale_transporte || 0) > 0 ||
+    Number(f.vale_transporte_valor || 0) > 0;
+
+  if (!usaValeTransporte) {
+    aplicarLinha("07030", "VALE TRANSPORTE", null, 0, 0);
+    return { linhas: novas, aplicado: false, valor: 0 };
+  }
+
+  // Base legal do desconto: até 6% sobre o salário base/proporcional do holerite,
+  // sem incluir horas extras, adicional noturno ou DSR.
+  const linhaSalario = novas.find((linha) => linha.codigo === "00005");
+  const salarioProporcional = Number(linhaSalario?.provento || 0);
+  const tetoSeisPorCento = roundAutoHolerite(salarioProporcional * 0.06);
+
+  // Custo real informado no cadastro/benefício. Se não houver custo cadastrado,
+  // usa o teto de 6%, que é o caso esperado no exemplo da Thayssa: 6% de 120 = 7,20.
+  const custoRealTransporte = Math.max(
+    0,
+    Number(f.vt_concedido || 0),
+    Number(f.valor_vale_transporte || 0),
+    Number(f.vale_transporte_valor || 0),
+  );
+
+  const desconto =
+    custoRealTransporte > 0 ? Math.min(tetoSeisPorCento, roundAutoHolerite(custoRealTransporte)) : tetoSeisPorCento;
+
+  aplicarLinha("07030", "VALE TRANSPORTE", null, 0, desconto);
+
+  return { linhas: novas, aplicado: desconto > 0, valor: desconto };
+}
 
 async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   funcionarioId: string;
@@ -1142,14 +1223,21 @@ function EditorDialog({
                         linhas: linhasBase,
                       });
 
-                      setLancamentos(rubricasObrigatorias.linhas);
+                      const linhasComValeTransporte = await adicionarValeTransporteAutomatico({
+                        funcionarioId: funcId,
+                        ano,
+                        mes,
+                        linhas: rubricasObrigatorias.linhas,
+                      });
 
-                      const totalProventos = rubricasObrigatorias.linhas.reduce(
+                      setLancamentos(linhasComValeTransporte.linhas);
+
+                      const totalProventos = linhasComValeTransporte.linhas.reduce(
                         (s, l) => s + Number(l.provento || 0),
                         0,
                       );
                       const descontoInss = Number(
-                        rubricasObrigatorias.linhas.find((l) => l.codigo === "07000")?.desconto || 0,
+                        linhasComValeTransporte.linhas.find((l) => l.codigo === "07000")?.desconto || 0,
                       );
 
                       setSalContribInss(roundAutoHolerite(totalProventos));
