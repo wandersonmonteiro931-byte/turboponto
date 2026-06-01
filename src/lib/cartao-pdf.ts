@@ -1,11 +1,5 @@
 import jsPDF from "jspdf";
-import {
-  DIAS_SEMANA_CURTO,
-  NOMES_MES,
-  formatMin,
-  type ResumoCartao,
-  type DiaCartao,
-} from "@/lib/cartao";
+import { DIAS_SEMANA_CURTO, NOMES_MES, formatMin, type ResumoCartao, type DiaCartao } from "@/lib/cartao";
 import { resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export type EmpresaInfo = {
@@ -84,6 +78,40 @@ const diffRelogio = (inicio: number, fim: number): number => {
   if (diff < 0) diff += 1440;
 
   return diff;
+};
+
+const sobreposicaoMinutos = (inicioA: number, fimA: number, inicioB: number, fimB: number): number =>
+  Math.max(0, Math.min(fimA, fimB) - Math.max(inicioA, inicioB));
+
+const minutosNoturnosIntervaloCartao = (inicio: string | null, fim: string | null): number => {
+  const ini = hm(inicio);
+  const out = hm(fim);
+
+  if (ini == null || out == null) return 0;
+
+  let start = ini;
+  let end = out;
+
+  if (end <= start) end += 1440;
+
+  // Período noturno urbano: 22:00 até 05:00.
+  // Aqui exibimos no cartão o tempo real trabalhado no período noturno.
+  return sobreposicaoMinutos(start, end, 0, 5 * 60) + sobreposicaoMinutos(start, end, 22 * 60, 1440 + 5 * 60);
+};
+
+const minutosAdicionalNoturnoDiaCartao = (d: DiaCartao): number => {
+  const r = d.registrado;
+
+  if (!r.entrada || !r.saida_final) return 0;
+
+  if (r.saida_intervalo && r.retorno_intervalo) {
+    return (
+      minutosNoturnosIntervaloCartao(r.entrada, r.saida_intervalo) +
+      minutosNoturnosIntervaloCartao(r.retorno_intervalo, r.saida_final)
+    );
+  }
+
+  return minutosNoturnosIntervaloCartao(r.entrada, r.saida_final);
 };
 
 const fmtMinHHMM = (min: number): string => {
@@ -212,10 +240,7 @@ export function gerarPdfCartao(opts: {
     minute: "2-digit",
   });
 
-  const matriculaFuncionario = textoSeguro(
-    matriculaPdf ?? funcionario.matricula,
-    "MATRICULA_NAO_RECEBIDA",
-  );
+  const matriculaFuncionario = textoSeguro(matriculaPdf ?? funcionario.matricula, "MATRICULA_NAO_RECEBIDA");
   const nomeFuncionario = textoSeguro(funcionario.nome);
   const cargoFuncionario = textoSeguro(funcionario.cargo);
   const cpfFuncionario = textoSeguro(funcionario.cpf);
@@ -396,6 +421,7 @@ export function gerarPdfCartao(opts: {
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
       const j0 = justs[0];
+      const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
       drawRow({
         dia: diaSem,
@@ -404,6 +430,7 @@ export function gerarPdfCartao(opts: {
         irreg: "FORA DO VINCULO",
         just: j0 ? j0.tipo.nome : "",
         qtde: j0 && j0.quantidadeMinutos != null ? fmtMinHHMM(j0.quantidadeMinutos) : "",
+        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
 
       for (let i = 1; i < justs.length; i++) {
@@ -427,6 +454,7 @@ export function gerarPdfCartao(opts: {
 
       const justs = d.justificativas ?? [];
       const j0 = justs[0];
+      const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
       if (d.bancoHorasMinutos > 0) creditos += d.bancoHorasMinutos;
 
@@ -448,6 +476,7 @@ export function gerarPdfCartao(opts: {
         irreg: temReg ? "TRABALHO EM FOLGA" : justs.length > 0 ? "" : "FOLGA",
         just: j0 ? j0.tipo.nome : "",
         qtde: qtdePrimeira,
+        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
 
       for (let i = 1; i < justs.length; i++) {
@@ -474,10 +503,7 @@ export function gerarPdfCartao(opts: {
       falta &&
       (!justificativas.length ||
         justificativas.some(
-          (j) =>
-            j.tipo.categoria === "falta" &&
-            j.tipo.desconta_salario &&
-            j.tipo.afeta_assiduidade !== "nao",
+          (j) => j.tipo.categoria === "falta" && j.tipo.desconta_salario && j.tipo.afeta_assiduidade !== "nao",
         ));
 
     const cargaProgDia = (() => {
@@ -594,6 +620,7 @@ export function gerarPdfCartao(opts: {
     }
 
     const primeira = linhas[0];
+    const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
     drawRow({
       dia: diaSem,
@@ -608,7 +635,7 @@ export function gerarPdfCartao(opts: {
       irreg: primeira.label,
       qtde: primeira.qtde,
       just: justificativas[0] ? justificativas[0].tipo.nome : "",
-      adic: "",
+      adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
     });
 
     for (let i = 1; i < linhas.length; i++) {
