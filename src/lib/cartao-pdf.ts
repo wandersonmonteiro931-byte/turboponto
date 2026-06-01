@@ -367,9 +367,9 @@ export function gerarPdfCartao(opts: {
     { key: "saiPrev", w: 11, label: "S.Prev", align: "center" },
     { key: "entReal", w: 11, label: "E.Real", align: "center" },
     { key: "saiReal", w: 11, label: "S.Real", align: "center" },
-    { key: "irreg", w: 36, label: "Irregularidade" },
+    { key: "irreg", w: 34, label: "Irregularidade" },
     { key: "qtde", w: 11, label: "QTDE", align: "center" },
-    { key: "just", w: 48, label: "Justificativa" },
+    { key: "just", w: 50, label: "Justificativa" },
     { key: "adic", w: 10, label: "Adic", align: "center" },
   ];
 
@@ -420,6 +420,27 @@ export function gerarPdfCartao(opts: {
     y += rowH;
   };
 
+  const nomeJustificativaCurto = (nome: string) =>
+    textoSeguro(nome, "").replace(/\s+/g, " ").replace("REGIST", "REG.").replace("COLAB", "COLAB.").trim();
+
+  const drawJustificativasDoDia = (
+    justificativas: Array<{ tipo: { nome: string }; quantidadeMinutos?: number | null }>,
+  ) => {
+    justificativas.forEach((j, index) => {
+      if (y > pageH - 35) {
+        doc.addPage();
+        y = 10;
+        drawHeader();
+      }
+
+      drawRow({
+        irreg: index === 0 ? "JUSTIFICATIVAS" : "",
+        qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
+        just: `${index + 1}) ${nomeJustificativaCurto(j.tipo.nome)}`,
+      });
+    });
+  };
+
   for (const d of resumo.dias) {
     if (y > pageH - 35) {
       doc.addPage();
@@ -440,19 +461,10 @@ export function gerarPdfCartao(opts: {
         data: dataStr,
         esc: d.jornadaCodigo ?? "",
         irreg: "FORA DO VINCULO",
-        just: j0 ? j0.tipo.nome : "",
-        qtde: j0 && j0.quantidadeMinutos != null ? fmtMinHHMM(j0.quantidadeMinutos) : "",
         adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
 
-      for (let i = 1; i < justs.length; i++) {
-        const j = justs[i];
-
-        drawRow({
-          just: j.tipo.nome,
-          qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
-        });
-      }
+      drawJustificativasDoDia(justs);
 
       continue;
     }
@@ -486,19 +498,11 @@ export function gerarPdfCartao(opts: {
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
         irreg: temReg ? "TRABALHO EM FOLGA" : justs.length > 0 ? "" : "FOLGA",
-        just: j0 ? j0.tipo.nome : "",
-        qtde: qtdePrimeira,
+        qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
         adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
 
-      for (let i = 1; i < justs.length; i++) {
-        const j = justs[i];
-
-        drawRow({
-          just: j.tipo.nome,
-          qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
-        });
-      }
+      drawJustificativasDoDia(justs);
 
       continue;
     }
@@ -646,7 +650,6 @@ export function gerarPdfCartao(opts: {
       saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
       irreg: primeira.label,
       qtde: primeira.qtde,
-      just: justificativas[0] ? justificativas[0].tipo.nome : "",
       adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
     });
 
@@ -657,13 +660,7 @@ export function gerarPdfCartao(opts: {
       });
     }
 
-    for (let i = 1; i < justificativas.length; i++) {
-      const j = justificativas[i];
-
-      drawRow({
-        just: j.tipo.nome,
-      });
-    }
+    drawJustificativasDoDia(justificativas);
   }
 
   hr(y);
