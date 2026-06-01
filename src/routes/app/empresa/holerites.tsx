@@ -455,34 +455,64 @@ const minutosNoturnosAutoHolerite = (inicio: string | null, fim: string | null) 
 const contarDomingosAutoHolerite = (ano: number, mes: number) => {
   const totalDias = new Date(ano, mes, 0).getDate();
   let total = 0;
-
   for (let dia = 1; dia <= totalDias; dia++) {
     if (new Date(ano, mes - 1, dia).getDay() === 0) total++;
   }
-
-  return total;
+  return Math.max(1, total);
 };
 
-async function adicionarNoturnoEDsrAutomatico(params: {
+const normalizarTipoPontoHolerite = (tipo: string) => {
+  const t = tipo.toLowerCase().trim();
+
+  if (["entrada", "entrada_real", "inicio", "entrada1"].includes(t)) return "entrada";
+  if (
+    [
+      "saida_intervalo",
+      "intervalo_saida",
+      "inicio_intervalo",
+      "saida_almoco",
+      "saida_janta",
+      "intervalo_inicio",
+    ].includes(t)
+  )
+    return "saida_intervalo";
+  if (
+    [
+      "retorno_intervalo",
+      "intervalo_retorno",
+      "fim_intervalo",
+      "volta_intervalo",
+      "retorno_almoco",
+      "retorno_janta",
+    ].includes(t)
+  )
+    return "retorno_intervalo";
+  if (["saida_final", "saida", "fim", "saida_real", "saida2"].includes(t)) return "saida_final";
+
+  return t;
+};
+
+async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   funcionarioId: string;
   ano: number;
   mes: number;
   salario: number;
   linhas: LancEdit[];
-}): Promise<{ linhas: LancEdit[]; adicionadas: string[] }> {
+}): Promise<{ linhas: LancEdit[]; resumo: string }> {
   const { funcionarioId, ano, mes, salario, linhas } = params;
   const novas = [...linhas];
-  const adicionadas: string[] = [];
 
-  const aplicarLinha = (codigo: string, descricao: string, qtde: number | null, provento: number, desconto = 0) => {
+  const aplicarLinhaObrigatoria = (
+    codigo: string,
+    descricao: string,
+    qtde: number | null,
+    provento: number,
+    desconto = 0,
+  ) => {
     const idx = novas.findIndex((linha) => linha.codigo === codigo);
+
     const valorProvento = roundAutoHolerite(provento);
     const valorDesconto = roundAutoHolerite(desconto);
-
-    if (valorProvento <= 0 && valorDesconto <= 0) {
-      if (idx >= 0) novas.splice(idx, 1);
-      return;
-    }
 
     const linha: LancEdit = {
       _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
@@ -497,19 +527,21 @@ async function adicionarNoturnoEDsrAutomatico(params: {
 
     if (idx >= 0) novas[idx] = linha;
     else novas.push(linha);
-
-    if (!adicionadas.includes(codigo)) adicionadas.push(codigo);
   };
 
   const valorHora = salario > 0 ? salario / 220 : 0;
+
   const linhaHE50 = novas.find((linha) => linha.codigo === "00090");
   const horasExtras = Number(linhaHE50?.qtde || 0);
   const valorHorasExtras50 = Number(linhaHE50?.provento || 0);
 
+  const linhaSalario = novas.find((linha) => linha.codigo === "00005");
+  const diasSalario = Number(linhaSalario?.qtde || 0);
+
   const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
   const fim = new Date(ano, mes, 0).toISOString().slice(0, 10);
 
-  const { data: registros } = await supabase
+  const { data: registros, error } = await supabase
     .from("registros_ponto")
     .select("data_referencia,tipo_ponto,horario_registrado")
     .eq("funcionario_id", funcionarioId)
@@ -518,20 +550,26 @@ async function adicionarNoturnoEDsrAutomatico(params: {
 
   const porDia = new Map<string, Record<string, string | null>>();
 
-  for (const r of registros ?? []) {
-    const data = String(r.data_referencia);
-    const atual = porDia.get(data) ?? {
-      entrada: null,
-      saida_intervalo: null,
-      retorno_intervalo: null,
-      saida_final: null,
-    };
+  if (!error) {
+    for (const r of registros ?? []) {
+      const data = String(r.data_referencia);
+      const atual = porDia.get(data) ?? {
+        entrada: null,
+        saida_intervalo: null,
+        retorno_intervalo: null,
+        saida_final: null,
+      };
 
-    const dataRegistro = new Date(String(r.horario_registrado));
-    const hhmm = `${String(dataRegistro.getHours()).padStart(2, "0")}:${String(dataRegistro.getMinutes()).padStart(2, "0")}`;
+      const dataRegistro = new Date(String(r.horario_registrado));
+      const hhmm = `${String(dataRegistro.getHours()).padStart(2, "0")}:${String(dataRegistro.getMinutes()).padStart(2, "0")}`;
+      const tipo = normalizarTipoPontoHolerite(String(r.tipo_ponto));
 
-    atual[String(r.tipo_ponto)] = hhmm;
-    porDia.set(data, atual);
+      if (tipo === "entrada" || tipo === "saida_intervalo" || tipo === "retorno_intervalo" || tipo === "saida_final") {
+        atual[tipo] = hhmm;
+      }
+
+      porDia.set(data, atual);
+    }
   }
 
   let minutosNoturnos = 0;
@@ -550,8 +588,8 @@ async function adicionarNoturnoEDsrAutomatico(params: {
   const horasNoturnasReduzidas = minutosNoturnos / 52.5;
   const valorAdicionalNoturno = roundAutoHolerite(valorHora * 0.2 * horasNoturnasReduzidas);
 
-  const diasTrabalhados = Math.max(1, porDia.size);
-  const dsrReflexo = Math.max(1, contarDomingosAutoHolerite(ano, mes));
+  const diasTrabalhados = Math.max(1, porDia.size || diasSalario || 1);
+  const dsrReflexo = contarDomingosAutoHolerite(ano, mes);
 
   const valorDsrHe50 = roundAutoHolerite(horasExtras > 0 ? (valorHorasExtras50 / diasTrabalhados) * dsrReflexo : 0);
 
@@ -559,11 +597,19 @@ async function adicionarNoturnoEDsrAutomatico(params: {
     valorAdicionalNoturno > 0 ? (valorAdicionalNoturno / diasTrabalhados) * dsrReflexo : 0,
   );
 
-  aplicarLinha("00070", "ADICIONAL NOTURNO", roundAutoHolerite(horasNoturnasReduzidas), valorAdicionalNoturno);
-  aplicarLinha("00075", "DSR SOBRE ADICIONAL NOTURNO", dsrReflexo, valorDsrAdicionalNoturno);
-  aplicarLinha("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50);
+  aplicarLinhaObrigatoria(
+    "00070",
+    "ADICIONAL NOTURNO",
+    roundAutoHolerite(horasNoturnasReduzidas),
+    valorAdicionalNoturno,
+  );
+  aplicarLinhaObrigatoria("00075", "DSR SOBRE ADICIONAL NOTURNO", dsrReflexo, valorDsrAdicionalNoturno);
+  aplicarLinhaObrigatoria("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50);
 
-  return { linhas: novas, adicionadas };
+  return {
+    linhas: novas,
+    resumo: `00070=${valorAdicionalNoturno.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | 00075=${valorDsrAdicionalNoturno.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | 00115=${valorDsrHe50.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+  };
 }
 
 const formatHorasDecimais = (v: number | null | undefined) => {
@@ -1061,7 +1107,7 @@ function EditorDialog({
                       }));
 
                       const funcionarioAtual = funcs.find((f) => f.id === funcId);
-                      const extrasAuto = await adicionarNoturnoEDsrAutomatico({
+                      const rubricasObrigatorias = await adicionarRubricasNoturnoDsrObrigatorias({
                         funcionarioId: funcId,
                         ano,
                         mes,
@@ -1069,11 +1115,15 @@ function EditorDialog({
                         linhas: linhasBase,
                       });
 
-                      setLancamentos(extrasAuto.linhas);
+                      setLancamentos(rubricasObrigatorias.linhas);
 
-                      const totalProventos = extrasAuto.linhas.reduce((s, l) => s + Number(l.provento || 0), 0);
-                      const totalDescontos = extrasAuto.linhas.reduce((s, l) => s + Number(l.desconto || 0), 0);
-                      const descontoInss = Number(extrasAuto.linhas.find((l) => l.codigo === "07000")?.desconto || 0);
+                      const totalProventos = rubricasObrigatorias.linhas.reduce(
+                        (s, l) => s + Number(l.provento || 0),
+                        0,
+                      );
+                      const descontoInss = Number(
+                        rubricasObrigatorias.linhas.find((l) => l.codigo === "07000")?.desconto || 0,
+                      );
 
                       setSalContribInss(roundAutoHolerite(totalProventos));
                       setBaseFgts(roundAutoHolerite(totalProventos));
@@ -1081,16 +1131,14 @@ function EditorDialog({
                       setBaseIrpf(roundAutoHolerite(Math.max(0, totalProventos - descontoInss)));
 
                       toast.success(
-                        extrasAuto.adicionadas.length
-                          ? `Holerite recalculado com adicional noturno/DSR: ${extrasAuto.adicionadas.join(", ")}`
-                          : "Holerite recalculado",
+                        `Holerite recalculado + rubricas 00070/00075/00115: ${rubricasObrigatorias.resumo}`,
                       );
                     } catch (e: unknown) {
                       toast.error(e instanceof Error ? e.message : "Erro ao recalcular");
                     }
                   }}
                 >
-                  Recalcular holerite
+                  Recalcular holerite + Noturno/DSR
                 </Button>
                 <Button size="sm" variant="outline" onClick={addLinha}>
                   <Plus className="h-3 w-3 mr-1" />
