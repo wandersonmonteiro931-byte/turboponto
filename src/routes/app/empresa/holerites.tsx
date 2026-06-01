@@ -457,20 +457,37 @@ const garantirQtdeHorasBenefHolerite = (linhas: LancEdit[]) => {
   ];
 };
 
+const grupoLancamentoHolerite = (linha: LancEdit) => {
+  // Ordem obrigatória em qualquer holerite:
+  // 1) todos os proventos
+  // 2) todos os descontos
+  // 3) todos os informativos
+  if (Number(linha.provento || 0) > 0) return 0;
+  if (Number(linha.desconto || 0) > 0) return 1;
+  return 2;
+};
+
+const pesoInformativoHolerite = (codigo: string) => {
+  // Dentro dos informativos:
+  // banco de horas fica no fim, e QTDE HORAS BENEF fica obrigatoriamente por último.
+  if (codigo === CODIGO_QTDE_HORAS_BENEF) return 2;
+  if (codigo === "28651" || codigo === "28652") return 1;
+  return 0;
+};
+
 const ordenarLancamentosHolerite = (linhas: LancEdit[]) => {
-  // Banco de horas positivo/negativo deve ficar no fim.
-  // QTDE HORAS BENEF deve ficar obrigatoriamente como a última rubrica.
-  const pesoFinal = (codigo: string) => {
-    if (codigo === CODIGO_QTDE_HORAS_BENEF) return 2;
-    if (codigo === "28651" || codigo === "28652") return 1;
-    return 0;
-  };
-
   return garantirQtdeHorasBenefHolerite([...linhas]).sort((a, b) => {
-    const pesoA = pesoFinal(a.codigo);
-    const pesoB = pesoFinal(b.codigo);
+    const grupoA = grupoLancamentoHolerite(a);
+    const grupoB = grupoLancamentoHolerite(b);
 
-    if (pesoA !== pesoB) return pesoA - pesoB;
+    if (grupoA !== grupoB) return grupoA - grupoB;
+
+    if (grupoA === 2) {
+      const pesoA = pesoInformativoHolerite(a.codigo);
+      const pesoB = pesoInformativoHolerite(b.codigo);
+
+      if (pesoA !== pesoB) return pesoA - pesoB;
+    }
 
     return 0;
   });

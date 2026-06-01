@@ -55,7 +55,7 @@ const fmtNum = (v: number | null | undefined, dec = 2): string => {
   return v.toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
 };
 const fmtHoras = (v: number | null | undefined): string => {
-  if (v == null || v === 0) return "";
+  if (v == null) return "";
   const sinal = v < 0 ? "-" : "";
   const totalMinutos = Math.round(Math.abs(v) * 60);
   const horas = Math.floor(totalMinutos / 60);
@@ -237,7 +237,40 @@ export function gerarHoleritePdf(
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  for (const l of lancamentos) {
+  const grupoLancamentoPdf = (l: HolerLancamento) => {
+    // Ordem obrigatória:
+    // 1) todos os proventos
+    // 2) todos os descontos
+    // 3) todos os informativos
+    if (Number(l.provento || 0) > 0) return 0;
+    if (Number(l.desconto || 0) > 0) return 1;
+    return 2;
+  };
+
+  const pesoInformativoPdf = (codigo: string) => {
+    // Banco de horas no fim dos informativos e QTDE HORAS BENEF como última linha.
+    if (codigo === "09998") return 2;
+    if (codigo === "28651" || codigo === "28652") return 1;
+    return 0;
+  };
+
+  const lancamentosOrdenados = [...lancamentos].sort((a, b) => {
+    const grupoA = grupoLancamentoPdf(a);
+    const grupoB = grupoLancamentoPdf(b);
+
+    if (grupoA !== grupoB) return grupoA - grupoB;
+
+    if (grupoA === 2) {
+      const pesoA = pesoInformativoPdf(a.codigo);
+      const pesoB = pesoInformativoPdf(b.codigo);
+
+      if (pesoA !== pesoB) return pesoA - pesoB;
+    }
+
+    return 0;
+  });
+
+  for (const l of lancamentosOrdenados) {
     if (y > 250) {
       doc.addPage();
       y = M;
@@ -258,11 +291,13 @@ export function gerarHoleritePdf(
     const resTxt =
       l.codigo === "09990"
         ? ""
-        : isInformativo && isHoras
-          ? fmtHoras(l.resultado)
-          : isInformativo
-            ? fmtNum(l.resultado)
-            : "";
+        : l.codigo === "09998"
+          ? fmtHoras(Number(l.resultado || 0))
+          : isInformativo && isHoras
+            ? fmtHoras(l.resultado)
+            : isInformativo
+              ? fmtNum(l.resultado)
+              : "";
     doc.text(resTxt, cx + colsTab.res - 1, y + 4, { align: "right" });
     y += 5;
   }
