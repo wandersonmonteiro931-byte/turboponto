@@ -55,7 +55,7 @@ const fmtNum = (v: number | null | undefined, dec = 2): string => {
   return v.toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
 };
 const fmtHoras = (v: number | null | undefined): string => {
-  if (v == null) return "";
+  if (v == null || v === 0) return "";
   const sinal = v < 0 ? "-" : "";
   const totalMinutos = Math.round(Math.abs(v) * 60);
   const horas = Math.floor(totalMinutos / 60);
@@ -237,40 +237,7 @@ export function gerarHoleritePdf(
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  const grupoLancamentoPdf = (l: HolerLancamento) => {
-    // Ordem obrigatória:
-    // 1) todos os proventos
-    // 2) todos os descontos
-    // 3) todos os informativos
-    if (Number(l.provento || 0) > 0) return 0;
-    if (Number(l.desconto || 0) > 0) return 1;
-    return 2;
-  };
-
-  const pesoInformativoPdf = (codigo: string) => {
-    // Banco de horas no fim dos informativos e QTDE HORAS BENEF como última linha.
-    if (codigo === "09998") return 2;
-    if (codigo === "28651" || codigo === "28652") return 1;
-    return 0;
-  };
-
-  const lancamentosOrdenados = [...lancamentos].sort((a, b) => {
-    const grupoA = grupoLancamentoPdf(a);
-    const grupoB = grupoLancamentoPdf(b);
-
-    if (grupoA !== grupoB) return grupoA - grupoB;
-
-    if (grupoA === 2) {
-      const pesoA = pesoInformativoPdf(a.codigo);
-      const pesoB = pesoInformativoPdf(b.codigo);
-
-      if (pesoA !== pesoB) return pesoA - pesoB;
-    }
-
-    return 0;
-  });
-
-  for (const l of lancamentosOrdenados) {
+  for (const l of lancamentos) {
     if (y > 250) {
       doc.addPage();
       y = M;
@@ -281,45 +248,14 @@ export function gerarHoleritePdf(
     cx += colsTab.codigo;
     doc.text(l.descricao, cx + 1, y + 4);
     cx += colsTab.desc;
-    const qtdePdf = (() => {
-      if (l.qtde != null && Number(l.qtde) !== 0) return l.qtde;
-      const provento = Number(l.provento || 0);
-      const desconto = Number(l.desconto || 0);
-      if (provento <= 0 && desconto <= 0) return l.qtde;
-
-      const salarioBase = Number(lancamentosOrdenados.find((x) => x.codigo === "00005")?.provento || 0);
-      const totalProventos = lancamentosOrdenados.reduce((s, x) => s + Number(x.provento || 0), 0);
-
-      if (l.codigo === "07000") {
-        const base = totalProventos > 0 ? totalProventos : salarioBase;
-        return base > 0 ? Math.round((desconto / base) * 10000) / 100 : l.qtde;
-      }
-
-      if (l.codigo === "07030") return 6;
-
-      if (l.codigo === "07065") {
-        return salarioBase > 0 ? Math.round((desconto / salarioBase) * 10000) / 100 : l.qtde;
-      }
-
-      return 1;
-    })();
-    doc.text(fmtNum(qtdePdf, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" });
+    doc.text(fmtNum(l.qtde, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" });
     cx += colsTab.qtde;
     doc.text(fmtNum(l.provento), cx + colsTab.prov - 1, y + 4, { align: "right" });
     cx += colsTab.prov;
     doc.text(fmtNum(l.desconto), cx + colsTab.desc2 - 1, y + 4, { align: "right" });
     cx += colsTab.desc2;
     const isHoras = ["18445", "28651", "28652", "09998"].includes(l.codigo);
-    const resTxt =
-      l.codigo === "09990"
-        ? ""
-        : l.codigo === "09998"
-          ? fmtHoras(Number(l.resultado || 0))
-          : isInformativo && isHoras
-            ? fmtHoras(l.resultado)
-            : isInformativo
-              ? fmtNum(l.resultado)
-              : "";
+    const resTxt = isInformativo && isHoras ? fmtHoras(l.resultado) : isInformativo ? fmtNum(l.resultado) : "";
     doc.text(resTxt, cx + colsTab.res - 1, y + 4, { align: "right" });
     y += 5;
   }
