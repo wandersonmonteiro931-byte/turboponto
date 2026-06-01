@@ -562,32 +562,40 @@ function CartaoEmpresaPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-end gap-2">
+          <div className="flex items-end justify-end">
             {podeEditar && (
-              <>
+              <div className="flex flex-wrap items-center justify-end gap-2 w-full">
                 {cartao?.status !== "fechado" && cartao?.status !== "liberado" && (
-                  <Button size="sm" onClick={() => persistir("fechado")}>
-                    <Lock className="h-4 w-4 mr-1" />
+                  <Button size="sm" className="h-9 whitespace-nowrap" onClick={() => persistir("fechado")}>
+                    <Lock className="h-4 w-4 mr-1.5 shrink-0" />
                     Fechar
                   </Button>
                 )}
+
                 {cartao?.status === "fechado" && (
-                  <Button size="sm" onClick={() => persistir("liberado")}>
-                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                  <Button size="sm" className="h-9 whitespace-nowrap" onClick={() => persistir("liberado")}>
+                    <CheckCircle2 className="h-4 w-4 mr-1.5 shrink-0" />
                     Liberar
                   </Button>
                 )}
+
                 {(cartao?.status === "fechado" || cartao?.status === "liberado") && (
-                  <Button size="sm" variant="outline" onClick={() => persistir("aberto")}>
-                    <Unlock className="h-4 w-4 mr-1" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 whitespace-nowrap"
+                    onClick={() => persistir("aberto")}
+                  >
+                    <Unlock className="h-4 w-4 mr-1.5 shrink-0" />
                     Reabrir
                   </Button>
                 )}
-                <Button size="sm" variant="outline" onClick={fecharBancoDeHoras}>
-                  <WalletCards className="h-4 w-4 mr-1" />
+
+                <Button size="sm" variant="outline" className="h-9 whitespace-nowrap" onClick={fecharBancoDeHoras}>
+                  <WalletCards className="h-4 w-4 mr-1.5 shrink-0" />
                   Fechar banco de horas
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </CardContent>
