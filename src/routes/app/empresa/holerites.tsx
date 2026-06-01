@@ -32,6 +32,7 @@ type Func = {
   rg: string | null;
   endereco: string | null;
   data_admissao: string | null;
+  data_desligamento: string | null;
   salario: number | null;
   banco_agencia: string | null;
   conta: string | null;
@@ -75,7 +76,7 @@ function HoleritesPage() {
     void supabase
       .from("funcionarios")
       .select(
-        "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+        "id,nome,cargo,cpf,rg,endereco,data_admissao,data_desligamento,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
       )
       .eq("empresa_id", empresaId)
       .eq("status", "ativo")
