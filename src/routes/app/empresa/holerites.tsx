@@ -475,8 +475,47 @@ const pesoInformativoHolerite = (codigo: string) => {
   return 0;
 };
 
+const preencherQtdeRubricasCalculadasHolerite = (linhas: LancEdit[]) => {
+  const salarioBase = Number(linhas.find((linha) => linha.codigo === "00005")?.provento || 0);
+  const totalProventos = linhas.reduce((s, linha) => s + Number(linha.provento || 0), 0);
+
+  return linhas.map((linha) => {
+    const provento = Number(linha.provento || 0);
+    const desconto = Number(linha.desconto || 0);
+    const temValor = provento > 0 || desconto > 0;
+
+    // Informativos continuam com a regra própria de horas.
+    if (!temValor) return linha;
+
+    // Se já tem QTDE preenchida, mantém.
+    if (linha.qtde != null && Number(linha.qtde) !== 0) return linha;
+
+    // INSS: mostrar a alíquota efetiva/percentual aplicado.
+    if (linha.codigo === "07000") {
+      const base = totalProventos > 0 ? totalProventos : salarioBase;
+      const aliquota = base > 0 ? roundAutoHolerite((desconto / base) * 100) : null;
+      return { ...linha, qtde: aliquota };
+    }
+
+    // Vale Transporte: pela regra legal, a QTDE representa o percentual de 6%.
+    if (linha.codigo === "07030") {
+      return { ...linha, qtde: 6 };
+    }
+
+    // Adiantamento: se estiver sem QTDE, calcula percentual sobre o salário proporcional.
+    if (linha.codigo === "07065") {
+      const percentual = salarioBase > 0 ? roundAutoHolerite((desconto / salarioBase) * 100) : null;
+      return { ...linha, qtde: percentual };
+    }
+
+    // Outras rubricas de provento/desconto calculadas: se não houver quantidade própria,
+    // informa 1 para não deixar a coluna QTDE vazia.
+    return { ...linha, qtde: 1 };
+  });
+};
+
 const ordenarLancamentosHolerite = (linhas: LancEdit[]) => {
-  return garantirQtdeHorasBenefHolerite([...linhas]).sort((a, b) => {
+  return preencherQtdeRubricasCalculadasHolerite(garantirQtdeHorasBenefHolerite([...linhas])).sort((a, b) => {
     const grupoA = grupoLancamentoHolerite(a);
     const grupoB = grupoLancamentoHolerite(b);
 

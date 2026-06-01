@@ -281,7 +281,29 @@ export function gerarHoleritePdf(
     cx += colsTab.codigo;
     doc.text(l.descricao, cx + 1, y + 4);
     cx += colsTab.desc;
-    doc.text(fmtNum(l.qtde, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" });
+    const qtdePdf = (() => {
+      if (l.qtde != null && Number(l.qtde) !== 0) return l.qtde;
+      const provento = Number(l.provento || 0);
+      const desconto = Number(l.desconto || 0);
+      if (provento <= 0 && desconto <= 0) return l.qtde;
+
+      const salarioBase = Number(lancamentosOrdenados.find((x) => x.codigo === "00005")?.provento || 0);
+      const totalProventos = lancamentosOrdenados.reduce((s, x) => s + Number(x.provento || 0), 0);
+
+      if (l.codigo === "07000") {
+        const base = totalProventos > 0 ? totalProventos : salarioBase;
+        return base > 0 ? Math.round((desconto / base) * 10000) / 100 : l.qtde;
+      }
+
+      if (l.codigo === "07030") return 6;
+
+      if (l.codigo === "07065") {
+        return salarioBase > 0 ? Math.round((desconto / salarioBase) * 10000) / 100 : l.qtde;
+      }
+
+      return 1;
+    })();
+    doc.text(fmtNum(qtdePdf, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" });
     cx += colsTab.qtde;
     doc.text(fmtNum(l.provento), cx + colsTab.prov - 1, y + 4, { align: "right" });
     cx += colsTab.prov;
