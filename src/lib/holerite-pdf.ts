@@ -62,6 +62,15 @@ const fmtHoras = (v: number | null | undefined): string => {
   const minutos = totalMinutos % 60;
   return `${sinal}${horas}h${String(minutos).padStart(2, "0")}`;
 };
+
+const fmtHorasObrigatorio = (v: number | null | undefined): string => {
+  const n = Number(v || 0);
+  const sinal = n < 0 ? "-" : "";
+  const totalMinutos = Math.round(Math.abs(n) * 60);
+  const horas = Math.floor(totalMinutos / 60);
+  const minutos = totalMinutos % 60;
+  return `${sinal}${horas}h${String(minutos).padStart(2, "0")}`;
+};
 const fmtData = (d?: string | null): string => {
   if (!d) return "";
   const [y, m, day] = d.split("-");
@@ -254,8 +263,16 @@ export function gerarHoleritePdf(
     cx += colsTab.prov;
     doc.text(fmtNum(l.desconto), cx + colsTab.desc2 - 1, y + 4, { align: "right" });
     cx += colsTab.desc2;
-    const isHoras = ["18445", "28651", "28652", "09998"].includes(l.codigo);
-    const resTxt = isInformativo && isHoras ? fmtHoras(l.resultado) : isInformativo ? fmtNum(l.resultado) : "";
+    const isHorasObrigatorio = ["18445", "09998"].includes(l.codigo);
+    const isHoras = ["28651", "28652"].includes(l.codigo);
+    const resTxt =
+      isInformativo && isHorasObrigatorio
+        ? fmtHorasObrigatorio(l.resultado)
+        : isInformativo && isHoras
+          ? fmtHoras(l.resultado)
+          : isInformativo
+            ? fmtNum(l.resultado)
+            : "";
     doc.text(resTxt, cx + colsTab.res - 1, y + 4, { align: "right" });
     y += 5;
   }
