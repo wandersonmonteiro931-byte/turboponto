@@ -1639,6 +1639,26 @@ function EditorDialog({
       return;
     }
 
+    if (liberarJa) {
+      const { data: fech, error: fechErr } = await supabase
+        .from("fechamentos_mensais")
+        .select("status")
+        .eq("empresa_id", empresaId)
+        .eq("mes_referencia", mes)
+        .eq("ano_referencia", ano)
+        .maybeSingle();
+      if (fechErr) {
+        toast.error(fechErr.message);
+        return;
+      }
+      if (!fech || (fech.status !== "fechado" && fech.status !== "liberado")) {
+        toast.error(
+          `Não é possível liberar. Feche o cartão de ponto de ${mesNome(mes)}/${ano} em Fechamento Mensal antes.`,
+        );
+        return;
+      }
+    }
+
     setSalvando(true);
     try {
       let f = funcs.find((x) => x.id === funcId) ?? null;
