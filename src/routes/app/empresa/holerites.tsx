@@ -436,6 +436,21 @@ function Stat({ label, value, color }: { label: string; value: string | number; 
 
 type LancEdit = HolerLancamento & { id?: string; _k: string };
 
+const ordenarLancamentosHolerite = (linhas: LancEdit[]) => {
+  // Banco de horas positivo/negativo deve sempre ficar no final da lista.
+  const codigosBancoHorasFinal = new Set(["28651", "28652"]);
+
+  return [...linhas].sort((a, b) => {
+    const aBancoHoras = codigosBancoHorasFinal.has(a.codigo);
+    const bBancoHoras = codigosBancoHorasFinal.has(b.codigo);
+
+    if (aBancoHoras && !bBancoHoras) return 1;
+    if (!aBancoHoras && bBancoHoras) return -1;
+
+    return 0;
+  });
+};
+
 const roundAutoHolerite = (valor: number) => Math.round(valor * 100) / 100;
 
 const hmAutoHolerite = (valor: string | null | undefined): number | null => {
@@ -864,30 +879,32 @@ function EditorDialog({
         .eq("holerite_id", holeriteId)
         .order("ordem");
       setLancamentos(
-        (ls ?? []).map((l) => {
-          const provento = Number(l.provento ?? 0);
-          const desconto = Number(l.desconto ?? 0);
-          const resultado = Number(l.resultado ?? 0);
-          const qtde = l.qtde != null ? Number(l.qtde) : null;
-          const legadoSaldoEmFerias =
-            l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
-          const legadoInsufMesAnteriorEmFerias =
-            l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
-          return {
-            _k: l.id,
-            id: l.id,
-            codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
-            descricao: legadoSaldoEmFerias
-              ? "INSUFICIENCIA DE SALDO"
-              : legadoInsufMesAnteriorEmFerias
-                ? "INSUF MES ANTERIOR"
-                : l.descricao,
-            qtde,
-            provento,
-            desconto,
-            resultado,
-          };
-        }),
+        ordenarLancamentosHolerite(
+          (ls ?? []).map((l) => {
+            const provento = Number(l.provento ?? 0);
+            const desconto = Number(l.desconto ?? 0);
+            const resultado = Number(l.resultado ?? 0);
+            const qtde = l.qtde != null ? Number(l.qtde) : null;
+            const legadoSaldoEmFerias =
+              l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
+            const legadoInsufMesAnteriorEmFerias =
+              l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
+            return {
+              _k: l.id,
+              id: l.id,
+              codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
+              descricao: legadoSaldoEmFerias
+                ? "INSUFICIENCIA DE SALDO"
+                : legadoInsufMesAnteriorEmFerias
+                  ? "INSUF MES ANTERIOR"
+                  : l.descricao,
+              qtde,
+              provento,
+              desconto,
+              resultado,
+            };
+          }),
+        ),
       );
     })();
     // eslint-disable-next-line
@@ -1009,7 +1026,7 @@ function EditorDialog({
       }
       if (!hid) throw new Error("Falha ao criar holerite");
 
-      const linhas = lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim());
+      const linhas = ordenarLancamentosHolerite(lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim()));
       if (linhas.length > 0) {
         const { error } = await supabase.from("holerite_lancamentos").insert(
           linhas.map((l, i) => ({
@@ -1238,15 +1255,12 @@ function EditorDialog({
                         linhas: rubricasObrigatorias.linhas,
                       });
 
-                      setLancamentos(linhasComValeTransporte.linhas);
+                      const linhasOrdenadas = ordenarLancamentosHolerite(linhasComValeTransporte.linhas);
 
-                      const totalProventos = linhasComValeTransporte.linhas.reduce(
-                        (s, l) => s + Number(l.provento || 0),
-                        0,
-                      );
-                      const descontoInss = Number(
-                        linhasComValeTransporte.linhas.find((l) => l.codigo === "07000")?.desconto || 0,
-                      );
+                      setLancamentos(linhasOrdenadas);
+
+                      const totalProventos = linhasOrdenadas.reduce((s, l) => s + Number(l.provento || 0), 0);
+                      const descontoInss = Number(linhasOrdenadas.find((l) => l.codigo === "07000")?.desconto || 0);
 
                       setSalContribInss(roundAutoHolerite(totalProventos));
                       setBaseFgts(roundAutoHolerite(totalProventos));
