@@ -253,7 +253,7 @@ export function gerarPdfCartao(opts: {
 
   doc.setFont("courier", "bold");
   doc.setFontSize(9);
-  doc.text("CARTAO DE PONTO FUNC V9", pageW / 2, y, { align: "center" });
+  doc.text("CARTAO DE PONTO", pageW / 2, y, { align: "center" });
 
   doc.setFont("courier", "normal");
   doc.setFontSize(7);
@@ -276,29 +276,39 @@ export function gerarPdfCartao(opts: {
 
   y += 3.5;
 
-  const colR = ML + W * 0.6;
+  // Cabeçalho alinhado em grade fixa: evita texto torto/sobreposto no PDF.
+  const leftLabelX = ML;
+  const leftValueX = ML + 21;
+  const rightLabelX = ML + W * 0.62;
+  const rightValueX = rightLabelX + 25;
+  const rowStep = 3.4;
 
-  doc.text(`Empresa: ${textoSeguro(empresa.nome_fantasia).toUpperCase()}`, ML, y);
-  doc.text(`Mes/Ano: ${NOMES_MES[mes - 1]}/${ano}`, colR, y);
+  const drawHeaderPair = (label1: string, value1: string, label2 = "", value2 = "", boldLeft = false) => {
+    if (boldLeft) doc.setFont("courier", "bold");
+    doc.text(label1, leftLabelX, y);
+    doc.setFont("courier", "normal");
+    doc.text(textoSeguro(value1).slice(0, 82), leftValueX, y);
 
-  y += 3.2;
+    if (label2) {
+      doc.text(label2, rightLabelX, y);
+      doc.text(textoSeguro(value2).slice(0, 40), rightValueX, y);
+    }
 
-  doc.text(`End: ${textoSeguro(empresa.endereco).slice(0, 70)}`, ML, y);
-  doc.text(`CNPJ: ${textoSeguro(empresa.cnpj)}`, colR, y);
+    y += rowStep;
+  };
 
-  y += 3.2;
+  drawHeaderPair(
+    "Empresa:",
+    textoSeguro(empresa.nome_fantasia).toUpperCase(),
+    "Mes/Ano:",
+    `${NOMES_MES[mes - 1]}/${ano}`,
+  );
 
-  doc.setFont("courier", "bold");
-  doc.text(`Matricula: ${matriculaFuncionario}`, ML, y);
-  doc.setFont("courier", "normal");
-  doc.text(`Func: ${nomeFuncionario}`, ML + 46, y);
-  doc.text(`Cargo: ${cargoFuncionario}`, ML + 126, y);
+  drawHeaderPair("End:", textoSeguro(empresa.endereco).slice(0, 76), "CNPJ:", textoSeguro(empresa.cnpj));
 
-  y += 3.2;
+  drawHeaderPair("Matricula:", matriculaFuncionario, "Cargo:", cargoFuncionario, true);
 
-  doc.text(`CPF: ${cpfFuncionario}`, ML, y);
-
-  y += 3.2;
+  drawHeaderPair("CPF:", cpfFuncionario, "Func:", nomeFuncionario);
 
   if (jornadas && jornadas.length > 0) {
     doc.text("Hor.Trab:", ML, y);
