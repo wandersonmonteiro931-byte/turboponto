@@ -29,10 +29,17 @@ function FuncionarioDetail() {
     const { data } = await supabase.from("funcionarios").select("*").eq("id", id).maybeSingle();
     setF(data);
   };
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+  }, [id]);
   useEffect(() => {
     if (!empresaId) return;
-    void supabase.from("lotacoes").select("id,codigo,nome").eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
+    void supabase
+      .from("lotacoes")
+      .select("id,codigo,nome")
+      .eq("empresa_id", empresaId)
+      .eq("ativo", true)
+      .order("codigo")
       .then(({ data }) => setLotacoes((data ?? []) as typeof lotacoes));
     // eslint-disable-next-line
   }, [empresaId]);
@@ -44,21 +51,36 @@ function FuncionarioDetail() {
   const save = async () => {
     setSaving(true);
     const payload: Record<string, unknown> = {
-      nome: f.nome, cpf: f.cpf, rg: f.rg, data_nascimento: f.data_nascimento || null,
-      telefone: f.telefone, email: f.email, endereco: f.endereco, cargo: f.cargo,
-      salario: f.salario, data_admissao: f.data_admissao || null, status: f.status,
-      observacoes: f.observacoes, permite_bater_ponto: f.permite_bater_ponto,
-      data_desligamento: f.data_desligamento || null, motivo_desligamento: f.motivo_desligamento,
+      nome: f.nome,
+      cpf: f.cpf,
+      rg: f.rg,
+      data_nascimento: f.data_nascimento || null,
+      telefone: f.telefone,
+      email: f.email,
+      endereco: f.endereco,
+      cargo: f.cargo,
+      salario: f.salario,
+      data_admissao: f.data_admissao || null,
+      status: f.status,
+      observacoes: f.observacoes,
+      permite_bater_ponto: f.permite_bater_ponto,
+      data_desligamento: f.data_desligamento || null,
+      motivo_desligamento: f.motivo_desligamento,
       banco_agencia: f.banco_agencia || null,
       conta: f.conta || null,
       lotacao: f.lotacao || null,
       num_dep_irrf: Number(f.num_dep_irrf ?? 0),
       num_dep_sal_fam: Number(f.num_dep_sal_fam ?? 0),
       matricula: f.matricula || null,
+      vale_transporte_mensal: Number(f.vale_transporte_mensal ?? 0),
     };
-    const { error } = await supabase.from("funcionarios").update(payload as never).eq("id", id);
+    const { error } = await supabase
+      .from("funcionarios")
+      .update(payload as never)
+      .eq("id", id);
     setSaving(false);
-    if (error) toast.error(error.message); else toast.success("Salvo");
+    if (error) toast.error(error.message);
+    else toast.success("Salvo");
   };
 
   const uploadFoto = async (file: File) => {
@@ -87,24 +109,44 @@ function FuncionarioDetail() {
 
   return (
     <div className="space-y-4 max-w-5xl">
-      <Link to="/app/empresa/funcionarios" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/app/empresa/funcionarios"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
       </Link>
 
       <Card>
         <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="h-20 w-20 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0">
-            {f.foto_url ? <img src={f.foto_url as string} className="h-full w-full object-cover" /> : <UserCircle2 className="h-10 w-10 text-muted-foreground" />}
+            {f.foto_url ? (
+              <img src={f.foto_url as string} className="h-full w-full object-cover" />
+            ) : (
+              <UserCircle2 className="h-10 w-10 text-muted-foreground" />
+            )}
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-bold">{v("nome")}</h2>
-            <p className="text-sm text-muted-foreground">{v("cargo") || "—"}{v("matricula") ? ` · Matrícula ${v("matricula")}` : ""}</p>
+            <p className="text-sm text-muted-foreground">
+              {v("cargo") || "—"}
+              {v("matricula") ? ` · Matrícula ${v("matricula")}` : ""}
+            </p>
             <p className="text-xs text-muted-foreground capitalize mt-1">Status: {v("status")}</p>
           </div>
           {isAdmin && (
             <label className="cursor-pointer">
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadFoto(e.target.files[0])} />
-              <Button type="button" variant="outline" asChild><span><Upload className="h-4 w-4 mr-2" />Foto</span></Button>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && uploadFoto(e.target.files[0])}
+              />
+              <Button type="button" variant="outline" asChild>
+                <span>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Foto
+                </span>
+              </Button>
             </label>
           )}
         </CardContent>
@@ -124,19 +166,78 @@ function FuncionarioDetail() {
         <TabsContent value="dados">
           <Card>
             <CardContent className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Fld label="Nome"><Input value={v("nome")} onChange={(e) => upd("nome", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="Matrícula"><Input value={v("matricula")} onChange={(e) => upd("matricula", e.target.value)} placeholder="Ex: 0001" disabled={!isAdmin} /></Fld>
-              <Fld label="CPF"><Input value={v("cpf")} onChange={(e) => upd("cpf", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="RG"><Input value={v("rg")} onChange={(e) => upd("rg", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="Data de nascimento"><Input type="date" value={v("data_nascimento")} onChange={(e) => upd("data_nascimento", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="Telefone"><Input value={v("telefone")} onChange={(e) => upd("telefone", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="E-mail"><Input value={v("email")} onChange={(e) => upd("email", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="Endereço" full><Input value={v("endereco")} onChange={(e) => upd("endereco", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="Cargo"><Input value={v("cargo")} onChange={(e) => upd("cargo", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="Salário"><Input type="number" step="0.01" value={v("salario")} onChange={(e) => upd("salario", e.target.value ? Number(e.target.value) : null)} disabled={!isAdmin} /></Fld>
-              <Fld label="Data admissão"><Input type="date" value={v("data_admissao")} onChange={(e) => upd("data_admissao", e.target.value)} disabled={!isAdmin} /></Fld>
+              <Fld label="Nome">
+                <Input value={v("nome")} onChange={(e) => upd("nome", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="Matrícula">
+                <Input
+                  value={v("matricula")}
+                  onChange={(e) => upd("matricula", e.target.value)}
+                  placeholder="Ex: 0001"
+                  disabled={!isAdmin}
+                />
+              </Fld>
+              <Fld label="CPF">
+                <Input value={v("cpf")} onChange={(e) => upd("cpf", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="RG">
+                <Input value={v("rg")} onChange={(e) => upd("rg", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="Data de nascimento">
+                <Input
+                  type="date"
+                  value={v("data_nascimento")}
+                  onChange={(e) => upd("data_nascimento", e.target.value)}
+                  disabled={!isAdmin}
+                />
+              </Fld>
+              <Fld label="Telefone">
+                <Input value={v("telefone")} onChange={(e) => upd("telefone", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="E-mail">
+                <Input value={v("email")} onChange={(e) => upd("email", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="Endereço" full>
+                <Input value={v("endereco")} onChange={(e) => upd("endereco", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="Cargo">
+                <Input value={v("cargo")} onChange={(e) => upd("cargo", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="Salário">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={v("salario")}
+                  onChange={(e) => upd("salario", e.target.value ? Number(e.target.value) : null)}
+                  disabled={!isAdmin}
+                />
+              </Fld>
+              <Fld label="Funcionário utiliza Vale Transporte?">
+                <label className="flex items-center gap-2 h-9 px-3 rounded-md border bg-background text-sm">
+                  <input
+                    type="checkbox"
+                    checked={Number(f.vale_transporte_mensal ?? 0) > 0}
+                    onChange={(e) => upd("vale_transporte_mensal", e.target.checked ? 1 : 0)}
+                    disabled={!isAdmin}
+                  />
+                  <span>{Number(f.vale_transporte_mensal ?? 0) > 0 ? "Sim" : "Não"}</span>
+                </label>
+              </Fld>
+              <Fld label="Data admissão">
+                <Input
+                  type="date"
+                  value={v("data_admissao")}
+                  onChange={(e) => upd("data_admissao", e.target.value)}
+                  disabled={!isAdmin}
+                />
+              </Fld>
               <Fld label="Status">
-                <select className="w-full h-9 px-3 rounded-md border bg-background text-sm" value={v("status")} onChange={(e) => upd("status", e.target.value)} disabled={!isAdmin}>
+                <select
+                  className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+                  value={v("status")}
+                  onChange={(e) => upd("status", e.target.value)}
+                  disabled={!isAdmin}
+                >
                   <option value="ativo">Ativo</option>
                   <option value="afastado">Afastado</option>
                   <option value="desligado">Desligado</option>
@@ -144,14 +245,50 @@ function FuncionarioDetail() {
               </Fld>
               {v("status") === "desligado" && (
                 <>
-                  <Fld label="Data desligamento"><Input type="date" value={v("data_desligamento")} onChange={(e) => upd("data_desligamento", e.target.value)} disabled={!isAdmin} /></Fld>
-                  <Fld label="Motivo" full><Input value={v("motivo_desligamento")} onChange={(e) => upd("motivo_desligamento", e.target.value)} disabled={!isAdmin} /></Fld>
+                  <Fld label="Data desligamento">
+                    <Input
+                      type="date"
+                      value={v("data_desligamento")}
+                      onChange={(e) => upd("data_desligamento", e.target.value)}
+                      disabled={!isAdmin}
+                    />
+                  </Fld>
+                  <Fld label="Motivo" full>
+                    <Input
+                      value={v("motivo_desligamento")}
+                      onChange={(e) => upd("motivo_desligamento", e.target.value)}
+                      disabled={!isAdmin}
+                    />
+                  </Fld>
                 </>
               )}
-              <Fld label="Banco / Agência"><Input value={v("banco_agencia")} onChange={(e) => upd("banco_agencia", e.target.value)} placeholder="237/02402" disabled={!isAdmin} /></Fld>
-              <Fld label="Conta"><Input value={v("conta")} onChange={(e) => upd("conta", e.target.value)} disabled={!isAdmin} /></Fld>
-              <Fld label="Nº Dep. IRRF"><Input type="number" value={v("num_dep_irrf") || 0} onChange={(e) => upd("num_dep_irrf", Number(e.target.value))} disabled={!isAdmin} /></Fld>
-              <Fld label="Nº Dep. Sal. Família"><Input type="number" value={v("num_dep_sal_fam") || 0} onChange={(e) => upd("num_dep_sal_fam", Number(e.target.value))} disabled={!isAdmin} /></Fld>
+              <Fld label="Banco / Agência">
+                <Input
+                  value={v("banco_agencia")}
+                  onChange={(e) => upd("banco_agencia", e.target.value)}
+                  placeholder="237/02402"
+                  disabled={!isAdmin}
+                />
+              </Fld>
+              <Fld label="Conta">
+                <Input value={v("conta")} onChange={(e) => upd("conta", e.target.value)} disabled={!isAdmin} />
+              </Fld>
+              <Fld label="Nº Dep. IRRF">
+                <Input
+                  type="number"
+                  value={v("num_dep_irrf") || 0}
+                  onChange={(e) => upd("num_dep_irrf", Number(e.target.value))}
+                  disabled={!isAdmin}
+                />
+              </Fld>
+              <Fld label="Nº Dep. Sal. Família">
+                <Input
+                  type="number"
+                  value={v("num_dep_sal_fam") || 0}
+                  onChange={(e) => upd("num_dep_sal_fam", Number(e.target.value))}
+                  disabled={!isAdmin}
+                />
+              </Fld>
               <Fld label="Lotação" full>
                 <select
                   className="w-full h-9 px-3 rounded-md border bg-background text-sm"
@@ -161,7 +298,9 @@ function FuncionarioDetail() {
                 >
                   <option value="">— Selecionar —</option>
                   {lotacoes.map((l) => (
-                    <option key={l.id} value={`${l.codigo} - ${l.nome}`}>{l.codigo} - {l.nome}</option>
+                    <option key={l.id} value={`${l.codigo} - ${l.nome}`}>
+                      {l.codigo} - {l.nome}
+                    </option>
                   ))}
                   {v("lotacao") && !lotacoes.some((l) => `${l.codigo} - ${l.nome}` === v("lotacao")) && (
                     <option value={v("lotacao") as string}>{v("lotacao") as string} (não cadastrada)</option>
@@ -169,15 +308,31 @@ function FuncionarioDetail() {
                 </select>
               </Fld>
               <Fld label="Observações" full>
-                <textarea className="w-full min-h-[80px] px-3 py-2 rounded-md border bg-background text-sm" value={v("observacoes")} onChange={(e) => upd("observacoes", e.target.value)} disabled={!isAdmin} />
+                <textarea
+                  className="w-full min-h-[80px] px-3 py-2 rounded-md border bg-background text-sm"
+                  value={v("observacoes")}
+                  onChange={(e) => upd("observacoes", e.target.value)}
+                  disabled={!isAdmin}
+                />
               </Fld>
               {isAdmin && (
                 <div className="md:col-span-2 flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-end pt-2">
                   <div className="flex gap-2 items-end">
-                    <Fld label="Redefinir senha"><Input type="text" placeholder="Nova senha" value={newPass} onChange={(e) => setNewPass(e.target.value)} /></Fld>
-                    <Button type="button" variant="outline" onClick={resetSenha}>Redefinir</Button>
+                    <Fld label="Redefinir senha">
+                      <Input
+                        type="text"
+                        placeholder="Nova senha"
+                        value={newPass}
+                        onChange={(e) => setNewPass(e.target.value)}
+                      />
+                    </Fld>
+                    <Button type="button" variant="outline" onClick={resetSenha}>
+                      Redefinir
+                    </Button>
                   </div>
-                  <Button onClick={save} disabled={saving} className="font-semibold">{saving ? "Salvando..." : "Salvar alterações"}</Button>
+                  <Button onClick={save} disabled={saving} className="font-semibold">
+                    {saving ? "Salvando..." : "Salvar alterações"}
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -191,7 +346,9 @@ function FuncionarioDetail() {
         {(["registros", "cartao", "beneficios", "holerites", "historico"] as const).map((t) => (
           <TabsContent key={t} value={t}>
             <Card>
-              <CardHeader><CardTitle className="capitalize">{t}</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="capitalize">{t}</CardTitle>
+              </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 Esta aba será implementada nas próximas etapas do projeto.
               </CardContent>
@@ -232,8 +389,14 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
   const reload = async () => {
     if (!empresaId) return;
     const [{ data: js }, { data: vs }] = await Promise.all([
-      supabase.from("jornadas").select("id,nome,status").eq("empresa_id", empresaId).eq("status", "ativa").order("nome"),
-      supabase.from("funcionarios_jornadas")
+      supabase
+        .from("jornadas")
+        .select("id,nome,status")
+        .eq("empresa_id", empresaId)
+        .eq("status", "ativa")
+        .order("nome"),
+      supabase
+        .from("funcionarios_jornadas")
         .select("id,data_inicio,data_fim,ativo,jornada_id,jornadas(nome,status)")
         .eq("funcionario_id", funcionarioId)
         .order("data_inicio", { ascending: false }),
@@ -241,7 +404,9 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
     setJornadas((js ?? []) as Array<{ id: string; nome: string; status: string }>);
     setVinculos((vs ?? []) as unknown as VinculoRow[]);
   };
-  useEffect(() => { reload(); }, [funcionarioId, empresaId]);
+  useEffect(() => {
+    reload();
+  }, [funcionarioId, empresaId]);
 
   const ativos = vinculos.filter((v) => v.ativo);
 
@@ -261,12 +426,15 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
     }
   };
 
-
   const encerrarVinculo = async (id: string) => {
     const dataFim = new Date().toISOString().slice(0, 10);
-    const { error } = await (supabase.from("funcionarios_jornadas") as never as {
-      update: (v: object) => { eq: (a: string, b: unknown) => Promise<{ error: { message: string } | null }> };
-    }).update({ ativo: false, data_fim: dataFim }).eq("id", id);
+    const { error } = await (
+      supabase.from("funcionarios_jornadas") as never as {
+        update: (v: object) => { eq: (a: string, b: unknown) => Promise<{ error: { message: string } | null }> };
+      }
+    )
+      .update({ ativo: false, data_fim: dataFim })
+      .eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Jornada encerrada");
     reload();
@@ -312,7 +480,11 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
                 <option value="">Selecione...</option>
                 {jornadas
                   .filter((j) => !ativos.some((a) => a.jornada_id === j.id))
-                  .map((j) => <option key={j.id} value={j.id}>{j.nome}</option>)}
+                  .map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.nome}
+                    </option>
+                  ))}
               </select>
               <input
                 type="date"
@@ -320,11 +492,13 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
               />
-              <Button onClick={vincular} disabled={loading}>{loading ? "..." : "Vincular"}</Button>
+              <Button onClick={vincular} disabled={loading}>
+                {loading ? "..." : "Vincular"}
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              O colaborador pode ter várias jornadas ativas simultaneamente. O sistema escolhe automaticamente
-              a jornada aplicável a cada data pelo dia da semana configurado em cada uma.
+              O colaborador pode ter várias jornadas ativas simultaneamente. O sistema escolhe automaticamente a jornada
+              aplicável a cada data pelo dia da semana configurado em cada uma.
             </p>
           </div>
         )}
@@ -345,7 +519,9 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
                       {v.data_fim ? new Date(v.data_fim + "T00:00").toLocaleDateString("pt-BR") : "atual"}
                     </div>
                   </div>
-                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded h-fit ${v.ativo ? "bg-green-500/20 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                  <span
+                    className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded h-fit ${v.ativo ? "bg-green-500/20 text-green-700" : "bg-muted text-muted-foreground"}`}
+                  >
                     {v.ativo ? "ativa" : "encerrada"}
                   </span>
                 </li>
@@ -357,4 +533,3 @@ function JornadaTab({ funcionarioId, canEdit }: { funcionarioId: string; canEdit
     </Card>
   );
 }
-

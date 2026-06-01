@@ -38,6 +38,7 @@ type Func = {
   num_dep_irrf: number | null;
   num_dep_sal_fam: number | null;
   matricula: string | null;
+  vale_transporte_mensal?: number | null;
   vale_transporte?: boolean | null;
   usa_vale_transporte?: boolean | null;
   utiliza_vale_transporte?: boolean | null;
@@ -558,6 +559,7 @@ async function adicionarValeTransporteAutomatico(params: {
     f.usa_vale_transporte === true ||
     f.utiliza_vale_transporte === true ||
     f.vt_ativo === true ||
+    Number(f.vale_transporte_mensal || 0) > 0 ||
     Number(f.vt_concedido || 0) > 0 ||
     Number(f.valor_vale_transporte || 0) > 0 ||
     Number(f.vale_transporte_valor || 0) > 0;
@@ -575,13 +577,19 @@ async function adicionarValeTransporteAutomatico(params: {
 
   // Custo real informado no cadastro/benefício. Se não houver custo cadastrado,
   // usa o teto de 6%, que é o caso esperado no exemplo da Thayssa: 6% de 120 = 7,20.
+  const valorVtMensal = Number(f.vale_transporte_mensal || 0);
+
   const custoRealTransporte = Math.max(
     0,
+    valorVtMensal > 1 ? valorVtMensal : 0,
     Number(f.vt_concedido || 0),
     Number(f.valor_vale_transporte || 0),
     Number(f.vale_transporte_valor || 0),
   );
 
+  // Se o cadastro só marcou "Sim" usando vale_transporte_mensal = 1,
+  // aplica o teto legal de 6% sobre o salário proporcional.
+  // Se houver custo real maior que zero e menor que o teto, usa o custo real.
   const desconto =
     custoRealTransporte > 0 ? Math.min(tetoSeisPorCento, roundAutoHolerite(custoRealTransporte)) : tetoSeisPorCento;
 
