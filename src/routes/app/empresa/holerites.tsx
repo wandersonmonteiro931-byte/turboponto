@@ -32,7 +32,6 @@ type Func = {
   rg: string | null;
   endereco: string | null;
   data_admissao: string | null;
-  data_desligamento: string | null;
   salario: number | null;
   banco_agencia: string | null;
   conta: string | null;
@@ -76,7 +75,7 @@ function HoleritesPage() {
     void supabase
       .from("funcionarios")
       .select(
-        "id,nome,cargo,cpf,rg,endereco,data_admissao,data_desligamento,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+        "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
       )
       .eq("empresa_id", empresaId)
       .eq("status", "ativo")
@@ -532,12 +531,7 @@ async function aplicarAdicionalNoturnoEDsrNaTela(params: {
     valorHora * (ADICIONAL_NOTURNO_PCT_HOLERITE / 100) * horasNoturnasReduzidas,
   );
 
-  const domingos = contarDomingosHolerite(
-    ano,
-    mes,
-    funcionario?.data_admissao ?? null,
-    funcionario?.data_desligamento ?? null,
-  );
+  const domingos = contarDomingosHolerite(ano, mes, funcionario?.data_admissao ?? null, null);
   const dsrReflexo = Math.max(diasDsr, domingos, horasExtras > 0 || minutosNoturnos > 0 ? 1 : 0);
   const divisorTrabalho = Math.max(1, diasTrabalho || 1);
 
