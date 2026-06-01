@@ -72,9 +72,16 @@ function sobreposicaoMinutos(inicioA: number, fimA: number, inicioB: number, fim
   return Math.max(0, Math.min(fimA, fimB) - Math.max(inicioA, inicioB));
 }
 
+function hmEngineHolerite(valor: string | null | undefined): number | null {
+  if (!valor) return null;
+  const [h, m] = valor.slice(0, 5).split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+
 function minutosNoturnosIntervalo(inicio: string | null, fim: string | null): number {
-  const ini = hm(inicio);
-  const out = hm(fim);
+  const ini = hmEngineHolerite(inicio);
+  const out = hmEngineHolerite(fim);
   if (ini == null || out == null) return 0;
 
   let start = ini;
