@@ -137,7 +137,10 @@ function BeneficiosPage() {
 
   const futuroBloqueado = cmp > 0;
   const passadoFechado = cmp < 0 || !!cicloSelecionadoAprovado;
-  const podeRecalcular = podeEditar && !futuroBloqueado && !passadoFechado;
+
+  // Admin/gerente pode recalcular mês anterior e ciclo aprovado para corrigir valores reais.
+  // Continua bloqueando apenas mês futuro que ainda não foi aberto.
+  const podeRecalcular = podeEditar && !futuroBloqueado;
 
   const carregar = async () => {
     if (!empresaId) return;
@@ -252,10 +255,17 @@ function BeneficiosPage() {
     if (!empresaId || !beneficioAtual) return;
 
     if (!podeRecalcular) {
-      toast.info(
-        passadoFechado ? "Ciclo já aprovado — não pode ser recalculado." : "Aprove o ciclo anterior primeiro.",
-      );
+      toast.info("Este mês ainda não está liberado. Aprove o ciclo anterior primeiro.");
       return;
+    }
+
+    if (passadoFechado) {
+      const confirmar = window.confirm(
+        `Recalcular ${mesNome(mes)}/${ano}?\n\n` +
+          "Este é um mês anterior ou ciclo já aprovado. O sistema vai atualizar os cálculos com base nos registros de ponto atuais.",
+      );
+
+      if (!confirmar) return;
     }
 
     setRecalculando(true);

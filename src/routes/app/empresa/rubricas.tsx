@@ -282,6 +282,11 @@ function RubricasPage() {
 
     if (errExistentes) throw errExistentes;
 
+    // Não recria automaticamente uma rubrica que o admin excluiu manualmente.
+    // Cria o pacote obrigatório apenas quando a empresa ainda não tem nenhuma rubrica.
+    // Para recriar as obrigatórias depois de exclusão manual, rode a migration de rubricas.
+    if ((existentes ?? []).length > 0) return;
+
     const codigosExistentes = new Set((existentes ?? []).map((r) => r.codigo));
     const faltantes = RUBRICAS_OBRIGATORIAS.filter((r) => !codigosExistentes.has(r.codigo));
 
@@ -346,10 +351,23 @@ function RubricasPage() {
   }, [empresaId]);
 
   const remover = async (r: Rubrica) => {
-    if (!confirm(`Remover rubrica ${r.codigo}?`)) return;
+    const confirmar = window.confirm(
+      `Excluir a rubrica ${r.codigo} · ${r.descricao}?\n\n` +
+        "A rubrica será removida do cadastro para novos cálculos. " +
+        "Holerites já salvos continuam com os lançamentos gravados.",
+    );
+
+    if (!confirmar) return;
+
     const { error } = await supabase.from("holerite_rubricas").delete().eq("id", r.id);
-    if (error) return toast.error(error.message);
-    toast.success("Removida");
+
+    if (error) {
+      console.error("[rubricas] erro ao excluir rubrica", error);
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Rubrica excluída");
     await carregar();
   };
 
@@ -450,7 +468,7 @@ function RubricasPage() {
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => remover(r)} disabled={r.padrao_sistema}>
+                            <Button size="sm" variant="ghost" onClick={() => remover(r)}>
                               <Trash2 className="h-3 w-3 text-red-600" />
                             </Button>
                           </td>
