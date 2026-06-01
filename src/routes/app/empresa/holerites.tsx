@@ -451,22 +451,9 @@ type LancEdit = HolerLancamento & { id?: string; _k: string };
 const CODIGO_QTDE_HORAS_BENEF = "09998";
 
 const garantirQtdeHorasBenefHolerite = (linhas: LancEdit[]) => {
-  const jaExiste = linhas.some((linha) => linha.codigo === CODIGO_QTDE_HORAS_BENEF);
-
-  if (jaExiste) return linhas;
-
-  return [
-    ...linhas,
-    {
-      _k: crypto.randomUUID(),
-      codigo: CODIGO_QTDE_HORAS_BENEF,
-      descricao: "QTD HORAS CESTA BASICA",
-      qtde: null,
-      provento: 0,
-      desconto: 0,
-      resultado: 0,
-    },
-  ];
+  // Não recria 09998 automaticamente.
+  // Se o admin excluir a rubrica do cadastro, ela não pode voltar sozinha no holerite.
+  return linhas;
 };
 
 const grupoLancamentoHolerite = (linha: LancEdit) => {
@@ -631,11 +618,20 @@ async function atualizarHorasCestaBasicaPeloBeneficio(params: {
   ano: number;
   mes: number;
   linhas: LancEdit[];
+  rubricas: Array<{ codigo: string }>;
 }): Promise<{ linhas: LancEdit[]; minutos: number; origem: string }> {
-  const { empresaId, funcionarioId, ano, mes, linhas } = params;
+  const { empresaId, funcionarioId, ano, mes, linhas, rubricas } = params;
+  const codigosPermitidos = new Set(rubricas.map((r) => r.codigo));
   const novas = [...linhas];
 
   const setLinhaInformativa = (codigo: string, descricaoPadrao: string, horas: number) => {
+    // Se a rubrica foi excluída no cadastro, não adiciona nem mantém no holerite.
+    if (!codigosPermitidos.has(codigo)) {
+      const idxRemover = novas.findIndex((linha) => linha.codigo === codigo);
+      if (idxRemover >= 0) novas.splice(idxRemover, 1);
+      return;
+    }
+
     const idx = novas.findIndex((linha) => linha.codigo === codigo);
     const linha: LancEdit = {
       _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
@@ -1093,6 +1089,11 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   };
 }
 
+const filtrarRubricasExistentesHolerite = (linhas: LancEdit[], rubricas: Array<{ codigo: string }>) => {
+  const codigosAtivos = new Set(rubricas.map((r) => r.codigo));
+  return linhas.filter((linha) => codigosAtivos.has(linha.codigo));
+};
+
 const descricaoPadraoRubricaHolerite = (codigo: string) => {
   if (codigo === "09990") return "INSUFICIENCIA DE SALDO";
   if (codigo === "09995") return "COMP INSUF MES ANTERIOR";
@@ -1333,31 +1334,34 @@ function EditorDialog({
         .order("ordem");
       setLancamentos(
         ordenarLancamentosHolerite(
-          sincronizarDescricoesRubricasHolerite(
-            (ls ?? []).map((l) => {
-              const provento = Number(l.provento ?? 0);
-              const desconto = Number(l.desconto ?? 0);
-              const resultado = Number(l.resultado ?? 0);
-              const qtde = l.qtde != null ? Number(l.qtde) : null;
-              const legadoSaldoEmFerias =
-                l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
-              const legadoInsufMesAnteriorEmFerias =
-                l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
-              return {
-                _k: l.id,
-                id: l.id,
-                codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
-                descricao: legadoSaldoEmFerias
-                  ? "INSUFICIENCIA DE SALDO"
-                  : legadoInsufMesAnteriorEmFerias
-                    ? "INSUF MES ANTERIOR"
-                    : l.descricao,
-                qtde,
-                provento,
-                desconto,
-                resultado,
-              };
-            }),
+          filtrarRubricasExistentesHolerite(
+            sincronizarDescricoesRubricasHolerite(
+              (ls ?? []).map((l) => {
+                const provento = Number(l.provento ?? 0);
+                const desconto = Number(l.desconto ?? 0);
+                const resultado = Number(l.resultado ?? 0);
+                const qtde = l.qtde != null ? Number(l.qtde) : null;
+                const legadoSaldoEmFerias =
+                  l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
+                const legadoInsufMesAnteriorEmFerias =
+                  l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
+                return {
+                  _k: l.id,
+                  id: l.id,
+                  codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
+                  descricao: legadoSaldoEmFerias
+                    ? "INSUFICIENCIA DE SALDO"
+                    : legadoInsufMesAnteriorEmFerias
+                      ? "INSUF MES ANTERIOR"
+                      : l.descricao,
+                  qtde,
+                  provento,
+                  desconto,
+                  resultado,
+                };
+              }),
+              rubricas,
+            ),
             rubricas,
           ),
         ),
@@ -1474,11 +1478,17 @@ function EditorDialog({
         ano,
         mes,
         linhas: lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim()),
+        rubricas,
       });
 
       const linhas = ordenarLancamentosHolerite(
         sincronizarDescricoesRubricasHolerite(
-          aplicarInsuficienciaSaldoHolerite(linhasComBeneficioAtualizado.linhas),
+          filtrarRubricasExistentesHolerite(
+            aplicarInsuficienciaSaldoHolerite(
+              filtrarRubricasExistentesHolerite(linhasComBeneficioAtualizado.linhas, rubricas),
+            ),
+            rubricas,
+          ),
           rubricas,
         ),
       );
@@ -1825,11 +1835,20 @@ function EditorDialog({
                         ano,
                         mes,
                         linhas: linhasComCompInsufAnterior,
+                        rubricas,
                       });
 
-                      const linhasComInsuficiencia = aplicarInsuficienciaSaldoHolerite(horasCestaAtualizadas.linhas);
-                      const linhasComDescricoesAtuais = sincronizarDescricoesRubricasHolerite(
+                      const linhasPermitidas = filtrarRubricasExistentesHolerite(
+                        horasCestaAtualizadas.linhas,
+                        rubricas,
+                      );
+                      const linhasComInsuficiencia = aplicarInsuficienciaSaldoHolerite(linhasPermitidas);
+                      const linhasComInsuficienciaPermitidas = filtrarRubricasExistentesHolerite(
                         linhasComInsuficiencia,
+                        rubricas,
+                      );
+                      const linhasComDescricoesAtuais = sincronizarDescricoesRubricasHolerite(
+                        linhasComInsuficienciaPermitidas,
                         rubricas,
                       );
                       const linhasOrdenadas = ordenarLancamentosHolerite(linhasComDescricoesAtuais);
