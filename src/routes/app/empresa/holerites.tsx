@@ -116,7 +116,36 @@ function HoleritesPage() {
   }, [empresaId, mes, ano, funcionarioId, status]);
 
   const liberar = async (ids: string[]) => {
-    if (!user || ids.length === 0) return;
+    if (!user || ids.length === 0 || !empresaId) return;
+
+    // Bloqueia liberação se o fechamento mensal (cartão de ponto) não estiver fechado/liberado.
+    const alvos = lista.filter((h) => ids.includes(h.id));
+    const periodos = Array.from(new Set(alvos.map((h) => `${h.ano_referencia}-${h.mes_referencia}`)));
+    const { data: fechs, error: fechErr } = await supabase
+      .from("fechamentos_mensais")
+      .select("mes_referencia,ano_referencia,status")
+      .eq("empresa_id", empresaId)
+      .in("ano_referencia", Array.from(new Set(alvos.map((h) => h.ano_referencia))))
+      .in("mes_referencia", Array.from(new Set(alvos.map((h) => h.mes_referencia))));
+    if (fechErr) return toast.error(fechErr.message);
+    const fechadosOk = new Set(
+      (fechs ?? [])
+        .filter((f) => f.status === "fechado" || f.status === "liberado")
+        .map((f) => `${f.ano_referencia}-${f.mes_referencia}`),
+    );
+    const bloqueados = periodos.filter((p) => !fechadosOk.has(p));
+    if (bloqueados.length > 0) {
+      const lista = bloqueados
+        .map((p) => {
+          const [a, m] = p.split("-");
+          return `${mesNome(Number(m))}/${a}`;
+        })
+        .join(", ");
+      return toast.error(
+        `Não é possível liberar. Feche o cartão de ponto em Fechamento Mensal antes: ${lista}`,
+      );
+    }
+
     const { error } = await supabase
       .from("holerites")
       .update({
