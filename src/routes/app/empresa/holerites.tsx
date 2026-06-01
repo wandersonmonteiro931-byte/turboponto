@@ -593,7 +593,7 @@ async function adicionarValeTransporteAutomatico(params: {
   const desconto =
     custoRealTransporte > 0 ? Math.min(tetoSeisPorCento, roundAutoHolerite(custoRealTransporte)) : tetoSeisPorCento;
 
-  aplicarLinha("07030", "VALE TRANSPORTE", null, 0, desconto);
+  aplicarLinha("07030", "VALE TRANSPORTE", desconto > 0 ? 6 : null, 0, desconto);
 
   return { linhas: novas, aplicado: desconto > 0, valor: desconto };
 }
