@@ -116,12 +116,16 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
       const cartao = await carregarCartao(f.id, ano, mes);
 
       totalAtraso = cartao.totalAtraso;
-      diasComAtraso = cartao.dias.filter((d) => d.atrasoMinutos > 0).length;
+      diasComAtraso = cartao.dias.filter((d) => Number(d.bancoHorasMinutos || 0) < 0).length;
       faltas = cartao.totalFaltas;
 
-      // Débito real do mês: soma dos débitos diários, sem compensar com créditos.
-      // Mesma lógica do total "Débitos" exibido no cartão de ponto / PDF.
-      debito = cartao.dias.reduce((s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s), 0);
+      // Débito real do mês: soma TODOS os débitos diários do cartão de ponto,
+      // sem compensar com créditos. Esta é a mesma base exibida no PDF:
+      // "QTDE HORAS BENEF".
+      debito = cartao.dias.reduce((s, d) => {
+        const min = Number(d.bancoHorasMinutos || 0);
+        return min < 0 ? s + Math.abs(min) : s;
+      }, 0);
     } catch (err) {
       // Se falhar, por exemplo sem jornada, assume zero para não bloquear o cálculo.
       console.warn("[beneficios] falha ao carregar cartão", f.id, err);

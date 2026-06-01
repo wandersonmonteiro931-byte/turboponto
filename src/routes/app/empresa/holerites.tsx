@@ -652,6 +652,23 @@ async function atualizarHorasCestaBasicaPeloBeneficio(params: {
     else novas.push(linha);
   };
 
+  const { carregarCartao } = await import("@/lib/cartao");
+
+  // FONTE FINAL DA VERDADE:
+  // Sempre calcula diretamente do cartão de ponto do mês de referência,
+  // usando todos os dias/registros do mês. Não usa beneficios_calculos como fonte final,
+  // porque essa tabela pode estar atrasada ou parcialmente recalculada.
+  const cartao = await carregarCartao(funcionarioId, ano, mes);
+
+  const minutosBeneficio = cartao.dias.reduce((total, dia) => {
+    const debitoBanco = dia.bancoHorasMinutos < 0 ? Math.abs(Number(dia.bancoHorasMinutos || 0)) : 0;
+    return total + debitoBanco;
+  }, 0);
+
+  const diasComAtraso = cartao.dias.filter((dia) => dia.bancoHorasMinutos < 0).length;
+  const faltas = Number(cartao.totalFaltas || 0);
+  const horasBeneficio = roundAutoHolerite(minutosBeneficio / 60);
+
   const { data: beneficiosAtivos, error: benErro } = await supabase
     .from("beneficios")
     .select("*")
@@ -663,53 +680,52 @@ async function atualizarHorasCestaBasicaPeloBeneficio(params: {
 
   const beneficioCesta = (beneficiosAtivos ?? [])[0] as Beneficio | undefined;
 
-  // Força atualização imediata da seção Benefícios antes de puxar para o holerite.
   if (beneficioCesta) {
+    // Recalcula a seção Benefícios para manter a tela sincronizada.
     await recalcularBeneficioMes(empresaId, beneficioCesta, mes, ano);
+
+    // Depois força o cálculo do funcionário atual com o valor real do cartão.
+    // Isso corrige casos em que beneficios_calculos ficou com valor antigo/parcial, ex: 5h50,
+    // enquanto o cartão/PDF mostra 61h00.
+    const limite = 60;
+    const temDireito = faltas <= 0 && minutosBeneficio <= limite;
+    const motivoPerda =
+      faltas > 0
+        ? `Possui ${faltas} falta(s) injustificada(s) no mês.`
+        : minutosBeneficio > limite
+          ? `Débito de ${Math.floor(minutosBeneficio / 60)}h${String(minutosBeneficio % 60).padStart(2, "0")} no mês (limite: 1h).`
+          : null;
+
+    await supabase.from("beneficios_calculos").upsert(
+      {
+        empresa_id: empresaId,
+        beneficio_id: beneficioCesta.id,
+        funcionario_id: funcionarioId,
+        mes_referencia: mes,
+        ano_referencia: ano,
+        total_atraso_minutos: minutosBeneficio,
+        dias_com_atraso: diasComAtraso,
+        faltas_injustificadas: faltas,
+        horas_extras_minutos: 0,
+        tem_direito: temDireito,
+        status: temDireito ? "tem_direito" : "nao_tem_direito",
+        motivo_perda: motivoPerda,
+        valor_estimado: temDireito ? Number(beneficioCesta.valor_maximo || 0) : 0,
+        calculado_em: new Date().toISOString(),
+      },
+      {
+        onConflict: "funcionario_id,beneficio_id,mes_referencia,ano_referencia",
+      },
+    );
   }
-
-  let minutosBeneficio = 0;
-  let origem = "cartao";
-
-  if (beneficioCesta) {
-    const { data: calc, error: calcErro } = await supabase
-      .from("beneficios_calculos")
-      .select("total_atraso_minutos,faltas_injustificadas,dias_com_atraso,calculado_em")
-      .eq("empresa_id", empresaId)
-      .eq("beneficio_id", beneficioCesta.id)
-      .eq("funcionario_id", funcionarioId)
-      .eq("mes_referencia", mes)
-      .eq("ano_referencia", ano)
-      .maybeSingle();
-
-    if (calcErro) throw calcErro;
-
-    if (calc) {
-      minutosBeneficio = Math.max(0, Number(calc.total_atraso_minutos || 0));
-      origem = "beneficios_calculos";
-    }
-  }
-
-  // Plano B: se não houver benefício cadastrado/calculado, calcula direto do cartão de ponto
-  // usando todos os registros do mês de referência.
-  if (minutosBeneficio === 0) {
-    const { carregarCartao } = await import("@/lib/cartao");
-    const cartao = await carregarCartao(funcionarioId, ano, mes);
-    minutosBeneficio = cartao.dias.reduce((s, d) => {
-      if (d.bancoHorasMinutos < 0) return s + Math.abs(Number(d.bancoHorasMinutos || 0));
-      return s;
-    }, 0);
-  }
-
-  const horasBeneficio = roundAutoHolerite(minutosBeneficio / 60);
 
   // 18445 é a rubrica original de QTD HORAS CESTA BASICA.
   setLinhaInformativa("18445", "QTD HORAS CESTA BASICA", horasBeneficio);
 
-  // 09998 também fica sincronizada, como última rubrica informativa.
+  // 09998 também fica sincronizada como última rubrica informativa.
   setLinhaInformativa("09998", "QTD HORAS CESTA BASICA", horasBeneficio);
 
-  return { linhas: novas, minutos: minutosBeneficio, origem };
+  return { linhas: novas, minutos: minutosBeneficio, origem: "cartao_de_ponto" };
 }
 
 async function adicionarFechamentoBancoHorasHolerite(params: {
