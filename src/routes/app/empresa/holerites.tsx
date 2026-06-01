@@ -462,6 +462,7 @@ const grupoLancamentoHolerite = (linha: LancEdit) => {
   // 1) todos os proventos
   // 2) todos os descontos
   // 3) todos os informativos
+  if (linha.codigo === "09990") return 2;
   if (Number(linha.provento || 0) > 0) return 0;
   if (Number(linha.desconto || 0) > 0) return 1;
   return 2;
@@ -470,8 +471,9 @@ const grupoLancamentoHolerite = (linha: LancEdit) => {
 const pesoInformativoHolerite = (codigo: string) => {
   // Dentro dos informativos:
   // banco de horas fica no fim, e QTDE HORAS BENEF fica obrigatoriamente por último.
-  if (codigo === CODIGO_QTDE_HORAS_BENEF) return 2;
-  if (codigo === "28651" || codigo === "28652") return 1;
+  if (codigo === CODIGO_QTDE_HORAS_BENEF) return 3;
+  if (codigo === "28651" || codigo === "28652") return 2;
+  if (codigo === "09990") return 1;
   return 0;
 };
 
@@ -976,6 +978,102 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   };
 }
 
+const descricaoPadraoRubricaHolerite = (codigo: string) => {
+  if (codigo === "09990") return "INSUFICIENCIA DE SALDO";
+  if (codigo === "09995") return "COMP INSUF MES ANTERIOR";
+  return "";
+};
+
+const sincronizarDescricoesRubricasHolerite = (
+  linhas: LancEdit[],
+  rubricas: Array<{ codigo: string; descricao: string }>,
+) => {
+  const porCodigo = new Map(rubricas.map((r) => [r.codigo, r.descricao]));
+
+  return linhas.map((linha) => {
+    const descricaoAtualizada = porCodigo.get(linha.codigo) || descricaoPadraoRubricaHolerite(linha.codigo);
+    return descricaoAtualizada ? { ...linha, descricao: descricaoAtualizada } : linha;
+  });
+};
+
+const aplicarInsuficienciaSaldoHolerite = (linhas: LancEdit[]) => {
+  const semInsuf = linhas.filter((linha) => linha.codigo !== "09990");
+
+  const totalProventos = semInsuf.reduce((s, linha) => s + Number(linha.provento || 0), 0);
+  const totalDescontos = semInsuf.reduce((s, linha) => s + Number(linha.desconto || 0), 0);
+  const insuficiencia = roundAutoHolerite(Math.max(0, totalDescontos - totalProventos));
+
+  if (insuficiencia <= 0) return semInsuf;
+
+  return [
+    ...semInsuf,
+    {
+      _k: crypto.randomUUID(),
+      codigo: "09990",
+      descricao: "INSUFICIENCIA DE SALDO",
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: insuficiencia,
+    },
+  ];
+};
+
+const aplicarCompInsufMesAnteriorHolerite = async (params: {
+  empresaId: string;
+  funcionarioId: string;
+  ano: number;
+  mes: number;
+  linhas: LancEdit[];
+}) => {
+  const { empresaId, funcionarioId, ano, mes, linhas } = params;
+  const novas = linhas.filter((linha) => linha.codigo !== "09995");
+
+  const mesAnterior = mes === 1 ? 12 : mes - 1;
+  const anoAnterior = mes === 1 ? ano - 1 : ano;
+
+  const { data: holeriteAnterior } = await supabase
+    .from("holerites")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("funcionario_id", funcionarioId)
+    .eq("ano_referencia", anoAnterior)
+    .eq("mes_referencia", mesAnterior)
+    .eq("folha_tipo", "MENSAL")
+    .maybeSingle();
+
+  if (!holeriteAnterior?.id) return novas;
+
+  const { data: lancamentosAnterior } = await supabase
+    .from("holerite_lancamentos")
+    .select("codigo,resultado")
+    .eq("holerite_id", holeriteAnterior.id);
+
+  const valorInsufAnterior = roundAutoHolerite(
+    Math.max(
+      0,
+      ...(lancamentosAnterior ?? [])
+        .filter((linha) => linha.codigo === "09990")
+        .map((linha) => Math.abs(Number(linha.resultado || 0))),
+    ),
+  );
+
+  if (valorInsufAnterior <= 0) return novas;
+
+  return [
+    ...novas,
+    {
+      _k: crypto.randomUUID(),
+      codigo: "09995",
+      descricao: "COMP INSUF MES ANTERIOR",
+      qtde: 1,
+      provento: 0,
+      desconto: valorInsufAnterior,
+      resultado: -valorInsufAnterior,
+    },
+  ];
+};
+
 const formatHorasDecimais = (v: number | null | undefined) => {
   if (v == null) return "";
   const sinal = Number(v) < 0 ? "-" : "";
@@ -987,8 +1085,11 @@ const formatHorasDecimais = (v: number | null | undefined) => {
 
 const formatResultado = (l: LancEdit) => {
   if (l.codigo === "09998") return formatHorasDecimais(Number(l.resultado || 0));
+  if (l.codigo === "09990") {
+    const valor = Math.abs(Number(l.resultado || 0));
+    return valor > 0 ? valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+  }
   if (l.resultado == null || Number(l.resultado) === 0) return "";
-  if (l.codigo === "09990") return "";
   if (["18445", "28651", "28652"].includes(l.codigo)) return formatHorasDecimais(l.resultado);
   return Number(l.resultado).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 };
@@ -1117,30 +1218,33 @@ function EditorDialog({
         .order("ordem");
       setLancamentos(
         ordenarLancamentosHolerite(
-          (ls ?? []).map((l) => {
-            const provento = Number(l.provento ?? 0);
-            const desconto = Number(l.desconto ?? 0);
-            const resultado = Number(l.resultado ?? 0);
-            const qtde = l.qtde != null ? Number(l.qtde) : null;
-            const legadoSaldoEmFerias =
-              l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
-            const legadoInsufMesAnteriorEmFerias =
-              l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
-            return {
-              _k: l.id,
-              id: l.id,
-              codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
-              descricao: legadoSaldoEmFerias
-                ? "INSUFICIENCIA DE SALDO"
-                : legadoInsufMesAnteriorEmFerias
-                  ? "INSUF MES ANTERIOR"
-                  : l.descricao,
-              qtde,
-              provento,
-              desconto,
-              resultado,
-            };
-          }),
+          sincronizarDescricoesRubricasHolerite(
+            (ls ?? []).map((l) => {
+              const provento = Number(l.provento ?? 0);
+              const desconto = Number(l.desconto ?? 0);
+              const resultado = Number(l.resultado ?? 0);
+              const qtde = l.qtde != null ? Number(l.qtde) : null;
+              const legadoSaldoEmFerias =
+                l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
+              const legadoInsufMesAnteriorEmFerias =
+                l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
+              return {
+                _k: l.id,
+                id: l.id,
+                codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
+                descricao: legadoSaldoEmFerias
+                  ? "INSUFICIENCIA DE SALDO"
+                  : legadoInsufMesAnteriorEmFerias
+                    ? "INSUF MES ANTERIOR"
+                    : l.descricao,
+                qtde,
+                provento,
+                desconto,
+                resultado,
+              };
+            }),
+            rubricas,
+          ),
         ),
       );
     })();
@@ -1174,7 +1278,15 @@ function EditorDialog({
   }, [mes, ano, dataPagamentoTocada]);
 
   const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
+
+  useEffect(() => {
+    if (rubricas.length === 0) return;
+    setLancamentos((prev) => sincronizarDescricoesRubricasHolerite(prev, rubricas));
+  }, [rubricas]);
+
   const entraNoLiquido = (l: LancEdit) => {
+    if (l.codigo === "09990") return false;
+    if (l.codigo === "09995") return true;
     const r = rubricaPorCodigo.get(l.codigo);
     return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
   };
@@ -1263,7 +1375,12 @@ function EditorDialog({
       }
       if (!hid) throw new Error("Falha ao criar holerite");
 
-      const linhas = ordenarLancamentosHolerite(lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim()));
+      const linhas = ordenarLancamentosHolerite(
+        sincronizarDescricoesRubricasHolerite(
+          aplicarInsuficienciaSaldoHolerite(lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim())),
+          rubricas,
+        ),
+      );
       if (linhas.length > 0) {
         const { error } = await supabase.from("holerite_lancamentos").insert(
           linhas.map((l, i) => ({
@@ -1500,7 +1617,20 @@ function EditorDialog({
                         linhas: linhasComValeTransporte.linhas,
                       });
 
-                      const linhasOrdenadas = ordenarLancamentosHolerite(fechamentoBancoHoras.linhas);
+                      const linhasComCompInsufAnterior = await aplicarCompInsufMesAnteriorHolerite({
+                        empresaId,
+                        funcionarioId: funcId,
+                        ano,
+                        mes,
+                        linhas: fechamentoBancoHoras.linhas,
+                      });
+
+                      const linhasComInsuficiencia = aplicarInsuficienciaSaldoHolerite(linhasComCompInsufAnterior);
+                      const linhasComDescricoesAtuais = sincronizarDescricoesRubricasHolerite(
+                        linhasComInsuficiencia,
+                        rubricas,
+                      );
+                      const linhasOrdenadas = ordenarLancamentosHolerite(linhasComDescricoesAtuais);
 
                       setLancamentos(linhasOrdenadas);
 
