@@ -24,6 +24,25 @@ import { BulkJustificarDialog } from "@/components/BulkJustificarDialog";
 import { carregarVinculosAtivos, DIAS_SEMANA, resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 import type { TipoPonto } from "@/lib/ponto";
 
+const limparNomeArquivoCartao = (valor: string) =>
+  valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "")
+    .toUpperCase();
+
+const gerarNomePdfCartao = (nomeFuncionario: string) => {
+  const agora = new Date();
+  const dd = String(agora.getDate()).padStart(2, "0");
+  const mm = String(agora.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(agora.getFullYear());
+  const hh = String(agora.getHours()).padStart(2, "0");
+  const min = String(agora.getMinutes()).padStart(2, "0");
+  const nomeLimpo = limparNomeArquivoCartao(nomeFuncionario || "FUNCIONARIO");
+
+  return `CARTAO-${nomeLimpo}-TURBOLANCHES-${dd}${mm}${yyyy}_${hh}${min}.pdf`;
+};
+
 export const Route = createFileRoute("/app/empresa/cartao-ponto")({
   component: CartaoEmpresaPage,
 });
@@ -342,8 +361,8 @@ function CartaoEmpresaPage() {
         status: cartao?.status ?? "aberto",
       });
 
-      salvarPdfArquivo(doc, `V9-cartao-${f.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`);
-      toast.success(`PDF V9 gerado com matrícula ${matriculaFinal}.`);
+      salvarPdfArquivo(doc, gerarNomePdfCartao(f.nome));
+      toast.success("PDF gerado com sucesso.");
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
@@ -375,7 +394,7 @@ function CartaoEmpresaPage() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={baixarPdf} disabled={!resumo}>
             <Download className="h-4 w-4 mr-1" />
-            BAIXAR PDF
+            PDF V9 TESTE
           </Button>
         </div>
       </div>
