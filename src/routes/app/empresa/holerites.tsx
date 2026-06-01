@@ -7,12 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
@@ -22,17 +18,26 @@ import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from 
 import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
+import { carregarCartao } from "@/lib/cartao";
 
 export const Route = createFileRoute("/app/empresa/holerites")({
   component: HoleritesPage,
 });
 
 type Func = {
-  id: string; nome: string; cargo: string | null; cpf: string | null;
-  rg: string | null; endereco: string | null;
-  data_admissao: string | null; salario: number | null;
-  banco_agencia: string | null; conta: string | null; lotacao: string | null;
-  num_dep_irrf: number | null; num_dep_sal_fam: number | null;
+  id: string;
+  nome: string;
+  cargo: string | null;
+  cpf: string | null;
+  rg: string | null;
+  endereco: string | null;
+  data_admissao: string | null;
+  salario: number | null;
+  banco_agencia: string | null;
+  conta: string | null;
+  lotacao: string | null;
+  num_dep_irrf: number | null;
+  num_dep_sal_fam: number | null;
   matricula: string | null;
 };
 type Holerite = {
@@ -67,16 +72,25 @@ function HoleritesPage() {
 
   useEffect(() => {
     if (!empresaId) return;
-    void supabase.from("funcionarios").select("id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula")
-      .eq("empresa_id", empresaId).eq("status", "ativo").order("nome")
+    void supabase
+      .from("funcionarios")
+      .select(
+        "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+      )
+      .eq("empresa_id", empresaId)
+      .eq("status", "ativo")
+      .order("nome")
       .then(({ data }) => setFuncs((data ?? []) as Func[]));
   }, [empresaId]);
 
   const carregar = async () => {
     if (!empresaId) return;
     setLoading(true);
-    let q = supabase.from("holerites")
-      .select("id,funcionario_id,mes_referencia,ano_referencia,pdf_url,liberado,liberado_em,acessado_em,total_liquido,funcionarios(nome)")
+    let q = supabase
+      .from("holerites")
+      .select(
+        "id,funcionario_id,mes_referencia,ano_referencia,pdf_url,liberado,liberado_em,acessado_em,total_liquido,funcionarios(nome)",
+      )
       .eq("empresa_id", empresaId)
       .eq("mes_referencia", mes)
       .eq("ano_referencia", ano)
@@ -90,14 +104,21 @@ function HoleritesPage() {
     setSelecionados(new Set());
     setLoading(false);
   };
-  useEffect(() => { void carregar(); /* eslint-disable-next-line */ }, [empresaId, mes, ano, funcionarioId, status]);
+  useEffect(() => {
+    void carregar(); /* eslint-disable-next-line */
+  }, [empresaId, mes, ano, funcionarioId, status]);
 
   const liberar = async (ids: string[]) => {
     if (!user || ids.length === 0) return;
-    const { error } = await supabase.from("holerites").update({
-      liberado: true, status: "liberado",
-      liberado_por: user.id, liberado_em: new Date().toISOString(),
-    }).in("id", ids);
+    const { error } = await supabase
+      .from("holerites")
+      .update({
+        liberado: true,
+        status: "liberado",
+        liberado_por: user.id,
+        liberado_em: new Date().toISOString(),
+      })
+      .in("id", ids);
     if (error) return toast.error(error.message);
     toast.success(`${ids.length} holerite(s) liberado(s)`);
     await carregar();
@@ -105,9 +126,15 @@ function HoleritesPage() {
 
   const negarAcesso = async (h: Holerite) => {
     if (!confirm("Revogar acesso do funcionário a este holerite?")) return;
-    const { error } = await supabase.from("holerites").update({
-      liberado: false, status: "pendente", liberado_em: null, liberado_por: null,
-    }).eq("id", h.id);
+    const { error } = await supabase
+      .from("holerites")
+      .update({
+        liberado: false,
+        status: "pendente",
+        liberado_em: null,
+        liberado_por: null,
+      })
+      .eq("id", h.id);
     if (error) return toast.error(error.message);
     toast.success("Acesso revogado");
     await carregar();
@@ -141,12 +168,15 @@ function HoleritesPage() {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
   };
 
-  const totais = useMemo(() => ({
-    total: lista.length,
-    liberados: lista.filter((h) => h.liberado).length,
-    pendentes: lista.filter((h) => !h.liberado).length,
-    acessados: lista.filter((h) => h.acessado_em).length,
-  }), [lista]);
+  const totais = useMemo(
+    () => ({
+      total: lista.length,
+      liberados: lista.filter((h) => h.liberado).length,
+      pendentes: lista.filter((h) => !h.liberado).length,
+      acessados: lista.filter((h) => h.acessado_em).length,
+    }),
+    [lista],
+  );
 
   if (!empresaId) return <p className="text-sm text-muted-foreground">Cadastre primeiro os dados da empresa.</p>;
 
@@ -155,34 +185,62 @@ function HoleritesPage() {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-xl font-bold">Holerites</h2>
-          <p className="text-sm text-muted-foreground">Crie holerites detalhados e libere o acesso para o funcionário baixar o PDF.</p>
+          <p className="text-sm text-muted-foreground">
+            Crie holerites detalhados e libere o acesso para o funcionário baixar o PDF.
+          </p>
         </div>
-        {podeEditar && <Button onClick={() => { setEditandoId(null); setEditorOpen(true); }}><Plus className="h-4 w-4 mr-1" />Novo holerite</Button>}
+        {podeEditar && (
+          <Button
+            onClick={() => {
+              setEditandoId(null);
+              setEditorOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Novo holerite
+          </Button>
+        )}
       </div>
 
       <Card>
         <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
           <Fld label="Mês">
             <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <SelectItem key={m} value={String(m)}>{mesNome(m)}</SelectItem>)}
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {mesNome(m)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Fld>
-          <Fld label="Ano"><Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} /></Fld>
+          <Fld label="Ano">
+            <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} />
+          </Fld>
           <Fld label="Funcionário">
             <Select value={funcionarioId} onValueChange={setFuncionarioId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
-                {funcs.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+                {funcs.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Fld>
           <Fld label="Status">
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="liberado">Liberado</SelectItem>
@@ -193,7 +251,8 @@ function HoleritesPage() {
           <div className="flex items-end">
             {podeEditar && selecionados.size > 0 && (
               <Button onClick={() => liberar(Array.from(selecionados))} className="w-full">
-                <CheckCircle2 className="h-4 w-4 mr-1" />Liberar ({selecionados.size})
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Liberar ({selecionados.size})
               </Button>
             )}
           </div>
@@ -209,69 +268,125 @@ function HoleritesPage() {
 
       <Card>
         <CardContent className="p-0">
-          {loading ? <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div>
-            : lista.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Nenhum holerite para esse período.</div>
-            : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                    <tr>
-                      {podeEditar && <th className="p-2 w-8">
-                        <input type="checkbox"
-                          checked={selecionados.size > 0 && selecionados.size === lista.filter((h) => !h.liberado).length}
+          {loading ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Carregando...</div>
+          ) : lista.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Nenhum holerite para esse período.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                  <tr>
+                    {podeEditar && (
+                      <th className="p-2 w-8">
+                        <input
+                          type="checkbox"
+                          checked={
+                            selecionados.size > 0 && selecionados.size === lista.filter((h) => !h.liberado).length
+                          }
                           onChange={(e) => {
-                            if (e.target.checked) setSelecionados(new Set(lista.filter((h) => !h.liberado).map((h) => h.id)));
+                            if (e.target.checked)
+                              setSelecionados(new Set(lista.filter((h) => !h.liberado).map((h) => h.id)));
                             else setSelecionados(new Set());
-                          }} />
-                      </th>}
-                      <th className="text-left p-2">Funcionário</th>
-                      <th className="text-left p-2">Mês/Ano</th>
-                      <th className="text-right p-2">Líquido</th>
-                      <th className="text-left p-2">Status</th>
-                      <th className="text-left p-2">Liberado em</th>
-                      <th className="text-left p-2">Acessado em</th>
-                      <th className="text-right p-2">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {lista.map((h) => (
-                      <tr key={h.id} className="hover:bg-muted/30">
-                        {podeEditar && <td className="p-2">
-                          {!h.liberado && <input type="checkbox" checked={selecionados.has(h.id)} onChange={(e) => {
-                            const s = new Set(selecionados);
-                            if (e.target.checked) s.add(h.id); else s.delete(h.id);
-                            setSelecionados(s);
-                          }} />}
-                        </td>}
-                        <td className="p-2 font-medium">{h.funcionarios?.nome ?? "—"}</td>
-                        <td className="p-2">{mesNome(h.mes_referencia)}/{h.ano_referencia}</td>
-                        <td className="p-2 text-right font-mono">{Math.max(0, Number(h.total_liquido || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                          }}
+                        />
+                      </th>
+                    )}
+                    <th className="text-left p-2">Funcionário</th>
+                    <th className="text-left p-2">Mês/Ano</th>
+                    <th className="text-right p-2">Líquido</th>
+                    <th className="text-left p-2">Status</th>
+                    <th className="text-left p-2">Liberado em</th>
+                    <th className="text-left p-2">Acessado em</th>
+                    <th className="text-right p-2">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {lista.map((h) => (
+                    <tr key={h.id} className="hover:bg-muted/30">
+                      {podeEditar && (
                         <td className="p-2">
-                          {h.liberado
-                            ? <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-700">Liberado</span>
-                            : <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700">Pendente</span>}
-                        </td>
-                        <td className="p-2 text-xs">{h.liberado_em ? new Date(h.liberado_em).toLocaleString("pt-BR") : "—"}</td>
-                        <td className="p-2 text-xs">{h.acessado_em ? new Date(h.acessado_em).toLocaleString("pt-BR") : "—"}</td>
-                        <td className="p-2 text-right whitespace-nowrap space-x-1">
-                          {h.pdf_url && <Button size="sm" variant="ghost" onClick={() => download(h)} title="Baixar PDF"><Download className="h-3 w-3" /></Button>}
-                          {podeEditar && <Button size="sm" variant="ghost" onClick={() => { setEditandoId(h.id); setEditorOpen(true); }} title="Editar"><Pencil className="h-3 w-3" /></Button>}
-                          {podeEditar && !h.liberado && (
-                            <Button size="sm" variant="outline" onClick={() => liberar([h.id])}>Liberar</Button>
-                          )}
-                          {podeEditar && h.liberado && (
-                            <Button size="sm" variant="outline" onClick={() => negarAcesso(h)}>Revogar</Button>
-                          )}
-                          {podeEditar && (
-                            <Button size="sm" variant="ghost" onClick={() => remover(h)} title="Remover"><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                          {!h.liberado && (
+                            <input
+                              type="checkbox"
+                              checked={selecionados.has(h.id)}
+                              onChange={(e) => {
+                                const s = new Set(selecionados);
+                                if (e.target.checked) s.add(h.id);
+                                else s.delete(h.id);
+                                setSelecionados(s);
+                              }}
+                            />
                           )}
                         </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                      )}
+                      <td className="p-2 font-medium">{h.funcionarios?.nome ?? "—"}</td>
+                      <td className="p-2">
+                        {mesNome(h.mes_referencia)}/{h.ano_referencia}
+                      </td>
+                      <td className="p-2 text-right font-mono">
+                        {Math.max(0, Number(h.total_liquido || 0)).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="p-2">
+                        {h.liberado ? (
+                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-700">
+                            Liberado
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700">
+                            Pendente
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2 text-xs">
+                        {h.liberado_em ? new Date(h.liberado_em).toLocaleString("pt-BR") : "—"}
+                      </td>
+                      <td className="p-2 text-xs">
+                        {h.acessado_em ? new Date(h.acessado_em).toLocaleString("pt-BR") : "—"}
+                      </td>
+                      <td className="p-2 text-right whitespace-nowrap space-x-1">
+                        {h.pdf_url && (
+                          <Button size="sm" variant="ghost" onClick={() => download(h)} title="Baixar PDF">
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {podeEditar && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditandoId(h.id);
+                              setEditorOpen(true);
+                            }}
+                            title="Editar"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {podeEditar && !h.liberado && (
+                          <Button size="sm" variant="outline" onClick={() => liberar([h.id])}>
+                            Liberar
+                          </Button>
+                        )}
+                        {podeEditar && h.liberado && (
+                          <Button size="sm" variant="outline" onClick={() => negarAcesso(h)}>
+                            Revogar
+                          </Button>
+                        )}
+                        {podeEditar && (
+                          <Button size="sm" variant="ghost" onClick={() => remover(h)} title="Remover">
+                            <Trash2 className="h-3 w-3 text-red-600" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -283,7 +398,10 @@ function HoleritesPage() {
           defaultMes={mes}
           defaultAno={ano}
           onClose={() => setEditorOpen(false)}
-          onSaved={() => { setEditorOpen(false); void carregar(); }}
+          onSaved={() => {
+            setEditorOpen(false);
+            void carregar();
+          }}
         />
       )}
     </div>
@@ -291,13 +409,205 @@ function HoleritesPage() {
 }
 
 function Fld({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><Label className="mb-1 block text-xs">{label}</Label>{children}</div>;
+  return (
+    <div>
+      <Label className="mb-1 block text-xs">{label}</Label>
+      {children}
+    </div>
+  );
 }
 function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  return <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">{label}</div><div className={`text-2xl font-bold ${color ?? ""}`}>{value}</div></CardContent></Card>;
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={`text-2xl font-bold ${color ?? ""}`}>{value}</div>
+      </CardContent>
+    </Card>
+  );
 }
 
 type LancEdit = HolerLancamento & { id?: string; _k: string };
+
+const MINUTO_INICIO_NOTURNO_HOLERITE = 22 * 60;
+const MINUTO_FIM_NOTURNO_HOLERITE = 5 * 60;
+const MINUTOS_HORA_NOTURNA_REDUZIDA_HOLERITE = 52.5;
+const ADICIONAL_NOTURNO_PCT_HOLERITE = 20;
+
+const hmHolerite = (valor: string | null | undefined): number | null => {
+  if (!valor) return null;
+  const [h, m] = valor.slice(0, 5).split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+};
+
+const sobreporHolerite = (inicioA: number, fimA: number, inicioB: number, fimB: number) =>
+  Math.max(0, Math.min(fimA, fimB) - Math.max(inicioA, inicioB));
+
+const minutosNoturnosIntervaloHolerite = (inicio: string | null, fim: string | null) => {
+  const ini = hmHolerite(inicio);
+  const out = hmHolerite(fim);
+  if (ini == null || out == null) return 0;
+
+  let start = ini;
+  let end = out;
+  if (end <= start) end += 1440;
+
+  return (
+    sobreporHolerite(start, end, 0, MINUTO_FIM_NOTURNO_HOLERITE) +
+    sobreporHolerite(start, end, MINUTO_INICIO_NOTURNO_HOLERITE, 1440 + MINUTO_FIM_NOTURNO_HOLERITE)
+  );
+};
+
+const minutosNoturnosRegistradosHolerite = (registrado: {
+  entrada: string | null;
+  saida_intervalo: string | null;
+  retorno_intervalo: string | null;
+  saida_final: string | null;
+}) => {
+  if (!registrado?.entrada || !registrado?.saida_final) return 0;
+
+  if (registrado.saida_intervalo && registrado.retorno_intervalo) {
+    return (
+      minutosNoturnosIntervaloHolerite(registrado.entrada, registrado.saida_intervalo) +
+      minutosNoturnosIntervaloHolerite(registrado.retorno_intervalo, registrado.saida_final)
+    );
+  }
+
+  return minutosNoturnosIntervaloHolerite(registrado.entrada, registrado.saida_final);
+};
+
+const contarDomingosHolerite = (ano: number, mes: number, adm: string | null, des: string | null) => {
+  const totalDias = new Date(ano, mes, 0).getDate();
+  let total = 0;
+
+  for (let dia = 1; dia <= totalDias; dia++) {
+    const iso = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+    if (adm && iso < adm) continue;
+    if (des && iso > des) continue;
+    if (new Date(ano, mes - 1, dia).getDay() === 0) total++;
+  }
+
+  return total;
+};
+
+const roundHolerite = (valor: number) => Math.round(valor * 100) / 100;
+
+async function aplicarAdicionalNoturnoEDsrNaTela(params: {
+  linhas: LancEdit[];
+  funcionario: Func | undefined;
+  funcionarioId: string;
+  ano: number;
+  mes: number;
+  salarioContratual: number;
+  rubricas: Array<{ codigo: string; descricao: string }>;
+}): Promise<LancEdit[]> {
+  const { linhas, funcionario, funcionarioId, ano, mes, salarioContratual, rubricas } = params;
+
+  const salario = Number(funcionario?.salario ?? salarioContratual ?? 0);
+  if (!funcionarioId || salario <= 0) return linhas;
+
+  const cartao = await carregarCartao(funcionarioId, ano, mes);
+
+  const valorHora = salario / 220;
+  const horasExtras = cartao.totalExtras / 60;
+  const valorHorasExtras50 = roundHolerite(valorHora * 1.5 * horasExtras);
+
+  let minutosNoturnos = 0;
+  let diasTrabalho = 0;
+  let diasDsr = 0;
+
+  for (const dia of cartao.dias) {
+    if (dia.foraVinculo) continue;
+
+    if (dia.trabalha) diasTrabalho++;
+    else diasDsr++;
+
+    minutosNoturnos += minutosNoturnosRegistradosHolerite(dia.registrado);
+  }
+
+  const horasNoturnasReduzidas = minutosNoturnos / MINUTOS_HORA_NOTURNA_REDUZIDA_HOLERITE;
+  const valorAdicionalNoturno = roundHolerite(
+    valorHora * (ADICIONAL_NOTURNO_PCT_HOLERITE / 100) * horasNoturnasReduzidas,
+  );
+
+  const domingos = contarDomingosHolerite(
+    ano,
+    mes,
+    funcionario?.data_admissao ?? null,
+    funcionario?.data_desligamento ?? null,
+  );
+  const dsrReflexo = Math.max(diasDsr, domingos, horasExtras > 0 || minutosNoturnos > 0 ? 1 : 0);
+  const divisorTrabalho = Math.max(1, diasTrabalho || 1);
+
+  const valorDsrHorasExtras50 = roundHolerite(
+    horasExtras > 0 ? (valorHorasExtras50 / divisorTrabalho) * dsrReflexo : 0,
+  );
+  const valorDsrAdicionalNoturno = roundHolerite(
+    valorAdicionalNoturno > 0 ? (valorAdicionalNoturno / divisorTrabalho) * dsrReflexo : 0,
+  );
+
+  const buscarDescricao = (codigo: string, fallback: string) =>
+    rubricas.find((rubrica) => rubrica.codigo === codigo)?.descricao || fallback;
+
+  const aplicarLinha = (
+    lista: LancEdit[],
+    codigo: string,
+    descricao: string,
+    qtde: number | null,
+    provento: number,
+    desconto = 0,
+  ) => {
+    const idx = lista.findIndex((linha) => linha.codigo === codigo);
+
+    if (provento <= 0 && desconto <= 0) {
+      if (idx >= 0) lista.splice(idx, 1);
+      return;
+    }
+
+    const payload: LancEdit = {
+      _k: idx >= 0 ? lista[idx]._k : crypto.randomUUID(),
+      id: idx >= 0 ? lista[idx].id : undefined,
+      codigo,
+      descricao,
+      qtde,
+      provento: roundHolerite(provento),
+      desconto: roundHolerite(desconto),
+      resultado: roundHolerite(provento - desconto),
+    };
+
+    if (idx >= 0) lista[idx] = payload;
+    else lista.push(payload);
+  };
+
+  const novasLinhas = [...linhas];
+
+  aplicarLinha(
+    novasLinhas,
+    "00070",
+    buscarDescricao("00070", "ADICIONAL NOTURNO"),
+    roundHolerite(horasNoturnasReduzidas),
+    valorAdicionalNoturno,
+  );
+
+  aplicarLinha(
+    novasLinhas,
+    "00075",
+    buscarDescricao("00075", "DSR SOBRE ADICIONAL NOTURNO"),
+    dsrReflexo,
+    valorDsrAdicionalNoturno,
+  );
+
+  aplicarLinha(
+    novasLinhas,
+    "00115",
+    buscarDescricao("00115", "DSR HORAS EXTRAS 50%"),
+    dsrReflexo,
+    valorDsrHorasExtras50,
+  );
+
+  return novasLinhas;
+}
 
 const formatHorasDecimais = (v: number | null | undefined) => {
   if (v == null || Number(v) === 0) return "";
@@ -316,11 +626,21 @@ const formatResultado = (l: LancEdit) => {
 };
 
 function EditorDialog({
-  empresaId, holeriteId, funcs, defaultMes, defaultAno, onClose, onSaved,
+  empresaId,
+  holeriteId,
+  funcs,
+  defaultMes,
+  defaultAno,
+  onClose,
+  onSaved,
 }: {
-  empresaId: string; holeriteId: string | null; funcs: Func[];
-  defaultMes: number; defaultAno: number;
-  onClose: () => void; onSaved: () => void;
+  empresaId: string;
+  holeriteId: string | null;
+  funcs: Func[];
+  defaultMes: number;
+  defaultAno: number;
+  onClose: () => void;
+  onSaved: () => void;
 }) {
   const [funcId, setFuncId] = useState("");
   const [mes, setMes] = useState(defaultMes);
@@ -346,12 +666,25 @@ function EditorDialog({
     { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
   ]);
   const [salvando, setSalvando] = useState(false);
-  const [rubricas, setRubricas] = useState<Array<{ id: string; codigo: string; descricao: string; tipo: "provento" | "desconto" | "informativo" | "resultado"; tipo_calculo: TipoCalculo; valor_referencia: number; entra_liquido?: boolean }>>([]);
+  const [rubricas, setRubricas] = useState<
+    Array<{
+      id: string;
+      codigo: string;
+      descricao: string;
+      tipo: "provento" | "desconto" | "informativo" | "resultado";
+      tipo_calculo: TipoCalculo;
+      valor_referencia: number;
+      entra_liquido?: boolean;
+    }>
+  >([]);
 
   useEffect(() => {
-    void supabase.from("holerite_rubricas")
+    void supabase
+      .from("holerite_rubricas")
       .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia,entra_liquido")
-      .eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
+      .eq("empresa_id", empresaId)
+      .eq("ativo", true)
+      .order("codigo")
       .then(({ data }) => setRubricas((data ?? []) as typeof rubricas));
     // eslint-disable-next-line
   }, [empresaId]);
@@ -362,7 +695,10 @@ function EditorDialog({
     const f = funcs.find((x) => x.id === funcId);
     const salario = Number(f?.salario ?? salarioContratual ?? 0);
     const calc = await calcularRubrica(r.tipo, r.tipo_calculo, Number(r.valor_referencia), {
-      salario, funcionarioId: funcId, ano, mes,
+      salario,
+      funcionarioId: funcId,
+      ano,
+      mes,
     });
     updLinha(k, {
       codigo: r.codigo,
@@ -378,15 +714,16 @@ function EditorDialog({
   useEffect(() => {
     if (!holeriteId) {
       const ult = new Date(ano, mes, 0).getDate();
-      setPeriodoInicio(`${ano}-${String(mes).padStart(2,"0")}-01`);
-      setPeriodoFim(`${ano}-${String(mes).padStart(2,"0")}-${String(ult).padStart(2,"0")}`);
+      setPeriodoInicio(`${ano}-${String(mes).padStart(2, "0")}-01`);
+      setPeriodoFim(`${ano}-${String(mes).padStart(2, "0")}-${String(ult).padStart(2, "0")}`);
       return;
     }
     void (async () => {
       const { data: h } = await supabase.from("holerites").select("*").eq("id", holeriteId).maybeSingle();
       if (!h) return;
       setFuncId(h.funcionario_id);
-      setMes(h.mes_referencia); setAno(h.ano_referencia);
+      setMes(h.mes_referencia);
+      setAno(h.ano_referencia);
       setFolhaTipo(h.folha_tipo ?? "MENSAL");
       setPeriodoInicio(h.periodo_inicio ?? "");
       setPeriodoFim(h.periodo_fim ?? "");
@@ -404,22 +741,37 @@ function EditorDialog({
       setLotacao(h.lotacao ?? "");
       setObservacoes(h.observacoes ?? "");
       setLiberarJa(h.liberado);
-      const { data: ls } = await supabase.from("holerite_lancamentos")
-        .select("*").eq("holerite_id", holeriteId).order("ordem");
-      setLancamentos((ls ?? []).map((l) => {
-        const provento = Number(l.provento ?? 0);
-        const desconto = Number(l.desconto ?? 0);
-        const resultado = Number(l.resultado ?? 0);
-        const qtde = l.qtde != null ? Number(l.qtde) : null;
-        const legadoSaldoEmFerias = l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
-        const legadoInsufMesAnteriorEmFerias = l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
-        return {
-          _k: l.id, id: l.id,
-          codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
-          descricao: legadoSaldoEmFerias ? "INSUFICIENCIA DE SALDO" : legadoInsufMesAnteriorEmFerias ? "INSUF MES ANTERIOR" : l.descricao,
-          qtde, provento, desconto, resultado,
-        };
-      }));
+      const { data: ls } = await supabase
+        .from("holerite_lancamentos")
+        .select("*")
+        .eq("holerite_id", holeriteId)
+        .order("ordem");
+      setLancamentos(
+        (ls ?? []).map((l) => {
+          const provento = Number(l.provento ?? 0);
+          const desconto = Number(l.desconto ?? 0);
+          const resultado = Number(l.resultado ?? 0);
+          const qtde = l.qtde != null ? Number(l.qtde) : null;
+          const legadoSaldoEmFerias =
+            l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
+          const legadoInsufMesAnteriorEmFerias =
+            l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
+          return {
+            _k: l.id,
+            id: l.id,
+            codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
+            descricao: legadoSaldoEmFerias
+              ? "INSUFICIENCIA DE SALDO"
+              : legadoInsufMesAnteriorEmFerias
+                ? "INSUF MES ANTERIOR"
+                : l.descricao,
+            qtde,
+            provento,
+            desconto,
+            resultado,
+          };
+        }),
+      );
     })();
     // eslint-disable-next-line
   }, [holeriteId]);
@@ -455,13 +807,24 @@ function EditorDialog({
     const r = rubricaPorCodigo.get(l.codigo);
     return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
   };
-  const totalProv = useMemo(() => lancamentos.reduce((s, l) => entraNoLiquido(l) ? s + Number(l.provento || 0) : s, 0), [lancamentos, rubricaPorCodigo]);
-  const totalDesc = useMemo(() => lancamentos.reduce((s, l) => entraNoLiquido(l) ? s + Number(l.desconto || 0) : s, 0), [lancamentos, rubricaPorCodigo]);
+  const totalProv = useMemo(
+    () => lancamentos.reduce((s, l) => (entraNoLiquido(l) ? s + Number(l.provento || 0) : s), 0),
+    [lancamentos, rubricaPorCodigo],
+  );
+  const totalDesc = useMemo(
+    () => lancamentos.reduce((s, l) => (entraNoLiquido(l) ? s + Number(l.desconto || 0) : s), 0),
+    [lancamentos, rubricaPorCodigo],
+  );
   const totalLiq = Math.max(0, totalProv - totalDesc);
 
-  const addLinha = () => setLancamentos((prev) => [...prev, { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 }]);
+  const addLinha = () =>
+    setLancamentos((prev) => [
+      ...prev,
+      { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
+    ]);
   const removerLinha = (k: string) => setLancamentos((prev) => prev.filter((l) => l._k !== k));
-  const updLinha = (k: string, patch: Partial<LancEdit>) => setLancamentos((prev) => prev.map((l) => l._k === k ? { ...l, ...patch } : l));
+  const updLinha = (k: string, patch: Partial<LancEdit>) =>
+    setLancamentos((prev) => prev.map((l) => (l._k === k ? { ...l, ...patch } : l)));
 
   const salvar = async () => {
     if (!funcId) return toast.error("Selecione o funcionário");
@@ -469,17 +832,23 @@ function EditorDialog({
     if (!f) return;
     setSalvando(true);
     try {
-      const { data: emp } = await supabase.from("empresas")
-        .select("nome_fantasia,razao_social,cnpj,endereco,logo_url").eq("id", empresaId).maybeSingle();
-      const logoDataUrl = (await carregarLogoComoDataUrl(turboLogoHolerite)) ?? (await carregarLogoComoDataUrl(emp?.logo_url ?? null));
+      const { data: emp } = await supabase
+        .from("empresas")
+        .select("nome_fantasia,razao_social,cnpj,endereco,logo_url")
+        .eq("id", empresaId)
+        .maybeSingle();
+      const logoDataUrl =
+        (await carregarLogoComoDataUrl(turboLogoHolerite)) ?? (await carregarLogoComoDataUrl(emp?.logo_url ?? null));
 
       const now = new Date().toISOString();
       const { data: u } = await supabase.auth.getUser();
 
       // Upsert holerite (sem PDF ainda)
       const payload = {
-        empresa_id: empresaId, funcionario_id: funcId,
-        mes_referencia: mes, ano_referencia: ano,
+        empresa_id: empresaId,
+        funcionario_id: funcId,
+        mes_referencia: mes,
+        ano_referencia: ano,
         folha_tipo: folhaTipo,
         periodo_inicio: periodoInicio || null,
         periodo_fim: periodoFim || null,
@@ -510,9 +879,13 @@ function EditorDialog({
         if (error) throw error;
         await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
       } else {
-        const { data: ins, error } = await supabase.from("holerites").upsert(payload, {
-          onConflict: "funcionario_id,mes_referencia,ano_referencia,folha_tipo",
-        }).select("id").maybeSingle();
+        const { data: ins, error } = await supabase
+          .from("holerites")
+          .upsert(payload, {
+            onConflict: "funcionario_id,mes_referencia,ano_referencia,folha_tipo",
+          })
+          .select("id")
+          .maybeSingle();
         if (error) throw error;
         hid = ins?.id ?? null;
         if (hid) await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
@@ -542,32 +915,48 @@ function EditorDialog({
         {
           nome_fantasia: emp?.nome_fantasia ?? "",
           razao_social: emp?.razao_social,
-          cnpj: emp?.cnpj, endereco: emp?.endereco,
+          cnpj: emp?.cnpj,
+          endereco: emp?.endereco,
           logoDataUrl,
         },
         {
-          nome: f.nome, cpf: f.cpf, rg: f.rg, endereco: f.endereco,
+          nome: f.nome,
+          cpf: f.cpf,
+          rg: f.rg,
+          endereco: f.endereco,
           cargo: f.cargo,
-          data_admissao: f.data_admissao, matricula: f.matricula,
+          data_admissao: f.data_admissao,
+          matricula: f.matricula,
         },
         {
           folha_tipo: folhaTipo,
-          mes_referencia: mes, ano_referencia: ano,
-          periodo_inicio: periodoInicio, periodo_fim: periodoFim,
+          mes_referencia: mes,
+          ano_referencia: ano,
+          periodo_inicio: periodoInicio,
+          periodo_fim: periodoFim,
           data_pagamento: dataPagamento,
-          banco_agencia: bancoAg, conta,
-          num_dep_irrf: numDepIrrf, num_dep_sal_fam: numDepSalFam,
+          banco_agencia: bancoAg,
+          conta,
+          num_dep_irrf: numDepIrrf,
+          num_dep_sal_fam: numDepSalFam,
           salario_contratual: salarioContratual,
-          total_proventos: totalProv, total_descontos: totalDesc, total_liquido: totalLiq,
-          sal_contrib_inss: salContribInss, base_fgts: baseFgts, fgts_mes: fgtsMes, base_irpf: baseIrpf,
-          lotacao, observacoes,
+          total_proventos: totalProv,
+          total_descontos: totalDesc,
+          total_liquido: totalLiq,
+          sal_contrib_inss: salContribInss,
+          base_fgts: baseFgts,
+          fgts_mes: fgtsMes,
+          base_irpf: baseIrpf,
+          lotacao,
+          observacoes,
         },
         linhas,
       );
       const blob = doc.output("blob");
-      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2,"0")}-${folhaTipo}.pdf`;
+      const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2, "0")}-${folhaTipo}.pdf`;
       const { error: upErr } = await supabase.storage.from("holerites").upload(path, blob, {
-        upsert: true, contentType: "application/pdf",
+        upsert: true,
+        contentType: "application/pdf",
       });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("holerites").getPublicUrl(path);
@@ -577,24 +966,38 @@ function EditorDialog({
       onSaved();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Erro");
-    } finally { setSalvando(false); }
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{holeriteId ? "Editar holerite" : "Novo holerite"}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{holeriteId ? "Editar holerite" : "Novo holerite"}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Fld label="Funcionário">
               <Select value={funcId} onValueChange={setFuncId} disabled={!!holeriteId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{funcs.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {funcs.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </Fld>
             <Fld label="Tipo de folha">
               <Select value={folhaTipo} onValueChange={setFolhaTipo}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MENSAL">Mensal</SelectItem>
                   <SelectItem value="ADIANTAMENTO">Adiantamento</SelectItem>
@@ -606,21 +1009,65 @@ function EditorDialog({
             </Fld>
             <Fld label="Mês">
               <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <SelectItem key={m} value={String(m)}>{mesNome(m)}</SelectItem>)}</SelectContent>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <SelectItem key={m} value={String(m)}>
+                      {mesNome(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </Fld>
-            <Fld label="Ano"><Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} /></Fld>
-            <Fld label="Período início"><Input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} /></Fld>
-            <Fld label="Período fim"><Input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} /></Fld>
-            <Fld label="Data de pagamento"><Input type="date" value={dataPagamento} onChange={(e) => { setDataPagamento(e.target.value); setDataPagamentoTocada(true); }} /></Fld>
-            <Fld label="Salário contratual"><Input type="number" step="0.01" value={salarioContratual} onChange={(e) => setSalarioContratual(Number(e.target.value))} /></Fld>
-            <Fld label="Banco / Agência"><Input value={bancoAg} onChange={(e) => setBancoAg(e.target.value)} placeholder="237/02402" /></Fld>
-            <Fld label="Conta"><Input value={conta} onChange={(e) => setConta(e.target.value)} /></Fld>
-            <Fld label="Nº Dep. IRRF"><Input type="number" value={numDepIrrf} onChange={(e) => setNumDepIrrf(Number(e.target.value))} /></Fld>
-            <Fld label="Nº Dep. Sal. Fam."><Input type="number" value={numDepSalFam} onChange={(e) => setNumDepSalFam(Number(e.target.value))} /></Fld>
+            <Fld label="Ano">
+              <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} />
+            </Fld>
+            <Fld label="Período início">
+              <Input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} />
+            </Fld>
+            <Fld label="Período fim">
+              <Input type="date" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} />
+            </Fld>
+            <Fld label="Data de pagamento">
+              <Input
+                type="date"
+                value={dataPagamento}
+                onChange={(e) => {
+                  setDataPagamento(e.target.value);
+                  setDataPagamentoTocada(true);
+                }}
+              />
+            </Fld>
+            <Fld label="Salário contratual">
+              <Input
+                type="number"
+                step="0.01"
+                value={salarioContratual}
+                onChange={(e) => setSalarioContratual(Number(e.target.value))}
+              />
+            </Fld>
+            <Fld label="Banco / Agência">
+              <Input value={bancoAg} onChange={(e) => setBancoAg(e.target.value)} placeholder="237/02402" />
+            </Fld>
+            <Fld label="Conta">
+              <Input value={conta} onChange={(e) => setConta(e.target.value)} />
+            </Fld>
+            <Fld label="Nº Dep. IRRF">
+              <Input type="number" value={numDepIrrf} onChange={(e) => setNumDepIrrf(Number(e.target.value))} />
+            </Fld>
+            <Fld label="Nº Dep. Sal. Fam.">
+              <Input type="number" value={numDepSalFam} onChange={(e) => setNumDepSalFam(Number(e.target.value))} />
+            </Fld>
             <div className="col-span-2 sm:col-span-4">
-              <Fld label="Lotação"><Input value={lotacao} onChange={(e) => setLotacao(e.target.value)} placeholder="Ex.: 5001000105 - FABRIL - ANAPOLIS-GO" /></Fld>
+              <Fld label="Lotação">
+                <Input
+                  value={lotacao}
+                  onChange={(e) => setLotacao(e.target.value)}
+                  placeholder="Ex.: 5001000105 - FABRIL - ANAPOLIS-GO"
+                />
+              </Fld>
             </div>
           </div>
 
@@ -628,27 +1075,76 @@ function EditorDialog({
             <div className="flex items-center justify-between p-3 border-b gap-2 flex-wrap">
               <h3 className="font-semibold text-sm">Lançamentos</h3>
               <div className="flex gap-2">
-                <Button size="sm" variant="default" onClick={async () => {
-                  if (!funcId) return toast.error("Selecione o funcionário");
-                  try {
-                    const out = await engineRecalcular(
-                      { empresaId, funcionarioId: funcId, ano, mes },
-                      lancamentos.map((l) => ({ ...l, qtde: l.qtde ?? null, provento: l.provento ?? 0, desconto: l.desconto ?? 0, resultado: l.resultado ?? 0 })),
-                    );
-                    setLancamentos(out.linhas.map((l) => ({
-                      _k: l._k, id: l.id, codigo: l.codigo, descricao: l.descricao,
-                      qtde: l.qtde, provento: l.provento, desconto: l.desconto, resultado: l.resultado,
-                    })));
-                    setSalContribInss(out.salContribInss);
-                    setBaseFgts(out.baseFgts);
-                    setFgtsMes(out.fgtsMes);
-                    setBaseIrpf(out.baseIrpf);
-                    toast.success("Holerite recalculado");
-                  } catch (e: unknown) {
-                    toast.error(e instanceof Error ? e.message : "Erro ao recalcular");
-                  }
-                }}>Recalcular holerite</Button>
-                <Button size="sm" variant="outline" onClick={addLinha}><Plus className="h-3 w-3 mr-1" />Adicionar linha</Button>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={async () => {
+                    if (!funcId) return toast.error("Selecione o funcionário");
+                    try {
+                      const out = await engineRecalcular(
+                        { empresaId, funcionarioId: funcId, ano, mes },
+                        lancamentos.map((l) => ({
+                          ...l,
+                          qtde: l.qtde ?? null,
+                          provento: l.provento ?? 0,
+                          desconto: l.desconto ?? 0,
+                          resultado: l.resultado ?? 0,
+                        })),
+                      );
+
+                      const linhasComReflexos = await aplicarAdicionalNoturnoEDsrNaTela({
+                        linhas: out.linhas.map((l) => ({
+                          _k: l._k,
+                          id: l.id,
+                          codigo: l.codigo,
+                          descricao: l.descricao,
+                          qtde: l.qtde,
+                          provento: l.provento,
+                          desconto: l.desconto,
+                          resultado: l.resultado,
+                        })),
+                        funcionario: funcs.find((f) => f.id === funcId),
+                        funcionarioId: funcId,
+                        ano,
+                        mes,
+                        salarioContratual,
+                        rubricas,
+                      });
+
+                      setLancamentos(linhasComReflexos);
+
+                      const proventosRef = linhasComReflexos.reduce((s, l) => s + Number(l.provento || 0), 0);
+                      const descontosRef = linhasComReflexos.reduce((s, l) => s + Number(l.desconto || 0), 0);
+                      const baseInssRef = Math.max(
+                        0,
+                        proventosRef -
+                          descontosRef +
+                          Number(linhasComReflexos.find((l) => l.codigo === "07000")?.desconto || 0),
+                      );
+
+                      setSalContribInss(roundHolerite(baseInssRef));
+                      setBaseFgts(roundHolerite(proventosRef));
+                      setFgtsMes(roundHolerite(proventosRef * 0.08));
+                      setBaseIrpf(
+                        roundHolerite(
+                          Math.max(
+                            0,
+                            baseInssRef - Number(linhasComReflexos.find((l) => l.codigo === "07000")?.desconto || 0),
+                          ),
+                        ),
+                      );
+                      toast.success("Holerite recalculado");
+                    } catch (e: unknown) {
+                      toast.error(e instanceof Error ? e.message : "Erro ao recalcular");
+                    }
+                  }}
+                >
+                  Recalcular holerite
+                </Button>
+                <Button size="sm" variant="outline" onClick={addLinha}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Adicionar linha
+                </Button>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -660,8 +1156,8 @@ function EditorDialog({
                     <th className="p-1 text-left">Descrição</th>
                     <th className="p-1 text-right w-20">Qtde</th>
                     <th className="p-1 text-right w-24">Provento</th>
-                      <th className="p-1 text-right w-24">Desconto</th>
-                      <th className="p-1 text-right w-24">Resultado</th>
+                    <th className="p-1 text-right w-24">Desconto</th>
+                    <th className="p-1 text-right w-24">Resultado</th>
                     <th className="p-1 w-8"></th>
                   </tr>
                 </thead>
@@ -671,8 +1167,14 @@ function EditorDialog({
                       <td className="p-1">
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 w-full justify-between text-xs font-normal">
-                              <span className="truncate">{l.codigo ? `${l.codigo} · ${l.descricao}` : "Selecionar..."}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-full justify-between text-xs font-normal"
+                            >
+                              <span className="truncate">
+                                {l.codigo ? `${l.codigo} · ${l.descricao}` : "Selecionar..."}
+                              </span>
                               <ChevronsUpDown className="h-3 w-3 opacity-50 shrink-0" />
                             </Button>
                           </PopoverTrigger>
@@ -690,7 +1192,9 @@ function EditorDialog({
                                     >
                                       <span className="font-mono mr-2">{r.codigo}</span>
                                       <span className="truncate flex-1">{r.descricao}</span>
-                                      <span className="text-[10px] uppercase ml-2 opacity-70">{r.tipo === "provento" ? "P" : "D"}</span>
+                                      <span className="text-[10px] uppercase ml-2 opacity-70">
+                                        {r.tipo === "provento" ? "P" : "D"}
+                                      </span>
                                     </CommandItem>
                                   ))}
                                 </CommandGroup>
@@ -699,26 +1203,78 @@ function EditorDialog({
                           </PopoverContent>
                         </Popover>
                       </td>
-                      <td className="p-1"><Input className="h-7 text-xs" value={l.codigo} onChange={(e) => updLinha(l._k, { codigo: e.target.value })} /></td>
-                      <td className="p-1"><Input className="h-7 text-xs" value={l.descricao} onChange={(e) => updLinha(l._k, { descricao: e.target.value })} /></td>
-                      <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.qtde ?? ""} onChange={(e) => updLinha(l._k, { qtde: e.target.value === "" ? null : Number(e.target.value) })} /></td>
-                      <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.provento ?? 0} onChange={(e) => updLinha(l._k, { provento: Number(e.target.value) })} /></td>
-                      <td className="p-1"><Input className="h-7 text-xs text-right" type="number" step="0.01" value={l.desconto ?? 0} onChange={(e) => updLinha(l._k, { desconto: Number(e.target.value) })} /></td>
                       <td className="p-1">
-                        {(!Number(l.provento || 0) && !Number(l.desconto || 0))
-                          ? <Input className="h-7 text-xs text-right" readOnly value={formatResultado(l)} />
-                          : <div className="h-7" />}
+                        <Input
+                          className="h-7 text-xs"
+                          value={l.codigo}
+                          onChange={(e) => updLinha(l._k, { codigo: e.target.value })}
+                        />
                       </td>
-                      <td className="p-1 text-center"><Button size="sm" variant="ghost" onClick={() => removerLinha(l._k)}><Trash2 className="h-3 w-3 text-red-600" /></Button></td>
+                      <td className="p-1">
+                        <Input
+                          className="h-7 text-xs"
+                          value={l.descricao}
+                          onChange={(e) => updLinha(l._k, { descricao: e.target.value })}
+                        />
+                      </td>
+                      <td className="p-1">
+                        <Input
+                          className="h-7 text-xs text-right"
+                          type="number"
+                          step="0.01"
+                          value={l.qtde ?? ""}
+                          onChange={(e) =>
+                            updLinha(l._k, { qtde: e.target.value === "" ? null : Number(e.target.value) })
+                          }
+                        />
+                      </td>
+                      <td className="p-1">
+                        <Input
+                          className="h-7 text-xs text-right"
+                          type="number"
+                          step="0.01"
+                          value={l.provento ?? 0}
+                          onChange={(e) => updLinha(l._k, { provento: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td className="p-1">
+                        <Input
+                          className="h-7 text-xs text-right"
+                          type="number"
+                          step="0.01"
+                          value={l.desconto ?? 0}
+                          onChange={(e) => updLinha(l._k, { desconto: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td className="p-1">
+                        {!Number(l.provento || 0) && !Number(l.desconto || 0) ? (
+                          <Input className="h-7 text-xs text-right" readOnly value={formatResultado(l)} />
+                        ) : (
+                          <div className="h-7" />
+                        )}
+                      </td>
+                      <td className="p-1 text-center">
+                        <Button size="sm" variant="ghost" onClick={() => removerLinha(l._k)}>
+                          <Trash2 className="h-3 w-3 text-red-600" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-muted/30 font-bold text-xs">
                   <tr>
-                    <td colSpan={4} className="p-2 text-right">Totais:</td>
-                    <td className="p-2 text-right font-mono">{totalProv.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-                    <td className="p-2 text-right font-mono">{totalDesc.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-                    <td className="p-2 text-right font-mono text-base bg-primary/10 text-foreground">{Number(totalLiq || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                    <td colSpan={4} className="p-2 text-right">
+                      Totais:
+                    </td>
+                    <td className="p-2 text-right font-mono">
+                      {totalProv.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-2 text-right font-mono">
+                      {totalDesc.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-2 text-right font-mono text-base bg-primary/10 text-foreground">
+                      {Number(totalLiq || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -726,15 +1282,29 @@ function EditorDialog({
             </div>
           </div>
 
-
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Fld label="Sal. contrib. INSS"><Input type="number" step="0.01" value={salContribInss} onChange={(e) => setSalContribInss(Number(e.target.value))} /></Fld>
-            <Fld label="Base cal. FGTS"><Input type="number" step="0.01" value={baseFgts} onChange={(e) => setBaseFgts(Number(e.target.value))} /></Fld>
-            <Fld label="FGTS mês"><Input type="number" step="0.01" value={fgtsMes} onChange={(e) => setFgtsMes(Number(e.target.value))} /></Fld>
-            <Fld label="Base calc. IRPF"><Input type="number" step="0.01" value={baseIrpf} onChange={(e) => setBaseIrpf(Number(e.target.value))} /></Fld>
+            <Fld label="Sal. contrib. INSS">
+              <Input
+                type="number"
+                step="0.01"
+                value={salContribInss}
+                onChange={(e) => setSalContribInss(Number(e.target.value))}
+              />
+            </Fld>
+            <Fld label="Base cal. FGTS">
+              <Input type="number" step="0.01" value={baseFgts} onChange={(e) => setBaseFgts(Number(e.target.value))} />
+            </Fld>
+            <Fld label="FGTS mês">
+              <Input type="number" step="0.01" value={fgtsMes} onChange={(e) => setFgtsMes(Number(e.target.value))} />
+            </Fld>
+            <Fld label="Base calc. IRPF">
+              <Input type="number" step="0.01" value={baseIrpf} onChange={(e) => setBaseIrpf(Number(e.target.value))} />
+            </Fld>
           </div>
 
-          <Fld label="Observações"><Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} /></Fld>
+          <Fld label="Observações">
+            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} />
+          </Fld>
 
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={liberarJa} onChange={(e) => setLiberarJa(e.target.checked)} />
@@ -742,8 +1312,12 @@ function EditorDialog({
           </label>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Salvar e gerar PDF"}</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? "Salvando..." : "Salvar e gerar PDF"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
