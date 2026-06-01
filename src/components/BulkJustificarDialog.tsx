@@ -35,9 +35,18 @@ export function BulkJustificarDialog({ open, onClose, empresaId, funcionarioId, 
   const tipo = tipos.find((t) => t.id === tipoId);
 
   const salvar = async () => {
-    if (!tipo) { toast.error("Selecione uma justificativa"); return; }
-    if (tipo.exige_observacao && !observacao.trim()) { toast.error("Esta justificativa exige observação"); return; }
-    if (tipo.exige_anexo) { toast.error("Justificativas que exigem anexo não podem ser aplicadas em massa por esta tela"); return; }
+    if (!tipo) {
+      toast.error("Selecione uma justificativa");
+      return;
+    }
+    if (tipo.exige_observacao && !observacao.trim()) {
+      toast.error("Esta justificativa exige observação");
+      return;
+    }
+    if (tipo.exige_anexo) {
+      toast.error("Justificativas que exigem anexo não podem ser aplicadas em massa por esta tela");
+      return;
+    }
     setSaving(true);
     try {
       const { data: u } = await supabase.auth.getUser();
@@ -45,9 +54,8 @@ export function BulkJustificarDialog({ open, onClose, empresaId, funcionarioId, 
       const status = tipo.exige_aprovacao ? "pendente" : "aprovada";
       const obs = observacao.trim() || null;
 
-      await supabase.from("justificativas_aplicadas")
-        .delete().eq("funcionario_id", funcionarioId).in("data", datas);
-
+      // Permite mais de uma justificativa por dia.
+      // Não apagamos justificativas existentes.
       const rows = datas.map((dt) => ({
         empresa_id: empresaId,
         funcionario_id: funcionarioId,
@@ -88,9 +96,15 @@ export function BulkJustificarDialog({ open, onClose, empresaId, funcionarioId, 
           <div>
             <Label>Justificativa</Label>
             <Select value={tipoId} onValueChange={setTipoId}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
               <SelectContent>
-                {tipos.map((t) => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
+                {tipos.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {tipo?.descricao && <p className="text-xs text-muted-foreground mt-1">{tipo.descricao}</p>}
@@ -100,12 +114,16 @@ export function BulkJustificarDialog({ open, onClose, empresaId, funcionarioId, 
             <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} rows={2} maxLength={500} />
           </div>
           <p className="text-xs text-muted-foreground">
-            Justificativas existentes nesses dias serão substituídas.
+            As justificativas existentes serão mantidas; esta será adicionada como nova justificativa.
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={salvar} disabled={saving}>{saving ? "Salvando..." : "Aplicar"}</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={salvar} disabled={saving}>
+            {saving ? "Salvando..." : "Adicionar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -641,9 +641,11 @@ function CartaoEmpresaPage() {
                       <td className="p-2">{d.trabalhadoMinutos ? formatMin(d.trabalhadoMinutos) : "—"}</td>
                       <td className="p-2 text-orange-600">{d.extrasMinutos ? formatMin(d.extrasMinutos) : "—"}</td>
                       <td className="p-2 text-xs text-muted-foreground">
-                        {d.justificativa && (
-                          <div className="text-blue-700 font-semibold">{d.justificativa.tipo.nome}</div>
-                        )}
+                        {(d.justificativas ?? []).map((j) => (
+                          <div key={j.id} className="text-blue-700 font-semibold">
+                            {j.tipo.nome}
+                          </div>
+                        ))}
                         {d.observacao && <div>{d.observacao}</div>}
                       </td>
                       {podeEditar && (
@@ -655,7 +657,7 @@ function CartaoEmpresaPage() {
                             className="h-6 px-2 text-xs"
                           >
                             <FileText className="h-3 w-3 mr-1" />
-                            {d.justificativa ? "Editar just." : "Justificar"}
+                            {d.justificativa ? "Adicionar just." : "Justificar"}
                           </Button>
                         </td>
                       )}
@@ -686,7 +688,7 @@ function CartaoEmpresaPage() {
           empresaId={empresaId}
           funcionarioId={funcId}
           data={justDia.data}
-          justificativaAtualId={justDia.justificativa?.id ?? null}
+          justificativaAtualId={null}
           onSaved={carregar}
         />
       )}

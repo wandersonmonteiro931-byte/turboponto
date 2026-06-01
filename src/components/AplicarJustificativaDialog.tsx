@@ -13,8 +13,6 @@ import { Trash2 } from "lucide-react";
 // é feito por trigger no banco (preencher_marcacoes_esquecimento_registro_trg_fn),
 // garantindo o horário previsto exato em America/Sao_Paulo.
 
-
-
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -26,13 +24,19 @@ type Props = {
 };
 
 export function AplicarJustificativaDialog({
-  open, onClose, empresaId, funcionarioId, data, justificativaAtualId, onSaved,
+  open,
+  onClose,
+  empresaId,
+  funcionarioId,
+  data,
+  justificativaAtualId,
+  onSaved,
 }: Props) {
   const [tipos, setTipos] = useState<JustificativaTipo[]>([]);
   const [tipoId, setTipoId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [dataCompensada, setDataCompensada] = useState("");
-  
+
   const [anexo, setAnexo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +48,7 @@ export function AplicarJustificativaDialog({
     setObservacao("");
     setTipoId("");
     setDataCompensada("");
-    
+
     setAnexo(null);
   }, [open, empresaId]);
 
@@ -78,7 +82,8 @@ export function AplicarJustificativaDialog({
         const ext = anexo.name.split(".").pop()?.toLowerCase() || "bin";
         const path = `${empresaId}/${funcionarioId}/${data}-${crypto.randomUUID()}.${ext}`;
         const up = await supabase.storage.from("justificativas-anexos").upload(path, anexo, {
-          upsert: false, contentType: anexo.type || undefined,
+          upsert: false,
+          contentType: anexo.type || undefined,
         });
         if (up.error) throw up.error;
         anexoUrl = path;
@@ -99,26 +104,24 @@ export function AplicarJustificativaDialog({
         quantidade_minutos: qtdMin,
       };
 
-
       const datasAlvo = tipo.categoria === "troca" ? [data, dataCompensada] : [data];
       const obsTrim = observacao.trim();
-      const obsCross = tipo.categoria === "troca"
-        ? `Troca: ${data.split("-").reverse().join("/")} ↔ ${dataCompensada.split("-").reverse().join("/")}${obsTrim ? ` · ${obsTrim}` : ""}`
-        : (obsTrim || null);
+      const obsCross =
+        tipo.categoria === "troca"
+          ? `Troca: ${data.split("-").reverse().join("/")} ↔ ${dataCompensada.split("-").reverse().join("/")}${obsTrim ? ` · ${obsTrim}` : ""}`
+          : obsTrim || null;
 
-      // remove justificativas anteriores nos dias afetados
-      await supabase.from("justificativas_aplicadas")
-        .delete()
-        .eq("funcionario_id", funcionarioId)
-        .in("data", datasAlvo);
-
+      // Permite mais de uma justificativa no mesmo dia.
+      // Não removemos justificativas anteriores; cada nova aplicação vira uma nova linha.
       const rows = datasAlvo.map((dt) => ({ ...baseRow, data: dt, observacao: obsCross }));
       const { error } = await supabase.from("justificativas_aplicadas").insert(rows);
       if (error) throw error;
 
       // Esquecimento de registro: o trigger no banco preenche as marcações em branco.
 
-      toast.success(status === "aprovada" ? "Justificativa aplicada" : "Justificativa registrada (aguardando aprovação)");
+      toast.success(
+        status === "aprovada" ? "Justificativa aplicada" : "Justificativa registrada (aguardando aprovação)",
+      );
       onSaved();
       onClose();
     } catch (e) {
@@ -132,8 +135,7 @@ export function AplicarJustificativaDialog({
     if (!justificativaAtualId) return;
     if (!window.confirm("Remover a justificativa deste dia?")) return;
     setSaving(true);
-    const { error } = await supabase.from("justificativas_aplicadas")
-      .delete().eq("id", justificativaAtualId);
+    const { error } = await supabase.from("justificativas_aplicadas").delete().eq("id", justificativaAtualId);
     setSaving(false);
     if (error) toast.error(error.message);
     else {
@@ -147,7 +149,7 @@ export function AplicarJustificativaDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Aplicar justificativa</DialogTitle>
+          <DialogTitle>Adicionar justificativa</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -157,16 +159,18 @@ export function AplicarJustificativaDialog({
           <div>
             <Label>Justificativa</Label>
             <Select value={tipoId} onValueChange={setTipoId}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
               <SelectContent>
                 {tipos.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {tipo?.descricao && (
-              <p className="text-xs text-muted-foreground mt-1">{tipo.descricao}</p>
-            )}
+            {tipo?.descricao && <p className="text-xs text-muted-foreground mt-1">{tipo.descricao}</p>}
             {tipo && (
               <div className="text-xs text-muted-foreground mt-1 space-x-2">
                 {tipo.desconta_salario && <span className="text-red-600">Desconta salário</span>}
@@ -178,7 +182,9 @@ export function AplicarJustificativaDialog({
           </div>
           {tipo?.categoria === "troca" && (
             <div>
-              <Label>Dia compensado <span className="text-destructive">*</span></Label>
+              <Label>
+                Dia compensado <span className="text-destructive">*</span>
+              </Label>
               <input
                 type="date"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -191,20 +197,11 @@ export function AplicarJustificativaDialog({
             </div>
           )}
           <div>
-            <Label>
-              Observação{tipo?.exige_observacao && <span className="text-destructive"> *</span>}
-            </Label>
-            <Textarea
-              value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
-              rows={2}
-              maxLength={500}
-            />
+            <Label>Observação{tipo?.exige_observacao && <span className="text-destructive"> *</span>}</Label>
+            <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} rows={2} maxLength={500} />
           </div>
           <div>
-            <Label>
-              Anexo{tipo?.exige_anexo && <span className="text-destructive"> *</span>}
-            </Label>
+            <Label>Anexo{tipo?.exige_anexo && <span className="text-destructive"> *</span>}</Label>
             <input
               type="file"
               accept="image/*,application/pdf"
@@ -223,8 +220,12 @@ export function AplicarJustificativaDialog({
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={salvar} disabled={saving}>{saving ? "Salvando..." : "Aplicar"}</Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button onClick={salvar} disabled={saving}>
+              {saving ? "Salvando..." : "Adicionar"}
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>

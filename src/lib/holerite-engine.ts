@@ -180,6 +180,57 @@ function calcINSS(base: number, faixas: FaixaINSS[]): number {
   return round(b * (f.aliquota / 100) - f.deducao);
 }
 
+function justificativaAutorizaPagarHoraExtra(tipo: { codigo?: string | null; nome?: string | null }): boolean {
+  const codigo = String(tipo.codigo || "")
+    .trim()
+    .toUpperCase();
+  const nome = String(tipo.nome || "")
+    .trim()
+    .toUpperCase();
+
+  return (
+    codigo === "HE_PAGAR" ||
+    codigo === "FECHAMENTO_BH_PAGAR" ||
+    codigo === "FECHAMENTO_BANCO_PAGAR" ||
+    codigo === "FECHAMENTO_BANCO_HORAS_PAGAR" ||
+    (nome.includes("HORA EXTRA") && nome.includes("PAGAR")) ||
+    (nome.includes("FECHAMENTO") && nome.includes("BH") && nome.includes("PAGAR")) ||
+    (nome.includes("FECHAMENTO") && nome.includes("BANCO") && nome.includes("PAGAR"))
+  );
+}
+
+function minutosHoraExtraPagavelDia(d: {
+  extrasMinutos?: number;
+  bancoHorasMinutos?: number;
+  trabalhadoMinutos?: number;
+  justificativas?: Array<{
+    quantidadeMinutos?: number | null;
+    tipo: { codigo?: string | null; nome?: string | null };
+  }>;
+}): number {
+  const justificativas = d.justificativas ?? [];
+  const justificativasPagamento = justificativas.filter((j) => justificativaAutorizaPagarHoraExtra(j.tipo));
+
+  if (!justificativasPagamento.length) return 0;
+
+  return justificativasPagamento.reduce((total, j) => {
+    if (j.quantidadeMinutos != null) return total + Math.max(0, Number(j.quantidadeMinutos || 0));
+
+    const codigo = String(j.tipo.codigo || "")
+      .trim()
+      .toUpperCase();
+    const nome = String(j.tipo.nome || "")
+      .trim()
+      .toUpperCase();
+
+    if (codigo.includes("FECHAMENTO") || nome.includes("FECHAMENTO")) {
+      return total + Math.max(0, Number(d.bancoHorasMinutos || 0), Number(d.extrasMinutos || 0));
+    }
+
+    return total + Math.max(0, Number(d.extrasMinutos || 0));
+  }, 0);
+}
+
 function calcIRRF(base: number, faixas: FaixaIRRF[]): number {
   if (base <= 0) return 0;
   const f = faixas.find((x) => base <= x.ate) ?? faixas[faixas.length - 1];
@@ -256,7 +307,10 @@ export async function recalcular(
   const datasFalta: string[] = [];
   try {
     const cartao = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
-    minHE = cartao.totalExtras;
+    // Hora extra só entra no holerite para pagamento quando houver justificativa:
+    // HORA EXTRA - PAGAR ou FECHAMENTO BH - PAGAR.
+    // HORA EXTRA / CRED BH continua apenas como banco de horas, não como provento.
+    minHE = cartao.dias.reduce((s, d) => s + minutosHoraExtraPagavelDia(d), 0);
     minAtraso = cartao.dias.reduce((s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s), 0);
     numFaltas = cartao.totalFaltas;
     for (const d of cartao.dias) {
@@ -331,7 +385,9 @@ export async function recalcular(
     ]);
     const creditosMin = (creditos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
     const debitosMin = (debitos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
-    minHE = creditosMin;
+    // Fallback seguro: sem o cartão completo não dá para saber se o crédito BH foi autorizado para pagamento.
+    // Portanto, não paga hora extra automaticamente.
+    minHE = 0;
     minAtraso = debitosMin;
     numFaltas = faltas.count ?? 0;
     saldoBHMinutos = creditosMin - debitosMin;
