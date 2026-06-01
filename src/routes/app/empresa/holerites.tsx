@@ -436,16 +436,41 @@ function Stat({ label, value, color }: { label: string; value: string | number; 
 
 type LancEdit = HolerLancamento & { id?: string; _k: string };
 
+const CODIGO_QTDE_HORAS_BENEF = "09998";
+
+const garantirQtdeHorasBenefHolerite = (linhas: LancEdit[]) => {
+  const jaExiste = linhas.some((linha) => linha.codigo === CODIGO_QTDE_HORAS_BENEF);
+
+  if (jaExiste) return linhas;
+
+  return [
+    ...linhas,
+    {
+      _k: crypto.randomUUID(),
+      codigo: CODIGO_QTDE_HORAS_BENEF,
+      descricao: "QTDE HORAS BENEF",
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: 0,
+    },
+  ];
+};
+
 const ordenarLancamentosHolerite = (linhas: LancEdit[]) => {
-  // Banco de horas positivo/negativo deve sempre ficar no final da lista.
-  const codigosBancoHorasFinal = new Set(["28651", "28652"]);
+  // Banco de horas positivo/negativo deve ficar no fim.
+  // QTDE HORAS BENEF deve ficar obrigatoriamente como a última rubrica.
+  const pesoFinal = (codigo: string) => {
+    if (codigo === CODIGO_QTDE_HORAS_BENEF) return 2;
+    if (codigo === "28651" || codigo === "28652") return 1;
+    return 0;
+  };
 
-  return [...linhas].sort((a, b) => {
-    const aBancoHoras = codigosBancoHorasFinal.has(a.codigo);
-    const bBancoHoras = codigosBancoHorasFinal.has(b.codigo);
+  return garantirQtdeHorasBenefHolerite([...linhas]).sort((a, b) => {
+    const pesoA = pesoFinal(a.codigo);
+    const pesoB = pesoFinal(b.codigo);
 
-    if (aBancoHoras && !bBancoHoras) return 1;
-    if (!aBancoHoras && bBancoHoras) return -1;
+    if (pesoA !== pesoB) return pesoA - pesoB;
 
     return 0;
   });
