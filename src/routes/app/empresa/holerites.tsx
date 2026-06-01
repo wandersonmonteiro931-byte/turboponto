@@ -492,9 +492,7 @@ const preencherQtdeRubricasCalculadasHolerite = (linhas: LancEdit[]) => {
 
     // INSS: mostrar a alíquota efetiva/percentual aplicado.
     if (linha.codigo === "07000") {
-      const base = totalProventos > 0 ? totalProventos : salarioBase;
-      const aliquota = base > 0 ? roundAutoHolerite((desconto / base) * 100) : null;
-      return { ...linha, qtde: aliquota };
+      return { ...linha, qtde: 7.5 };
     }
 
     // Vale Transporte: pela regra legal, a QTDE representa o percentual de 6%.
@@ -623,6 +621,28 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
   const { funcionarioId, ano, mes, salario, linhas } = params;
   const novas = [...linhas];
 
+  const removerLinha = (codigo: string) => {
+    const idx = novas.findIndex((linha) => linha.codigo === codigo);
+    if (idx >= 0) novas.splice(idx, 1);
+  };
+
+  const setLinha = (codigo: string, descricao: string, qtde: number | null, provento: number, desconto = 0) => {
+    const idx = novas.findIndex((linha) => linha.codigo === codigo);
+    const linha: LancEdit = {
+      _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
+      id: idx >= 0 ? novas[idx].id : undefined,
+      codigo,
+      descricao,
+      qtde,
+      provento: roundAutoHolerite(provento),
+      desconto: roundAutoHolerite(desconto),
+      resultado: roundAutoHolerite(provento - desconto),
+    };
+
+    if (idx >= 0) novas[idx] = linha;
+    else novas.push(linha);
+  };
+
   const minutosDoSaldoInformativo = () => {
     const linhaPositiva = novas.find((linha) => linha.codigo === "28651");
     const linhaNegativa = novas.find((linha) => linha.codigo === "28652");
@@ -637,33 +657,6 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     return 0;
   };
 
-  const aplicarLinha = (minutos: number) => {
-    const idx = novas.findIndex((linha) => linha.codigo === "00120");
-
-    if (minutos === 0) {
-      if (idx >= 0) novas.splice(idx, 1);
-      return;
-    }
-
-    const horas = roundAutoHolerite(Math.abs(minutos) / 60);
-    const valorHora = salario > 0 ? salario / 220 : 0;
-    const valor = roundAutoHolerite(horas * valorHora);
-
-    const linha: LancEdit = {
-      _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
-      id: idx >= 0 ? novas[idx].id : undefined,
-      codigo: "00120",
-      descricao: "FECHAMENTO BH",
-      qtde: horas,
-      provento: minutos > 0 ? valor : 0,
-      desconto: minutos < 0 ? valor : 0,
-      resultado: minutos > 0 ? valor : -valor,
-    };
-
-    if (idx >= 0) novas[idx] = linha;
-    else novas.push(linha);
-  };
-
   const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
   const fim = new Date(ano, mes, 0).toISOString().slice(0, 10);
 
@@ -676,8 +669,6 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
 
   if (error) {
     console.warn("[holerites] não foi possível carregar fechamento BH", error);
-    aplicarLinha(0);
-    return { linhas: novas, aplicado: false, minutos: 0 };
   }
 
   let minutosPagar = 0;
@@ -713,9 +704,7 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
 
   let minutosFechamento = minutosPagar > 0 ? minutosPagar : minutosDescontar > 0 ? -minutosDescontar : 0;
 
-  // Plano B obrigatório:
-  // se o botão "Fechar banco de horas" já liberou/fechou o cartão, mas por algum motivo
-  // a justificativa não voltou na consulta, usa o saldo informativo do próprio holerite.
+  // Plano B: se o cartão foi fechado/liberado, usa o saldo informativo do próprio holerite.
   if (minutosFechamento === 0) {
     const { data: cartaoFechado } = await supabase
       .from("cartoes_ponto")
@@ -731,7 +720,41 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     }
   }
 
-  aplicarLinha(minutosFechamento);
+  const horas = roundAutoHolerite(Math.abs(minutosFechamento) / 60);
+  const valorHora = salario > 0 ? salario / 220 : 0;
+
+  if (minutosFechamento > 0) {
+    // Fechamento positivo de banco de horas deve ser pago como hora extra 50%.
+    const valorHe50 = roundAutoHolerite(horas * valorHora * 1.5);
+
+    const linhaSalario = novas.find((linha) => linha.codigo === "00005");
+    const diasSalario = Math.max(1, Number(linhaSalario?.qtde || 1));
+    const dsrReflexo = calcularDsrProporcionalAutoHolerite(diasSalario);
+    const valorDsrHe50 = roundAutoHolerite((valorHe50 / diasSalario) * dsrReflexo);
+
+    setLinha("00090", "HORAS EXTRAS 50%", horas, valorHe50, 0);
+    setLinha("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50, 0);
+
+    // Não usar FECHAMENTO BH como provento de hora normal, para evitar pagamento sem adicional.
+    removerLinha("00120");
+  } else if (minutosFechamento < 0) {
+    // Fechamento negativo pode ser descontado como FECHAMENTO BH.
+    const valorDesconto = roundAutoHolerite(horas * valorHora);
+    setLinha("00120", "FECHAMENTO BH", horas, 0, valorDesconto);
+
+    // Sem hora extra paga, não pode existir DSR de HE.
+    removerLinha("00115");
+  } else {
+    removerLinha("00120");
+
+    const he50 = novas.find((linha) => linha.codigo === "00090");
+    if (!he50 || Number(he50.provento || 0) <= 0) removerLinha("00115");
+  }
+
+  // Recalcula o INSS depois de incluir HE/DSR/fechamento BH.
+  const totalProventosRecalculado = novas.reduce((s, linha) => s + Number(linha.provento || 0), 0);
+  const inssRecalculado = calcularInssAutoHolerite(totalProventosRecalculado);
+  setLinha("07000", "INSS MES", 7.5, 0, inssRecalculado);
 
   return {
     linhas: novas,
@@ -1477,12 +1500,7 @@ function EditorDialog({
                         linhas: linhasComValeTransporte.linhas,
                       });
 
-                      const linhasSemDsrHeZerado = fechamentoBancoHoras.linhas.filter((linha) => {
-                        if (linha.codigo !== "00115") return true;
-                        return Number(linha.provento || 0) > 0;
-                      });
-
-                      const linhasOrdenadas = ordenarLancamentosHolerite(linhasSemDsrHeZerado);
+                      const linhasOrdenadas = ordenarLancamentosHolerite(fechamentoBancoHoras.linhas);
 
                       setLancamentos(linhasOrdenadas);
 
