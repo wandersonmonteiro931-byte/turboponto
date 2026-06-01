@@ -1310,11 +1310,36 @@ function EditorDialog({
     setLancamentos((prev) => prev.map((l) => (l._k === k ? { ...l, ...patch } : l)));
 
   const salvar = async () => {
-    if (!funcId) return toast.error("Selecione o funcionário");
-    const f = funcs.find((x) => x.id === funcId);
-    if (!f) return;
+    if (!funcId) {
+      toast.error("Selecione o funcionário");
+      return;
+    }
+
     setSalvando(true);
     try {
+      let f = funcs.find((x) => x.id === funcId) ?? null;
+
+      // Correção: em alguns casos o funcionário não está na lista local
+      // por filtro de status ou tela aberta em edição. Antes o sistema dava
+      // return silencioso e parecia que o botão não fazia nada.
+      if (!f) {
+        const { data: funcionarioBanco, error: funcionarioErro } = await supabase
+          .from("funcionarios")
+          .select(
+            "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+          )
+          .eq("id", funcId)
+          .maybeSingle();
+
+        if (funcionarioErro) throw funcionarioErro;
+
+        if (!funcionarioBanco) {
+          toast.error("Funcionário não encontrado. Atualize a página e tente novamente.");
+          return;
+        }
+
+        f = funcionarioBanco as Func;
+      }
       const { data: emp } = await supabase
         .from("empresas")
         .select("nome_fantasia,razao_social,cnpj,endereco,logo_url")
@@ -1360,7 +1385,8 @@ function EditorDialog({
       if (hid) {
         const { error } = await supabase.from("holerites").update(payload).eq("id", hid);
         if (error) throw error;
-        await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
+        const { error: delErr } = await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
+        if (delErr) throw delErr;
       } else {
         const { data: ins, error } = await supabase
           .from("holerites")
@@ -1371,7 +1397,10 @@ function EditorDialog({
           .maybeSingle();
         if (error) throw error;
         hid = ins?.id ?? null;
-        if (hid) await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
+        if (hid) {
+          const { error: delErr } = await supabase.from("holerite_lancamentos").delete().eq("holerite_id", hid);
+          if (delErr) throw delErr;
+        }
       }
       if (!hid) throw new Error("Falha ao criar holerite");
 
@@ -1453,7 +1482,8 @@ function EditorDialog({
       toast.success("Holerite salvo");
       onSaved();
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro");
+      console.error("[holerites] erro ao salvar/gerar PDF", e);
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar e gerar PDF");
     } finally {
       setSalvando(false);
     }
