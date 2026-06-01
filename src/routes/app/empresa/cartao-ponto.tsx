@@ -288,6 +288,27 @@ function CartaoEmpresaPage() {
     const ultimoDia = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDiaMesSelecionado()).padStart(2, "0")}`;
     const saldoMinutos = Number(resumo.totalBancoHoras || 0);
 
+    const acao =
+      saldoMinutos > 0
+        ? `PAGAR ${formatMin(saldoMinutos)} no holerite`
+        : saldoMinutos < 0
+          ? `DESCONTAR ${formatMin(Math.abs(saldoMinutos))} no holerite`
+          : "fechar sem saldo para pagar ou descontar";
+
+    const confirmar = window.confirm(
+      `Confirmar fechamento do banco de horas?\n\n` +
+        `Funcionário: ${funcs.find((f) => f.id === funcId)?.nome ?? "-"}\n` +
+        `Mês/Ano: ${NOMES_MES[mes - 1]}/${ano}\n` +
+        `Saldo do banco: ${formatMin(saldoMinutos)}\n\n` +
+        `Ação: ${acao}.\n\n` +
+        "Depois disso, o holerite poderá lançar a rubrica 00120 · FECHAMENTO BH.",
+    );
+
+    if (!confirmar) {
+      toast.info("Fechamento do banco de horas cancelado.");
+      return;
+    }
+
     try {
       if (saldoMinutos > 0) {
         const tipoId = await garantirTipoJustificativaBancoHoras("FECHAMENTO_BH_PAGAR", "FECHAMENTO BANCO - PAGAR");

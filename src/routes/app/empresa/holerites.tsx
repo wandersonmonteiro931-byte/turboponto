@@ -613,6 +613,101 @@ const normalizarTipoPontoHolerite = (tipo: string) => {
   return t;
 };
 
+async function adicionarFechamentoBancoHorasHolerite(params: {
+  funcionarioId: string;
+  ano: number;
+  mes: number;
+  salario: number;
+  linhas: LancEdit[];
+}): Promise<{ linhas: LancEdit[]; aplicado: boolean; minutos: number }> {
+  const { funcionarioId, ano, mes, salario, linhas } = params;
+  const novas = [...linhas];
+
+  const aplicarLinha = (minutos: number) => {
+    const idx = novas.findIndex((linha) => linha.codigo === "00120");
+
+    if (minutos === 0) {
+      if (idx >= 0) novas.splice(idx, 1);
+      return;
+    }
+
+    const horas = roundAutoHolerite(Math.abs(minutos) / 60);
+    const valorHora = salario > 0 ? salario / 220 : 0;
+    const valor = roundAutoHolerite(horas * valorHora);
+
+    const linha: LancEdit = {
+      _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
+      id: idx >= 0 ? novas[idx].id : undefined,
+      codigo: "00120",
+      descricao: "FECHAMENTO BH",
+      qtde: horas,
+      provento: minutos > 0 ? valor : 0,
+      desconto: minutos < 0 ? valor : 0,
+      resultado: minutos > 0 ? valor : -valor,
+    };
+
+    if (idx >= 0) novas[idx] = linha;
+    else novas.push(linha);
+  };
+
+  const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  const fim = new Date(ano, mes, 0).toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("justificativas_aplicadas")
+    .select("quantidade_minutos,tipo:justificativas_tipos(codigo,nome)")
+    .eq("funcionario_id", funcionarioId)
+    .gte("data", ini)
+    .lte("data", fim);
+
+  if (error) {
+    console.warn("[holerites] não foi possível carregar fechamento BH", error);
+    aplicarLinha(0);
+    return { linhas: novas, aplicado: false, minutos: 0 };
+  }
+
+  let minutosPagar = 0;
+  let minutosDescontar = 0;
+
+  for (const row of data ?? []) {
+    const tipo = (row as { tipo?: { codigo?: string | null; nome?: string | null } }).tipo;
+    const codigo = String(tipo?.codigo || "")
+      .trim()
+      .toUpperCase();
+    const nome = String(tipo?.nome || "")
+      .trim()
+      .toUpperCase();
+    const qtd = Math.max(0, Number((row as { quantidade_minutos?: number | null }).quantidade_minutos || 0));
+
+    const ehPagar =
+      codigo === "FECHAMENTO_BH_PAGAR" ||
+      codigo === "FECHAMENTO_BANCO_PAGAR" ||
+      codigo === "FECHAMENTO_BANCO_HORAS_PAGAR" ||
+      (nome.includes("FECHAMENTO") && nome.includes("BANCO") && nome.includes("PAGAR")) ||
+      (nome.includes("FECHAMENTO") && nome.includes("BH") && nome.includes("PAGAR"));
+
+    const ehDescontar =
+      codigo === "FECHAMENTO_BANCO_DESC" ||
+      codigo === "FECHAMENTO_BH_DESC" ||
+      codigo === "FECHAMENTO_BANCO_HORAS_DESC" ||
+      (nome.includes("FECHAMENTO") && nome.includes("BANCO") && nome.includes("DESC")) ||
+      (nome.includes("FECHAMENTO") && nome.includes("BH") && nome.includes("DESC"));
+
+    if (ehPagar) minutosPagar += qtd;
+    if (ehDescontar) minutosDescontar += qtd;
+  }
+
+  const minutosFechamento = minutosPagar > 0 ? minutosPagar : minutosDescontar > 0 ? -minutosDescontar : 0;
+
+  aplicarLinha(minutosFechamento);
+
+  return {
+    linhas: novas,
+    aplicado: minutosFechamento !== 0,
+    minutos: minutosFechamento,
+  };
+}
+
 async function adicionarValeTransporteAutomatico(params: {
   funcionarioId: string;
   ano: number;
@@ -1337,7 +1432,15 @@ function EditorDialog({
                         linhas: rubricasObrigatorias.linhas,
                       });
 
-                      const linhasOrdenadas = ordenarLancamentosHolerite(linhasComValeTransporte.linhas);
+                      const fechamentoBancoHoras = await adicionarFechamentoBancoHorasHolerite({
+                        funcionarioId: funcId,
+                        ano,
+                        mes,
+                        salario: Number(funcionarioAtual?.salario ?? salarioContratual ?? 0),
+                        linhas: linhasComValeTransporte.linhas,
+                      });
+
+                      const linhasOrdenadas = ordenarLancamentosHolerite(fechamentoBancoHoras.linhas);
 
                       setLancamentos(linhasOrdenadas);
 
