@@ -306,9 +306,11 @@ export function gerarPdfCartao(opts: {
 
   drawHeaderPair("End:", textoSeguro(empresa.endereco).slice(0, 76), "CNPJ:", textoSeguro(empresa.cnpj));
 
-  drawHeaderPair("Matricula:", matriculaFuncionario, "Cargo:", cargoFuncionario, true);
+  drawHeaderPair("Func:", nomeFuncionario, "Cargo:", cargoFuncionario);
 
-  drawHeaderPair("CPF:", cpfFuncionario, "Func:", nomeFuncionario);
+  drawHeaderPair("Matricula:", matriculaFuncionario, "", "", true);
+
+  drawHeaderPair("CPF:", cpfFuncionario);
 
   if (jornadas && jornadas.length > 0) {
     doc.text("Hor.Trab:", ML, y);
