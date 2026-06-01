@@ -394,7 +394,7 @@ function CartaoEmpresaPage() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={baixarPdf} disabled={!resumo}>
             <Download className="h-4 w-4 mr-1" />
-            PDF V9 TESTE
+            BAIXAR PDF
           </Button>
         </div>
       </div>

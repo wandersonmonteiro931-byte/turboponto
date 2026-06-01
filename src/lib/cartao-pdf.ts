@@ -265,7 +265,7 @@ export function gerarPdfCartao(opts: {
   y += 3.5;
 
   doc.text(`Emissao: ${emissao}`, ML, y);
-  doc.text(`Tol: ${fmtMinHHMM(Number(tol) || 0)}`, pageW / 2, y, {
+  doc.text(``, pageW / 2, y, {
     align: "center",
   });
   doc.text("Pag: 0001", ML + W, y, { align: "right" });
@@ -684,7 +684,7 @@ export function gerarPdfCartao(opts: {
   doc.text(
     `Saldo BH: ${creditos - debitos < 0 ? "-" : ""}${fmtMinHHMM(creditos - debitos)}   Creditos: ${fmtMinHHMM(
       creditos,
-    )}   Debitos: ${fmtMinHHMM(debitos)}   Tol: ${fmtMinHHMM(Number(tol) || 0)}`,
+    )}   Debitos: ${fmtMinHHMM(debitos)}   `,
     ML,
     y,
   );

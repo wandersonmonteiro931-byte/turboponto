@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
-import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown } from "lucide-react";
+import { CheckCircle2, Download, Plus, Trash2, Pencil, ChevronsUpDown, Loader2 } from "lucide-react";
 import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from "@/lib/holerite-pdf";
 import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
@@ -693,6 +693,7 @@ function EditorDialog({
     { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
   ]);
   const [salvando, setSalvando] = useState(false);
+  const [recalculando, setRecalculando] = useState(false);
   const [rubricas, setRubricas] = useState<
     Array<{
       id: string;
@@ -1105,8 +1106,10 @@ function EditorDialog({
                 <Button
                   size="sm"
                   variant="default"
+                  disabled={recalculando}
                   onClick={async () => {
                     if (!funcId) return toast.error("Selecione o funcionário");
+                    setRecalculando(true);
                     try {
                       const out = await engineRecalcular(
                         { empresaId, funcionarioId: funcId, ano, mes },
@@ -1157,10 +1160,19 @@ function EditorDialog({
                       toast.success("Holerite calculado");
                     } catch (e: unknown) {
                       toast.error(e instanceof Error ? e.message : "Erro ao recalcular");
+                    } finally {
+                      setRecalculando(false);
                     }
                   }}
                 >
-                  Recalcular holerite + Noturno/DSR proporcional
+                  {recalculando ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                      Calculando...
+                    </>
+                  ) : (
+                    "Calcular holerite"
+                  )}
                 </Button>
                 <Button size="sm" variant="outline" onClick={addLinha}>
                   <Plus className="h-3 w-3 mr-1" />
