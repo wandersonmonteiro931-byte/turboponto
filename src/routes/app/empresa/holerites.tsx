@@ -452,13 +452,30 @@ const minutosNoturnosAutoHolerite = (inicio: string | null, fim: string | null) 
   return sobreposicaoAutoHolerite(start, end, 0, 5 * 60) + sobreposicaoAutoHolerite(start, end, 22 * 60, 1440 + 5 * 60);
 };
 
-const contarDomingosAutoHolerite = (ano: number, mes: number) => {
-  const totalDias = new Date(ano, mes, 0).getDate();
-  let total = 0;
-  for (let dia = 1; dia <= totalDias; dia++) {
-    if (new Date(ano, mes - 1, dia).getDay() === 0) total++;
-  }
-  return Math.max(1, total);
+const calcularDsrProporcionalAutoHolerite = (diasTrabalhadosOuPagos: number) => {
+  // DSR proporcional:
+  // a cada até 6 dias trabalhados/pagos, considera 1 repouso semanal.
+  // Exemplo: 3 dias pagos => 1 DSR, e não todos os domingos do mês.
+  const dias = Math.max(1, Number(diasTrabalhadosOuPagos || 0));
+  return Math.max(1, Math.ceil(dias / 6));
+};
+
+const calcularInssAutoHolerite = (base: number) => {
+  const b = Math.max(0, Number(base || 0));
+  if (b <= 0) return 0;
+
+  const faixas = [
+    { ate: 1621.0, aliquota: 7.5, deducao: 0 },
+    { ate: 2902.84, aliquota: 9, deducao: 24.32 },
+    { ate: 4354.27, aliquota: 12, deducao: 111.4 },
+    { ate: 8475.55, aliquota: 14, deducao: 198.49 },
+  ];
+
+  const teto = faixas[faixas.length - 1].ate;
+  const baseLimitada = Math.min(b, teto);
+  const faixa = faixas.find((f) => baseLimitada <= f.ate) ?? faixas[faixas.length - 1];
+
+  return roundAutoHolerite(Math.max(0, baseLimitada * (faixa.aliquota / 100) - faixa.deducao));
 };
 
 const normalizarTipoPontoHolerite = (tipo: string) => {
@@ -589,7 +606,7 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   const valorAdicionalNoturno = roundAutoHolerite(valorHora * 0.2 * horasNoturnasReduzidas);
 
   const diasTrabalhados = Math.max(1, porDia.size || diasSalario || 1);
-  const dsrReflexo = contarDomingosAutoHolerite(ano, mes);
+  const dsrReflexo = calcularDsrProporcionalAutoHolerite(diasTrabalhados);
 
   const valorDsrHe50 = roundAutoHolerite(horasExtras > 0 ? (valorHorasExtras50 / diasTrabalhados) * dsrReflexo : 0);
 
@@ -606,9 +623,16 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   aplicarLinhaObrigatoria("00075", "DSR SOBRE ADICIONAL NOTURNO", dsrReflexo, valorDsrAdicionalNoturno);
   aplicarLinhaObrigatoria("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50);
 
+  // Recalcula o INSS depois de inserir adicional noturno e DSR.
+  // Para esse caso de base baixa, usa a faixa de 7,5%; para bases maiores,
+  // respeita a tabela progressiva configurada no próprio sistema.
+  const totalProventosRecalculado = novas.reduce((s, l) => s + Number(l.provento || 0), 0);
+  const inssRecalculado = calcularInssAutoHolerite(totalProventosRecalculado);
+  aplicarLinhaObrigatoria("07000", "INSS MES", null, 0, inssRecalculado);
+
   return {
     linhas: novas,
-    resumo: `00070=${valorAdicionalNoturno.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | 00075=${valorDsrAdicionalNoturno.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | 00115=${valorDsrHe50.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+    resumo: `00070=${valorAdicionalNoturno.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | 00075=${valorDsrAdicionalNoturno.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | 00115=${valorDsrHe50.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | INSS=${inssRecalculado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
   };
 }
 
@@ -1138,7 +1162,7 @@ function EditorDialog({
                     }
                   }}
                 >
-                  Recalcular holerite + Noturno/DSR
+                  Recalcular holerite + Noturno/DSR proporcional
                 </Button>
                 <Button size="sm" variant="outline" onClick={addLinha}>
                   <Plus className="h-3 w-3 mr-1" />
