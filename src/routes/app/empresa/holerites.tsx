@@ -18,7 +18,6 @@ import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from 
 import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
-import { carregarCartao } from "@/lib/cartao";
 
 export const Route = createFileRoute("/app/empresa/holerites")({
   component: HoleritesPage,
@@ -429,179 +428,142 @@ function Stat({ label, value, color }: { label: string; value: string | number; 
 
 type LancEdit = HolerLancamento & { id?: string; _k: string };
 
-const MINUTO_INICIO_NOTURNO_HOLERITE = 22 * 60;
-const MINUTO_FIM_NOTURNO_HOLERITE = 5 * 60;
-const MINUTOS_HORA_NOTURNA_REDUZIDA_HOLERITE = 52.5;
-const ADICIONAL_NOTURNO_PCT_HOLERITE = 20;
+const roundAutoHolerite = (valor: number) => Math.round(valor * 100) / 100;
 
-const hmHolerite = (valor: string | null | undefined): number | null => {
+const hmAutoHolerite = (valor: string | null | undefined): number | null => {
   if (!valor) return null;
   const [h, m] = valor.slice(0, 5).split(":").map(Number);
   if (Number.isNaN(h) || Number.isNaN(m)) return null;
   return h * 60 + m;
 };
 
-const sobreporHolerite = (inicioA: number, fimA: number, inicioB: number, fimB: number) =>
+const sobreposicaoAutoHolerite = (inicioA: number, fimA: number, inicioB: number, fimB: number) =>
   Math.max(0, Math.min(fimA, fimB) - Math.max(inicioA, inicioB));
 
-const minutosNoturnosIntervaloHolerite = (inicio: string | null, fim: string | null) => {
-  const ini = hmHolerite(inicio);
-  const out = hmHolerite(fim);
+const minutosNoturnosAutoHolerite = (inicio: string | null, fim: string | null) => {
+  const ini = hmAutoHolerite(inicio);
+  const out = hmAutoHolerite(fim);
   if (ini == null || out == null) return 0;
 
   let start = ini;
   let end = out;
   if (end <= start) end += 1440;
 
-  return (
-    sobreporHolerite(start, end, 0, MINUTO_FIM_NOTURNO_HOLERITE) +
-    sobreporHolerite(start, end, MINUTO_INICIO_NOTURNO_HOLERITE, 1440 + MINUTO_FIM_NOTURNO_HOLERITE)
-  );
+  return sobreposicaoAutoHolerite(start, end, 0, 5 * 60) + sobreposicaoAutoHolerite(start, end, 22 * 60, 1440 + 5 * 60);
 };
 
-const minutosNoturnosRegistradosHolerite = (registrado: {
-  entrada: string | null;
-  saida_intervalo: string | null;
-  retorno_intervalo: string | null;
-  saida_final: string | null;
-}) => {
-  if (!registrado?.entrada || !registrado?.saida_final) return 0;
-
-  if (registrado.saida_intervalo && registrado.retorno_intervalo) {
-    return (
-      minutosNoturnosIntervaloHolerite(registrado.entrada, registrado.saida_intervalo) +
-      minutosNoturnosIntervaloHolerite(registrado.retorno_intervalo, registrado.saida_final)
-    );
-  }
-
-  return minutosNoturnosIntervaloHolerite(registrado.entrada, registrado.saida_final);
-};
-
-const contarDomingosHolerite = (ano: number, mes: number, adm: string | null, des: string | null) => {
+const contarDomingosAutoHolerite = (ano: number, mes: number) => {
   const totalDias = new Date(ano, mes, 0).getDate();
   let total = 0;
 
   for (let dia = 1; dia <= totalDias; dia++) {
-    const iso = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-    if (adm && iso < adm) continue;
-    if (des && iso > des) continue;
     if (new Date(ano, mes - 1, dia).getDay() === 0) total++;
   }
 
   return total;
 };
 
-const roundHolerite = (valor: number) => Math.round(valor * 100) / 100;
-
-async function aplicarAdicionalNoturnoEDsrNaTela(params: {
-  linhas: LancEdit[];
-  funcionario: Func | undefined;
+async function adicionarNoturnoEDsrAutomatico(params: {
   funcionarioId: string;
   ano: number;
   mes: number;
-  salarioContratual: number;
-  rubricas: Array<{ codigo: string; descricao: string }>;
-}): Promise<LancEdit[]> {
-  const { linhas, funcionario, funcionarioId, ano, mes, salarioContratual, rubricas } = params;
+  salario: number;
+  linhas: LancEdit[];
+}): Promise<{ linhas: LancEdit[]; adicionadas: string[] }> {
+  const { funcionarioId, ano, mes, salario, linhas } = params;
+  const novas = [...linhas];
+  const adicionadas: string[] = [];
 
-  const salario = Number(funcionario?.salario ?? salarioContratual ?? 0);
-  if (!funcionarioId || salario <= 0) return linhas;
+  const aplicarLinha = (codigo: string, descricao: string, qtde: number | null, provento: number, desconto = 0) => {
+    const idx = novas.findIndex((linha) => linha.codigo === codigo);
+    const valorProvento = roundAutoHolerite(provento);
+    const valorDesconto = roundAutoHolerite(desconto);
 
-  const cartao = await carregarCartao(funcionarioId, ano, mes);
-
-  const valorHora = salario / 220;
-  const horasExtras = cartao.totalExtras / 60;
-  const valorHorasExtras50 = roundHolerite(valorHora * 1.5 * horasExtras);
-
-  let minutosNoturnos = 0;
-  let diasTrabalho = 0;
-  let diasDsr = 0;
-
-  for (const dia of cartao.dias) {
-    if (dia.foraVinculo) continue;
-
-    if (dia.trabalha) diasTrabalho++;
-    else diasDsr++;
-
-    minutosNoturnos += minutosNoturnosRegistradosHolerite(dia.registrado);
-  }
-
-  const horasNoturnasReduzidas = minutosNoturnos / MINUTOS_HORA_NOTURNA_REDUZIDA_HOLERITE;
-  const valorAdicionalNoturno = roundHolerite(
-    valorHora * (ADICIONAL_NOTURNO_PCT_HOLERITE / 100) * horasNoturnasReduzidas,
-  );
-
-  const domingos = contarDomingosHolerite(ano, mes, funcionario?.data_admissao ?? null, null);
-  const dsrReflexo = Math.max(diasDsr, domingos, horasExtras > 0 || minutosNoturnos > 0 ? 1 : 0);
-  const divisorTrabalho = Math.max(1, diasTrabalho || 1);
-
-  const valorDsrHorasExtras50 = roundHolerite(
-    horasExtras > 0 ? (valorHorasExtras50 / divisorTrabalho) * dsrReflexo : 0,
-  );
-  const valorDsrAdicionalNoturno = roundHolerite(
-    valorAdicionalNoturno > 0 ? (valorAdicionalNoturno / divisorTrabalho) * dsrReflexo : 0,
-  );
-
-  const buscarDescricao = (codigo: string, fallback: string) =>
-    rubricas.find((rubrica) => rubrica.codigo === codigo)?.descricao || fallback;
-
-  const aplicarLinha = (
-    lista: LancEdit[],
-    codigo: string,
-    descricao: string,
-    qtde: number | null,
-    provento: number,
-    desconto = 0,
-  ) => {
-    const idx = lista.findIndex((linha) => linha.codigo === codigo);
-
-    if (provento <= 0 && desconto <= 0) {
-      if (idx >= 0) lista.splice(idx, 1);
+    if (valorProvento <= 0 && valorDesconto <= 0) {
+      if (idx >= 0) novas.splice(idx, 1);
       return;
     }
 
-    const payload: LancEdit = {
-      _k: idx >= 0 ? lista[idx]._k : crypto.randomUUID(),
-      id: idx >= 0 ? lista[idx].id : undefined,
+    const linha: LancEdit = {
+      _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
+      id: idx >= 0 ? novas[idx].id : undefined,
       codigo,
       descricao,
       qtde,
-      provento: roundHolerite(provento),
-      desconto: roundHolerite(desconto),
-      resultado: roundHolerite(provento - desconto),
+      provento: valorProvento,
+      desconto: valorDesconto,
+      resultado: roundAutoHolerite(valorProvento - valorDesconto),
     };
 
-    if (idx >= 0) lista[idx] = payload;
-    else lista.push(payload);
+    if (idx >= 0) novas[idx] = linha;
+    else novas.push(linha);
+
+    if (!adicionadas.includes(codigo)) adicionadas.push(codigo);
   };
 
-  const novasLinhas = [...linhas];
+  const valorHora = salario > 0 ? salario / 220 : 0;
+  const linhaHE50 = novas.find((linha) => linha.codigo === "00090");
+  const horasExtras = Number(linhaHE50?.qtde || 0);
+  const valorHorasExtras50 = Number(linhaHE50?.provento || 0);
 
-  aplicarLinha(
-    novasLinhas,
-    "00070",
-    buscarDescricao("00070", "ADICIONAL NOTURNO"),
-    roundHolerite(horasNoturnasReduzidas),
-    valorAdicionalNoturno,
+  const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  const fim = new Date(ano, mes, 0).toISOString().slice(0, 10);
+
+  const { data: registros } = await supabase
+    .from("registros_ponto")
+    .select("data_referencia,tipo_ponto,horario_registrado")
+    .eq("funcionario_id", funcionarioId)
+    .gte("data_referencia", ini)
+    .lte("data_referencia", fim);
+
+  const porDia = new Map<string, Record<string, string | null>>();
+
+  for (const r of registros ?? []) {
+    const data = String(r.data_referencia);
+    const atual = porDia.get(data) ?? {
+      entrada: null,
+      saida_intervalo: null,
+      retorno_intervalo: null,
+      saida_final: null,
+    };
+
+    const dataRegistro = new Date(String(r.horario_registrado));
+    const hhmm = `${String(dataRegistro.getHours()).padStart(2, "0")}:${String(dataRegistro.getMinutes()).padStart(2, "0")}`;
+
+    atual[String(r.tipo_ponto)] = hhmm;
+    porDia.set(data, atual);
+  }
+
+  let minutosNoturnos = 0;
+
+  for (const reg of porDia.values()) {
+    if (!reg.entrada || !reg.saida_final) continue;
+
+    if (reg.saida_intervalo && reg.retorno_intervalo) {
+      minutosNoturnos += minutosNoturnosAutoHolerite(reg.entrada, reg.saida_intervalo);
+      minutosNoturnos += minutosNoturnosAutoHolerite(reg.retorno_intervalo, reg.saida_final);
+    } else {
+      minutosNoturnos += minutosNoturnosAutoHolerite(reg.entrada, reg.saida_final);
+    }
+  }
+
+  const horasNoturnasReduzidas = minutosNoturnos / 52.5;
+  const valorAdicionalNoturno = roundAutoHolerite(valorHora * 0.2 * horasNoturnasReduzidas);
+
+  const diasTrabalhados = Math.max(1, porDia.size);
+  const dsrReflexo = Math.max(1, contarDomingosAutoHolerite(ano, mes));
+
+  const valorDsrHe50 = roundAutoHolerite(horasExtras > 0 ? (valorHorasExtras50 / diasTrabalhados) * dsrReflexo : 0);
+
+  const valorDsrAdicionalNoturno = roundAutoHolerite(
+    valorAdicionalNoturno > 0 ? (valorAdicionalNoturno / diasTrabalhados) * dsrReflexo : 0,
   );
 
-  aplicarLinha(
-    novasLinhas,
-    "00075",
-    buscarDescricao("00075", "DSR SOBRE ADICIONAL NOTURNO"),
-    dsrReflexo,
-    valorDsrAdicionalNoturno,
-  );
+  aplicarLinha("00070", "ADICIONAL NOTURNO", roundAutoHolerite(horasNoturnasReduzidas), valorAdicionalNoturno);
+  aplicarLinha("00075", "DSR SOBRE ADICIONAL NOTURNO", dsrReflexo, valorDsrAdicionalNoturno);
+  aplicarLinha("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50);
 
-  aplicarLinha(
-    novasLinhas,
-    "00115",
-    buscarDescricao("00115", "DSR HORAS EXTRAS 50%"),
-    dsrReflexo,
-    valorDsrHorasExtras50,
-  );
-
-  return novasLinhas;
+  return { linhas: novas, adicionadas };
 }
 
 const formatHorasDecimais = (v: number | null | undefined) => {
@@ -1087,48 +1049,42 @@ function EditorDialog({
                         })),
                       );
 
-                      const linhasComReflexos = await aplicarAdicionalNoturnoEDsrNaTela({
-                        linhas: out.linhas.map((l) => ({
-                          _k: l._k,
-                          id: l.id,
-                          codigo: l.codigo,
-                          descricao: l.descricao,
-                          qtde: l.qtde,
-                          provento: l.provento,
-                          desconto: l.desconto,
-                          resultado: l.resultado,
-                        })),
-                        funcionario: funcs.find((f) => f.id === funcId),
+                      const linhasBase = out.linhas.map((l) => ({
+                        _k: l._k,
+                        id: l.id,
+                        codigo: l.codigo,
+                        descricao: l.descricao,
+                        qtde: l.qtde,
+                        provento: l.provento,
+                        desconto: l.desconto,
+                        resultado: l.resultado,
+                      }));
+
+                      const funcionarioAtual = funcs.find((f) => f.id === funcId);
+                      const extrasAuto = await adicionarNoturnoEDsrAutomatico({
                         funcionarioId: funcId,
                         ano,
                         mes,
-                        salarioContratual,
-                        rubricas,
+                        salario: Number(funcionarioAtual?.salario ?? salarioContratual ?? 0),
+                        linhas: linhasBase,
                       });
 
-                      setLancamentos(linhasComReflexos);
+                      setLancamentos(extrasAuto.linhas);
 
-                      const proventosRef = linhasComReflexos.reduce((s, l) => s + Number(l.provento || 0), 0);
-                      const descontosRef = linhasComReflexos.reduce((s, l) => s + Number(l.desconto || 0), 0);
-                      const baseInssRef = Math.max(
-                        0,
-                        proventosRef -
-                          descontosRef +
-                          Number(linhasComReflexos.find((l) => l.codigo === "07000")?.desconto || 0),
-                      );
+                      const totalProventos = extrasAuto.linhas.reduce((s, l) => s + Number(l.provento || 0), 0);
+                      const totalDescontos = extrasAuto.linhas.reduce((s, l) => s + Number(l.desconto || 0), 0);
+                      const descontoInss = Number(extrasAuto.linhas.find((l) => l.codigo === "07000")?.desconto || 0);
 
-                      setSalContribInss(roundHolerite(baseInssRef));
-                      setBaseFgts(roundHolerite(proventosRef));
-                      setFgtsMes(roundHolerite(proventosRef * 0.08));
-                      setBaseIrpf(
-                        roundHolerite(
-                          Math.max(
-                            0,
-                            baseInssRef - Number(linhasComReflexos.find((l) => l.codigo === "07000")?.desconto || 0),
-                          ),
-                        ),
+                      setSalContribInss(roundAutoHolerite(totalProventos));
+                      setBaseFgts(roundAutoHolerite(totalProventos));
+                      setFgtsMes(roundAutoHolerite(totalProventos * 0.08));
+                      setBaseIrpf(roundAutoHolerite(Math.max(0, totalProventos - descontoInss)));
+
+                      toast.success(
+                        extrasAuto.adicionadas.length
+                          ? `Holerite recalculado com adicional noturno/DSR: ${extrasAuto.adicionadas.join(", ")}`
+                          : "Holerite recalculado",
                       );
-                      toast.success("Holerite recalculado");
                     } catch (e: unknown) {
                       toast.error(e instanceof Error ? e.message : "Erro ao recalcular");
                     }
