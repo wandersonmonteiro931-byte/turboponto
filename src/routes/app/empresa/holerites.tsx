@@ -208,7 +208,7 @@ function HoleritesPage() {
       // se a rubrica foi excluída, ela não entra mais no PDF novo.
       // se a descrição foi editada, o PDF usa a descrição nova.
       const rubricasMap = new Map((rubricasAtuais ?? []).map((r) => [r.codigo, r]));
-      const linhasPdf = ordenarLancamentosHolerite(
+      const linhasPdf = prepararLancamentosFinaisHolerite(
         (lancs ?? [])
           .filter((l) => rubricasMap.has(l.codigo))
           .map((l) => ({
@@ -550,6 +550,7 @@ function HoleritesPage() {
 
       {empresaId && editorOpen && (
         <EditorDialog
+          key={editandoId ?? "novo"}
           empresaId={empresaId}
           holeriteId={editandoId}
           funcs={funcs}
@@ -650,6 +651,24 @@ const preencherQtdeRubricasCalculadasHolerite = (linhas: LancEdit[]) => {
     // informa 1 para não deixar a coluna QTDE vazia.
     return { ...linha, qtde: 1 };
   });
+};
+
+const limparLancamentosAutomaticosZeradosHolerite = (linhas: LancEdit[]) => {
+  const codigosNaoEntramZerados = new Set(["00070", "00075", "00115"]);
+
+  return linhas.filter((linha) => {
+    if (!codigosNaoEntramZerados.has(linha.codigo)) return true;
+
+    const provento = Number(linha.provento || 0);
+    const desconto = Number(linha.desconto || 0);
+    const resultado = Number(linha.resultado || 0);
+
+    return provento > 0 || desconto > 0 || resultado !== 0;
+  });
+};
+
+const prepararLancamentosFinaisHolerite = (linhas: LancEdit[]) => {
+  return ordenarLancamentosHolerite(limparLancamentosAutomaticosZeradosHolerite(linhas));
 };
 
 const ordenarLancamentosHolerite = (linhas: LancEdit[]) => {
@@ -1201,13 +1220,25 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
     valorAdicionalNoturno > 0 ? (valorAdicionalNoturno / diasTrabalhados) * dsrReflexo : 0,
   );
 
-  aplicarLinhaObrigatoria(
-    "00070",
-    "ADICIONAL NOTURNO",
-    roundAutoHolerite(horasNoturnasReduzidas),
-    valorAdicionalNoturno,
-  );
-  aplicarLinhaObrigatoria("00075", "DSR SOBRE ADICIONAL NOTURNO", dsrReflexo, valorDsrAdicionalNoturno);
+  const idxAdicionalNoturno = novas.findIndex((linha) => linha.codigo === "00070");
+  if (valorAdicionalNoturno > 0) {
+    aplicarLinhaObrigatoria(
+      "00070",
+      "ADICIONAL NOTURNO",
+      roundAutoHolerite(horasNoturnasReduzidas),
+      valorAdicionalNoturno,
+    );
+  } else if (idxAdicionalNoturno >= 0) {
+    novas.splice(idxAdicionalNoturno, 1);
+  }
+
+  const idxDsrAdicionalNoturno = novas.findIndex((linha) => linha.codigo === "00075");
+  if (valorDsrAdicionalNoturno > 0) {
+    aplicarLinhaObrigatoria("00075", "DSR ADICIONAL NOTURNO", dsrReflexo, valorDsrAdicionalNoturno);
+  } else if (idxDsrAdicionalNoturno >= 0) {
+    novas.splice(idxDsrAdicionalNoturno, 1);
+  }
+
   const idxDsrHe = novas.findIndex((linha) => linha.codigo === "00115");
   if (valorDsrHe50 > 0) {
     aplicarLinhaObrigatoria("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50);
@@ -1218,7 +1249,10 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   // Recalcula o INSS depois de inserir adicional noturno e DSR.
   // Para esse caso de base baixa, usa a faixa de 7,5%; para bases maiores,
   // respeita a tabela progressiva configurada no próprio sistema.
-  const totalProventosRecalculado = novas.reduce((s, l) => s + Number(l.provento || 0), 0);
+  const totalProventosRecalculado = limparLancamentosAutomaticosZeradosHolerite(novas).reduce(
+    (s, l) => s + Number(l.provento || 0),
+    0,
+  );
   const inssRecalculado = calcularInssAutoHolerite(totalProventosRecalculado);
   aplicarLinhaObrigatoria("07000", "INSS MES", null, 0, inssRecalculado);
 
@@ -1441,6 +1475,9 @@ function EditorDialog({
       const ult = new Date(ano, mes, 0).getDate();
       setPeriodoInicio(`${ano}-${String(mes).padStart(2, "0")}-01`);
       setPeriodoFim(`${ano}-${String(mes).padStart(2, "0")}-${String(ult).padStart(2, "0")}`);
+      setLancamentos([
+        { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
+      ]);
       return;
     }
     void (async () => {
@@ -1472,7 +1509,7 @@ function EditorDialog({
         .eq("holerite_id", holeriteId)
         .order("ordem");
       setLancamentos(
-        ordenarLancamentosHolerite(
+        prepararLancamentosFinaisHolerite(
           filtrarRubricasExistentesHolerite(
             sincronizarDescricoesRubricasHolerite(
               (ls ?? []).map((l) => {
@@ -1507,7 +1544,7 @@ function EditorDialog({
       );
     })();
     // eslint-disable-next-line
-  }, [holeriteId]);
+  }, [holeriteId, empresaId, rubricas.length]);
 
   // Auto-preenche dados do funcionário ao selecionar (apenas em novo)
   useEffect(() => {
@@ -1620,7 +1657,7 @@ function EditorDialog({
         rubricas,
       });
 
-      const linhas = ordenarLancamentosHolerite(
+      const linhas = prepararLancamentosFinaisHolerite(
         sincronizarDescricoesRubricasHolerite(
           filtrarRubricasExistentesHolerite(
             aplicarInsuficienciaSaldoHolerite(
@@ -1990,7 +2027,7 @@ function EditorDialog({
                         linhasComInsuficienciaPermitidas,
                         rubricas,
                       );
-                      const linhasOrdenadas = ordenarLancamentosHolerite(linhasComDescricoesAtuais);
+                      const linhasOrdenadas = prepararLancamentosFinaisHolerite(linhasComDescricoesAtuais);
 
                       setLancamentos(linhasOrdenadas);
 
