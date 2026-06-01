@@ -63,6 +63,69 @@ type TabelaLegal = {
 
 const round = (v: number) => Math.round(v * 100) / 100;
 
+const MINUTO_INICIO_NOTURNO = 22 * 60;
+const MINUTO_FIM_NOTURNO = 5 * 60;
+const ADICIONAL_NOTURNO_PCT = 20;
+const MINUTOS_HORA_NOTURNA_REDUZIDA = 52.5;
+
+function sobreposicaoMinutos(inicioA: number, fimA: number, inicioB: number, fimB: number): number {
+  return Math.max(0, Math.min(fimA, fimB) - Math.max(inicioA, inicioB));
+}
+
+function minutosNoturnosIntervalo(inicio: string | null, fim: string | null): number {
+  const ini = hm(inicio);
+  const out = hm(fim);
+  if (ini == null || out == null) return 0;
+
+  let start = ini;
+  let end = out;
+  if (end <= start) end += 1440;
+
+  return (
+    sobreposicaoMinutos(start, end, 0, MINUTO_FIM_NOTURNO) +
+    sobreposicaoMinutos(start, end, MINUTO_INICIO_NOTURNO, 1440 + MINUTO_FIM_NOTURNO)
+  );
+}
+
+function minutosNoturnosDia(registrado: {
+  entrada: string | null;
+  saida_intervalo: string | null;
+  retorno_intervalo: string | null;
+  saida_final: string | null;
+}): number {
+  if (!registrado?.entrada || !registrado?.saida_final) return 0;
+
+  if (registrado.saida_intervalo && registrado.retorno_intervalo) {
+    return (
+      minutosNoturnosIntervalo(registrado.entrada, registrado.saida_intervalo) +
+      minutosNoturnosIntervalo(registrado.retorno_intervalo, registrado.saida_final)
+    );
+  }
+
+  return minutosNoturnosIntervalo(registrado.entrada, registrado.saida_final);
+}
+
+function removerLinhaPorCodigo(linhas: EngineLanc[], codigo: string) {
+  const idx = linhas.findIndex((l) => l.codigo === codigo);
+  if (idx >= 0) linhas.splice(idx, 1);
+}
+
+function contarDomingosNoPeriodo(ano: number, mes: number, adm: string | null, des: string | null): number {
+  const diasMes = new Date(ano, mes, 0).getDate();
+  let total = 0;
+
+  for (let d = 1; d <= diasMes; d++) {
+    const iso = `${ano}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (adm && iso < adm) continue;
+    if (des && iso > des) continue;
+
+    const data = new Date(ano, mes - 1, d);
+    if (data.getDay() === 0) total++;
+  }
+
+  return total;
+}
+
 async function carregarTabela(): Promise<TabelaLegal> {
   const { data } = await supabase
     .from("holerite_tabelas_legais")
@@ -83,9 +146,9 @@ async function carregarTabela(): Promise<TabelaLegal> {
   return {
     // Tabela INSS 2026
     inss_faixas: [
-      { ate: 1621.00, aliquota: 7.5, deducao: 0 },
+      { ate: 1621.0, aliquota: 7.5, deducao: 0 },
       { ate: 2902.84, aliquota: 9, deducao: 24.32 },
-      { ate: 4354.27, aliquota: 12, deducao: 111.40 },
+      { ate: 4354.27, aliquota: 12, deducao: 111.4 },
       { ate: 8475.55, aliquota: 14, deducao: 198.49 },
     ],
     irrf_faixas: [
@@ -163,9 +226,11 @@ export async function recalcular(
   // Carrega rubricas da empresa
   const { data: rubsData } = await supabase
     .from("holerite_rubricas")
-    .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia,ativo,modo,editavel_manual,automatico,incide_inss,incide_fgts,incide_irrf,entra_dsr,entra_liquido,depende_ponto")
+    .select(
+      "id,codigo,descricao,tipo,tipo_calculo,valor_referencia,ativo,modo,editavel_manual,automatico,incide_inss,incide_fgts,incide_irrf,entra_dsr,entra_liquido,depende_ponto",
+    )
     .eq("empresa_id", ctx.empresaId);
-  const rubricas = ((rubsData ?? []) as unknown) as Rubrica[];
+  const rubricas = (rubsData ?? []) as unknown as Rubrica[];
   const porCodigo = new Map(rubricas.map((r) => [r.codigo, r]));
 
   // Ponto do mês: usa o mesmo resumo do cartão de ponto para manter banco de
@@ -178,6 +243,9 @@ export async function recalcular(
   let saldoBHMinutos = 0;
   let dsrPerdidos = 0;
   let minHorasBenef = 0;
+  let minAdicionalNoturno = 0;
+  let diasTrabalhoReflexo = 0;
+  let diasDsrReflexo = 0;
   const datasFalta: string[] = [];
   try {
     const cartao = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
@@ -186,6 +254,24 @@ export async function recalcular(
     numFaltas = cartao.totalFaltas;
     for (const d of cartao.dias) {
       if ((d as { falta?: boolean }).falta) datasFalta.push((d as { data: string }).data);
+
+      if (!(d as { foraVinculo?: boolean }).foraVinculo) {
+        if ((d as { trabalha?: boolean }).trabalha) diasTrabalhoReflexo++;
+        else diasDsrReflexo++;
+      }
+
+      minAdicionalNoturno += minutosNoturnosDia(
+        (
+          d as {
+            registrado: {
+              entrada: string | null;
+              saida_intervalo: string | null;
+              retorno_intervalo: string | null;
+              saida_final: string | null;
+            };
+          }
+        ).registrado,
+      );
     }
     // DSR perdido: 1 por folga/repouso da escala precedida por ao menos uma
     // falta injustificada no período entre a folga anterior (ou admissão) e
@@ -215,9 +301,26 @@ export async function recalcular(
   } catch (e) {
     console.warn("[holerite] falha ao carregar cartão de ponto; usando fallback", e);
     const [creditos, debitos, faltas] = await Promise.all([
-      supabase.from("banco_horas_movimentos").select("minutos").eq("funcionario_id", ctx.funcionarioId).eq("tipo", "credito").gte("data", ini).lte("data", fim),
-      supabase.from("banco_horas_movimentos").select("minutos").eq("funcionario_id", ctx.funcionarioId).eq("tipo", "debito").gte("data", ini).lte("data", fim),
-      supabase.from("dias_falta").select("id", { count: "exact", head: true }).eq("funcionario_id", ctx.funcionarioId).gte("data", ini).lte("data", fim),
+      supabase
+        .from("banco_horas_movimentos")
+        .select("minutos")
+        .eq("funcionario_id", ctx.funcionarioId)
+        .eq("tipo", "credito")
+        .gte("data", ini)
+        .lte("data", fim),
+      supabase
+        .from("banco_horas_movimentos")
+        .select("minutos")
+        .eq("funcionario_id", ctx.funcionarioId)
+        .eq("tipo", "debito")
+        .gte("data", ini)
+        .lte("data", fim),
+      supabase
+        .from("dias_falta")
+        .select("id", { count: "exact", head: true })
+        .eq("funcionario_id", ctx.funcionarioId)
+        .gte("data", ini)
+        .lte("data", fim),
     ]);
     const creditosMin = (creditos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
     const debitosMin = (debitos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
@@ -226,7 +329,31 @@ export async function recalcular(
     numFaltas = faltas.count ?? 0;
     saldoBHMinutos = creditosMin - debitosMin;
   }
+
   const horasHE = minHE / 60;
+  const horasNoturnasReduzidas = minAdicionalNoturno / MINUTOS_HORA_NOTURNA_REDUZIDA;
+  const valorHorasExtras50 = round(valorHora * 1.5 * horasHE);
+  const valorAdicionalNoturno = round(valorHora * (ADICIONAL_NOTURNO_PCT / 100) * horasNoturnasReduzidas);
+
+  const domingosPeriodo = contarDomingosNoPeriodo(
+    ctx.ano,
+    ctx.mes,
+    f?.data_admissao ?? null,
+    f?.data_desligamento ?? null,
+  );
+
+  // Para reflexo de DSR, usa os dias de repouso/folga do cartão quando existirem.
+  // Se o período é muito curto e não aparece folga no cartão, garante ao menos 1 DSR
+  // quando houver HE/adicional noturno, para não deixar o reflexo zerado.
+  const dsrReflexoFinal = Math.max(diasDsrReflexo, domingosPeriodo, horasHE > 0 || minAdicionalNoturno > 0 ? 1 : 0);
+  const diasTrabalhoReflexoFinal = Math.max(1, diasTrabalhoReflexo || dias);
+
+  const valorDsrHorasExtras50 = round(
+    horasHE > 0 ? (valorHorasExtras50 / diasTrabalhoReflexoFinal) * dsrReflexoFinal : 0,
+  );
+  const valorDsrAdicionalNoturno = round(
+    valorAdicionalNoturno > 0 ? (valorAdicionalNoturno / diasTrabalhoReflexoFinal) * dsrReflexoFinal : 0,
+  );
 
   // Atraso só desconta em folha quando houver aplicação da justificativa
   // "FECHAMENTO_BANCO_DESC" no mês de referência. Caso contrário, o débito
@@ -256,7 +383,6 @@ export async function recalcular(
   // fechamento do banco autorizado.
   const horasAtraso = temFechamentoBancoDesc ? minAtraso / 60 : 0;
 
-
   // Mantém linhas atuais; recalcula apenas as automáticas.
   const linhas: EngineLanc[] = linhasAtuais
     .filter((l) => {
@@ -272,10 +398,10 @@ export async function recalcular(
       return !legadoSaldoEmFerias && !legadoInsufMesAnteriorEmFerias;
     })
     .map((l) => {
-    const r = porCodigo.get(l.codigo);
-    if (!r) return l;
-    return { ...l, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id };
-  });
+      const r = porCodigo.get(l.codigo);
+      if (!r) return l;
+      return { ...l, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id };
+    });
 
   // Helper para atualizar uma linha por código (ou inserir se ainda não existe).
   const setLinha = (codigo: string, calc: { qtde: number | null; provento: number; desconto: number }) => {
@@ -328,19 +454,51 @@ export async function recalcular(
     const r = porCodigo.get("07030")!;
     linhas.push({
       _k: crypto.randomUUID(),
-      codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0,
-      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: 0,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
     });
   }
 
   // Auto-adiciona HE/atraso/falta se houver dados.
   if (horasHE > 0 && porCodigo.has("00090") && !linhas.find((l) => l.codigo === "00090")) {
     const r = porCodigo.get("00090")!;
-    linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+    linhas.push({
+      _k: crypto.randomUUID(),
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: 0,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
+    });
   }
   if (horasAtraso > 0 && porCodigo.has("07045") && !linhas.find((l) => l.codigo === "07045")) {
     const r = porCodigo.get("07045")!;
-    linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+    linhas.push({
+      _k: crypto.randomUUID(),
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: 0,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
+    });
   } else if (!temFechamentoBancoDesc) {
     // Remove desconto de atraso quando não há fechamento autorizado: o débito
     // do banco de horas não pode reduzir o líquido sem a justificativa.
@@ -350,11 +508,67 @@ export async function recalcular(
 
   if (numFaltas > 0 && porCodigo.has("07035") && !linhas.find((l) => l.codigo === "07035")) {
     const r = porCodigo.get("07035")!;
-    linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+    linhas.push({
+      _k: crypto.randomUUID(),
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: 0,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
+    });
   }
   if (dsrPerdidos > 0 && porCodigo.has("07040") && !linhas.find((l) => l.codigo === "07040")) {
     const r = porCodigo.get("07040")!;
-    linhas.push({ _k: crypto.randomUUID(), codigo: r.codigo, descricao: r.descricao, qtde: null, provento: 0, desconto: 0, resultado: 0, modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id });
+    linhas.push({
+      _k: crypto.randomUUID(),
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: 0,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
+    });
+  }
+
+  // Rubricas automáticas de trabalho noturno e reflexos.
+  // São lançadas mesmo se o cadastro da rubrica estiver como manual, desde que o código exista.
+  if (valorAdicionalNoturno > 0 && porCodigo.has("00070")) {
+    setLinha("00070", {
+      qtde: round(horasNoturnasReduzidas),
+      provento: valorAdicionalNoturno,
+      desconto: 0,
+    });
+  } else {
+    removerLinhaPorCodigo(linhas, "00070");
+  }
+
+  if (valorDsrAdicionalNoturno > 0 && porCodigo.has("00075")) {
+    setLinha("00075", {
+      qtde: dsrReflexoFinal,
+      provento: valorDsrAdicionalNoturno,
+      desconto: 0,
+    });
+  } else {
+    removerLinhaPorCodigo(linhas, "00075");
+  }
+
+  if (valorDsrHorasExtras50 > 0 && porCodigo.has("00115")) {
+    setLinha("00115", {
+      qtde: dsrReflexoFinal,
+      provento: valorDsrHorasExtras50,
+      desconto: 0,
+    });
+  } else {
+    removerLinhaPorCodigo(linhas, "00115");
   }
 
   // ==== Insuficiência de saldo do mês anterior (09995) ====
@@ -378,19 +592,16 @@ export async function recalcular(
         .select("codigo,descricao,qtde,provento,desconto,resultado")
         .in("holerite_id", ids)
         .in("codigo", ["09990", "09000"]);
-      saldoAnterior = (linhasAnt ?? []).reduce(
-        (s, l) => {
-          const codigo = String(l.codigo || "");
-          const legadoSaldoEmFerias =
-            codigo === "09000" &&
-            Number(l.provento || 0) === 0 &&
-            Number(l.desconto || 0) === 0 &&
-            Number(l.resultado || l.qtde || 0) > 0;
-          if (codigo !== "09990" && !legadoSaldoEmFerias) return s;
-          return s + Number(l.resultado || l.qtde || 0);
-        },
-        0,
-      );
+      saldoAnterior = (linhasAnt ?? []).reduce((s, l) => {
+        const codigo = String(l.codigo || "");
+        const legadoSaldoEmFerias =
+          codigo === "09000" &&
+          Number(l.provento || 0) === 0 &&
+          Number(l.desconto || 0) === 0 &&
+          Number(l.resultado || l.qtde || 0) > 0;
+        if (codigo !== "09990" && !legadoSaldoEmFerias) return s;
+        return s + Number(l.resultado || l.qtde || 0);
+      }, 0);
     }
     const idx9005 = linhas.findIndex((l) => l.codigo === "09995");
     if (saldoAnterior > 0) {
@@ -398,12 +609,19 @@ export async function recalcular(
       const payload: EngineLanc = {
         _k: idx9005 >= 0 ? linhas[idx9005]._k : crypto.randomUUID(),
         id: idx9005 >= 0 ? linhas[idx9005].id : undefined,
-        codigo: r.codigo, descricao: r.descricao,
-        qtde: round(saldoAnterior), provento: 0, desconto: round(saldoAnterior),
+        codigo: r.codigo,
+        descricao: r.descricao,
+        qtde: round(saldoAnterior),
+        provento: 0,
+        desconto: round(saldoAnterior),
         resultado: -round(saldoAnterior),
-        modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+        modo: r.modo,
+        tipo: r.tipo,
+        editavel_manual: r.editavel_manual,
+        rubrica_id: r.id,
       };
-      if (idx9005 >= 0) linhas[idx9005] = payload; else linhas.push(payload);
+      if (idx9005 >= 0) linhas[idx9005] = payload;
+      else linhas.push(payload);
     } else if (idx9005 >= 0) {
       linhas.splice(idx9005, 1);
     }
@@ -420,11 +638,19 @@ export async function recalcular(
     const payload: EngineLanc = {
       _k: idxPos >= 0 ? linhas[idxPos]._k : crypto.randomUUID(),
       id: idxPos >= 0 ? linhas[idxPos].id : undefined,
-      codigo: r.codigo, descricao: r.descricao,
-      qtde: null, provento: 0, desconto: 0, resultado: saldoBHHoras,
-      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: saldoBHHoras,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
     };
-    if (idxPos >= 0) linhas[idxPos] = payload; else linhas.push(payload);
+    if (idxPos >= 0) linhas[idxPos] = payload;
+    else linhas.push(payload);
   } else if (idxPos >= 0) {
     linhas.splice(idxPos, 1);
   }
@@ -436,11 +662,19 @@ export async function recalcular(
     const payload: EngineLanc = {
       _k: idxNeg >= 0 ? linhas[idxNeg]._k : crypto.randomUUID(),
       id: idxNeg >= 0 ? linhas[idxNeg].id : undefined,
-      codigo: r.codigo, descricao: r.descricao,
-      qtde: null, provento: 0, desconto: 0, resultado: saldoBHHoras,
-      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: saldoBHHoras,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
     };
-    if (idxNeg >= 0) linhas[idxNeg] = payload; else linhas.push(payload);
+    if (idxNeg >= 0) linhas[idxNeg] = payload;
+    else linhas.push(payload);
   } else if (idxNeg >= 0) {
     linhas.splice(idxNeg, 1);
   }
@@ -476,17 +710,23 @@ export async function recalcular(
       const payload: EngineLanc = {
         _k: idxCB >= 0 ? linhas[idxCB]._k : crypto.randomUUID(),
         id: idxCB >= 0 ? linhas[idxCB].id : undefined,
-        codigo: r.codigo, descricao: r.descricao,
-        qtde: null, provento: 0, desconto: 0, resultado: horasCB,
-        modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+        codigo: r.codigo,
+        descricao: r.descricao,
+        qtde: null,
+        provento: 0,
+        desconto: 0,
+        resultado: horasCB,
+        modo: r.modo,
+        tipo: r.tipo,
+        editavel_manual: r.editavel_manual,
+        rubrica_id: r.id,
       };
-      if (idxCB >= 0) linhas[idxCB] = payload; else linhas.push(payload);
+      if (idxCB >= 0) linhas[idxCB] = payload;
+      else linhas.push(payload);
     } else if (idxCB >= 0) {
       linhas.splice(idxCB, 1);
     }
   }
-
-
 
   // ==== FASE 1: calcula tudo exceto INSS / IRRF (que precisam das bases) ====
   for (const l of linhas) {
@@ -500,7 +740,7 @@ export async function recalcular(
         setLinha(r.codigo, { qtde: 30, provento: salario, desconto: 0 });
         break;
       case "horas_extras_50":
-        setLinha(r.codigo, { qtde: round(horasHE), provento: round(valorHora * 1.5 * horasHE), desconto: 0 });
+        setLinha(r.codigo, { qtde: round(horasHE), provento: valorHorasExtras50, desconto: 0 });
         break;
       case "horas_extras_60":
         setLinha(r.codigo, { qtde: round(horasHE), provento: round(valorHora * 1.6 * horasHE), desconto: 0 });
@@ -513,6 +753,19 @@ export async function recalcular(
         break;
       case "horas_extras_100":
         setLinha(r.codigo, { qtde: round(horasHE), provento: round(valorHora * 2 * horasHE), desconto: 0 });
+        break;
+      case "adicional_noturno":
+        setLinha(r.codigo, { qtde: round(horasNoturnasReduzidas), provento: valorAdicionalNoturno, desconto: 0 });
+        break;
+      case "dsr_adicional_noturno":
+        setLinha(r.codigo, { qtde: dsrReflexoFinal, provento: valorDsrAdicionalNoturno, desconto: 0 });
+        break;
+      case "dsr_he":
+        setLinha(r.codigo, {
+          qtde: dsrReflexoFinal,
+          provento: r.codigo === "00115" ? valorDsrHorasExtras50 : 0,
+          desconto: 0,
+        });
         break;
       case "atrasos":
       case "atrasos_auto":
@@ -533,15 +786,23 @@ export async function recalcular(
         break;
       }
       case "valor_fixo":
-        setLinha(r.codigo, { qtde: 1, provento: r.tipo === "provento" ? Number(r.valor_referencia) : 0, desconto: r.tipo === "desconto" ? Number(r.valor_referencia) : 0 });
+        setLinha(r.codigo, {
+          qtde: 1,
+          provento: r.tipo === "provento" ? Number(r.valor_referencia) : 0,
+          desconto: r.tipo === "desconto" ? Number(r.valor_referencia) : 0,
+        });
         break;
       case "percentual_salario":
       case "pct_salario_base":
-        setLinha(r.codigo, { qtde: Number(r.valor_referencia), provento: r.tipo === "provento" ? round(salario * Number(r.valor_referencia) / 100) : 0, desconto: r.tipo === "desconto" ? round(salario * Number(r.valor_referencia) / 100) : 0 });
+        setLinha(r.codigo, {
+          qtde: Number(r.valor_referencia),
+          provento: r.tipo === "provento" ? round((salario * Number(r.valor_referencia)) / 100) : 0,
+          desconto: r.tipo === "desconto" ? round((salario * Number(r.valor_referencia)) / 100) : 0,
+        });
         break;
       case "adto_quinzenal_auto": {
         const pct = Number(r.valor_referencia) || 40;
-        setLinha(r.codigo, { qtde: pct, provento: 0, desconto: round(salarioProporcional * pct / 100) });
+        setLinha(r.codigo, { qtde: pct, provento: 0, desconto: round((salarioProporcional * pct) / 100) });
         break;
       }
       case "salario_familia_auto": {
@@ -573,7 +834,7 @@ export async function recalcular(
   baseIrrfBruta = round(baseIrrfBruta);
 
   const inss = calcINSS(baseInss, tab.inss_faixas);
-  const fgtsMes = round(baseFgts * tab.fgts_aliquota / 100);
+  const fgtsMes = round((baseFgts * tab.fgts_aliquota) / 100);
   const baseIrrf = round(Math.max(0, baseIrrfBruta - inss - numDepIrrf * tab.irrf_deducao_dependente));
   const irrf = calcIRRF(baseIrrf, tab.irrf_faixas);
 
@@ -587,9 +848,7 @@ export async function recalcular(
   for (let i = linhas.length - 1; i >= 0; i--) {
     const l = linhas[i];
     const semDados =
-      (!l.provento || l.provento === 0) &&
-      (!l.desconto || l.desconto === 0) &&
-      (!l.resultado || l.resultado === 0);
+      (!l.provento || l.provento === 0) && (!l.desconto || l.desconto === 0) && (!l.resultado || l.resultado === 0);
     if (semDados) linhas.splice(i, 1);
   }
 
@@ -608,7 +867,6 @@ export async function recalcular(
   }
   linhas.length = 0;
   linhas.push(...fixas, ...resto);
-
 
   // Totais (informativos não entram no líquido)
 
@@ -634,11 +892,19 @@ export async function recalcular(
     const payload: EngineLanc = {
       _k: idx9000 >= 0 ? linhas[idx9000]._k : crypto.randomUUID(),
       id: idx9000 >= 0 ? linhas[idx9000].id : undefined,
-      codigo: r.codigo, descricao: r.descricao,
-      qtde: shortfall, provento: 0, desconto: 0, resultado: shortfall,
-      modo: r.modo, tipo: r.tipo, editavel_manual: r.editavel_manual, rubrica_id: r.id,
+      codigo: r.codigo,
+      descricao: r.descricao,
+      qtde: shortfall,
+      provento: 0,
+      desconto: 0,
+      resultado: shortfall,
+      modo: r.modo,
+      tipo: r.tipo,
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
     };
-    if (idx9000 >= 0) linhas[idx9000] = payload; else linhas.push(payload);
+    if (idx9000 >= 0) linhas[idx9000] = payload;
+    else linhas.push(payload);
     totalLiq = 0;
   } else if (idx9000 >= 0) {
     linhas.splice(idx9000, 1);
@@ -666,7 +932,9 @@ export async function calcularLinhaUnica(
 ): Promise<EngineLanc | null> {
   const { data: r } = await supabase
     .from("holerite_rubricas")
-    .select("id,codigo,descricao,tipo,tipo_calculo,valor_referencia,ativo,modo,editavel_manual,automatico,incide_inss,incide_fgts,incide_irrf,entra_dsr,entra_liquido,depende_ponto")
+    .select(
+      "id,codigo,descricao,tipo,tipo_calculo,valor_referencia,ativo,modo,editavel_manual,automatico,incide_inss,incide_fgts,incide_irrf,entra_dsr,entra_liquido,depende_ponto",
+    )
     .eq("id", rubricaId)
     .maybeSingle();
   if (!r) return null;
@@ -694,9 +962,16 @@ export async function calcularLinhaUnica(
     ...linhasAtuais,
     {
       _k: crypto.randomUUID(),
-      codigo: rub.codigo, descricao: rub.descricao,
-      qtde: null, provento: 0, desconto: 0, resultado: 0,
-      modo: rub.modo, tipo: rub.tipo, editavel_manual: rub.editavel_manual, rubrica_id: rub.id,
+      codigo: rub.codigo,
+      descricao: rub.descricao,
+      qtde: null,
+      provento: 0,
+      desconto: 0,
+      resultado: 0,
+      modo: rub.modo,
+      tipo: rub.tipo,
+      editavel_manual: rub.editavel_manual,
+      rubrica_id: rub.id,
     },
   ];
   const out = await recalcular(ctx, adicionada);
