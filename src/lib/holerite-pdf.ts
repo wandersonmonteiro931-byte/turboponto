@@ -88,7 +88,7 @@ export function gerarHoleritePdf(
 
   // ===== Cabeçalho: Logo + Título =====
   const headH = 16;
-  const logoW = innerW * 0.40;
+  const logoW = innerW * 0.4;
   const titleW = innerW - logoW;
   doc.rect(M, y, logoW, headH);
   doc.rect(M + logoW, y, titleW, headH);
@@ -106,12 +106,9 @@ export function gerarHoleritePdf(
   } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(
-      (empresa.nome_fantasia || empresa.razao_social || "").toUpperCase(),
-      M + logoW / 2,
-      y + headH / 2 + 1.5,
-      { align: "center" },
-    );
+    doc.text((empresa.nome_fantasia || empresa.razao_social || "").toUpperCase(), M + logoW / 2, y + headH / 2 + 1.5, {
+      align: "center",
+    });
   }
 
   doc.setFont("helvetica", "bold");
@@ -141,24 +138,40 @@ export function gerarHoleritePdf(
   };
 
   // ===== Linha: Folha | Período | Página | Dt pagt | Referência =====
-  const w1a = 26, w1b = 60, w1c = 16, w1d = 30;
+  const w1a = 26,
+    w1b = 60,
+    w1c = 16,
+    w1d = 30;
   drawRow([
     { label: "Folha:", value: dados.folha_tipo, w: w1a },
-    { label: "Período de Pagamento:", value: `${fmtData(dados.periodo_inicio)} a ${fmtData(dados.periodo_fim)}`, w: w1b },
+    {
+      label: "Período de Pagamento:",
+      value: `${fmtData(dados.periodo_inicio)} a ${fmtData(dados.periodo_fim)}`,
+      w: w1b,
+    },
     { label: "Página:", value: "1", w: w1c },
     { label: "Dt. pagt.:", value: fmtData(dados.data_pagamento), w: w1d },
-    { label: "Referência:", value: fmtRef(dados.mes_referencia, dados.ano_referencia), w: innerW - w1a - w1b - w1c - w1d },
+    {
+      label: "Referência:",
+      value: fmtRef(dados.mes_referencia, dados.ano_referencia),
+      w: innerW - w1a - w1b - w1c - w1d,
+    },
   ]);
 
   // ===== Linha: Nome da empresa | CNPJ =====
   const cnpjW = 50;
   drawRow([
-    { label: "Nome da empresa:", value: (empresa.razao_social || empresa.nome_fantasia || "").toUpperCase(), w: innerW - cnpjW },
+    {
+      label: "Nome da empresa:",
+      value: (empresa.razao_social || empresa.nome_fantasia || "").toUpperCase(),
+      w: innerW - cnpjW,
+    },
     { label: "CNPJ:", value: empresa.cnpj || "", w: cnpjW },
   ]);
 
   // ===== Linha: Nome | Matrícula | CPF =====
-  const matW = 35, cpfW = 45;
+  const matW = 35,
+    cpfW = 45;
   drawRow([
     { label: "Nome:", value: (funcionario.nome || "").toUpperCase(), w: innerW - matW - cpfW },
     { label: "Matrícula:", value: funcionario.matricula || "", w: matW },
@@ -166,7 +179,8 @@ export function gerarHoleritePdf(
   ]);
 
   // ===== Linha: CTPS/Série/UF | Cargo | Tipo de salário =====
-  const ctpsW = 40, tipoSalW = 35;
+  const ctpsW = 40,
+    tipoSalW = 35;
   drawRow([
     { label: "CTPS/Série/UF:", value: funcionario.rg || "", w: ctpsW },
     { label: "Cargo:", value: (funcionario.cargo || "").toUpperCase(), w: innerW - ctpsW - tipoSalW },
@@ -188,7 +202,10 @@ export function gerarHoleritePdf(
   ]);
 
   // ===== Linha: Bco/Ag | Conta | Dep IRRF | Dep Sal Fam | Salário contratual =====
-  const wB = 30, wC = 30, wD1 = 32, wD2 = 36;
+  const wB = 30,
+    wC = 30,
+    wD1 = 32,
+    wD2 = 36;
   drawRow([
     { label: "Bco/Ag:", value: dados.banco_agencia || "", w: wB },
     { label: "Conta:", value: dados.conta || "", w: wC },
@@ -205,11 +222,16 @@ export function gerarHoleritePdf(
   doc.setFontSize(7);
   const colsTab = { codigo: 20, desc: 80, qtde: 22, prov: 28, desc2: 28, res: innerW - 20 - 80 - 22 - 28 - 28 };
   let cx = M;
-  doc.text("Código", cx + 1, y + 4); cx += colsTab.codigo;
-  doc.text("Descrição", cx + 1, y + 4); cx += colsTab.desc;
-  doc.text("Qtde", cx + colsTab.qtde - 1, y + 4, { align: "right" }); cx += colsTab.qtde;
-  doc.text("Provento", cx + colsTab.prov - 1, y + 4, { align: "right" }); cx += colsTab.prov;
-  doc.text("Desconto", cx + colsTab.desc2 - 1, y + 4, { align: "right" }); cx += colsTab.desc2;
+  doc.text("Código", cx + 1, y + 4);
+  cx += colsTab.codigo;
+  doc.text("Descrição", cx + 1, y + 4);
+  cx += colsTab.desc;
+  doc.text("Qtde", cx + colsTab.qtde - 1, y + 4, { align: "right" });
+  cx += colsTab.qtde;
+  doc.text("Provento", cx + colsTab.prov - 1, y + 4, { align: "right" });
+  cx += colsTab.prov;
+  doc.text("Desconto", cx + colsTab.desc2 - 1, y + 4, { align: "right" });
+  cx += colsTab.desc2;
   doc.text("Resultado", cx + colsTab.res - 1, y + 4, { align: "right" });
   y += 6;
 
@@ -222,13 +244,25 @@ export function gerarHoleritePdf(
     }
     const isInformativo = !Number(l.provento || 0) && !Number(l.desconto || 0);
     cx = M;
-    doc.text(l.codigo, cx + 1, y + 4); cx += colsTab.codigo;
-    doc.text(l.descricao, cx + 1, y + 4); cx += colsTab.desc;
-    doc.text(fmtNum(l.qtde, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" }); cx += colsTab.qtde;
-    doc.text(fmtNum(l.provento), cx + colsTab.prov - 1, y + 4, { align: "right" }); cx += colsTab.prov;
-    doc.text(fmtNum(l.desconto), cx + colsTab.desc2 - 1, y + 4, { align: "right" }); cx += colsTab.desc2;
-    const isHoras = ["18445", "28651", "28652"].includes(l.codigo);
-    const resTxt = l.codigo === "09990" ? "" : (isInformativo && isHoras ? fmtHoras(l.resultado) : (isInformativo ? fmtNum(l.resultado) : ""));
+    doc.text(l.codigo, cx + 1, y + 4);
+    cx += colsTab.codigo;
+    doc.text(l.descricao, cx + 1, y + 4);
+    cx += colsTab.desc;
+    doc.text(fmtNum(l.qtde, 2), cx + colsTab.qtde - 1, y + 4, { align: "right" });
+    cx += colsTab.qtde;
+    doc.text(fmtNum(l.provento), cx + colsTab.prov - 1, y + 4, { align: "right" });
+    cx += colsTab.prov;
+    doc.text(fmtNum(l.desconto), cx + colsTab.desc2 - 1, y + 4, { align: "right" });
+    cx += colsTab.desc2;
+    const isHoras = ["18445", "28651", "28652", "09998"].includes(l.codigo);
+    const resTxt =
+      l.codigo === "09990"
+        ? ""
+        : isInformativo && isHoras
+          ? fmtHoras(l.resultado)
+          : isInformativo
+            ? fmtNum(l.resultado)
+            : "";
     doc.text(resTxt, cx + colsTab.res - 1, y + 4, { align: "right" });
     y += 5;
   }
@@ -266,7 +300,12 @@ export function gerarHoleritePdf(
   doc.setFontSize(8);
   doc.text("Total líquido:", M + provW + descW + 2, y + 4);
   doc.setFontSize(13);
-  doc.text(Number(dados.total_liquido || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), W - M - 2, y + 8.5, { align: "right" });
+  doc.text(
+    Number(dados.total_liquido || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    W - M - 2,
+    y + 8.5,
+    { align: "right" },
+  );
   y += totH;
 
   // Bases

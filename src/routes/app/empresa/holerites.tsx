@@ -766,7 +766,7 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
 }
 
 const formatHorasDecimais = (v: number | null | undefined) => {
-  if (v == null || Number(v) === 0) return "";
+  if (v == null) return "";
   const sinal = Number(v) < 0 ? "-" : "";
   const totalMinutos = Math.round(Math.abs(Number(v)) * 60);
   const horas = Math.floor(totalMinutos / 60);
@@ -775,6 +775,7 @@ const formatHorasDecimais = (v: number | null | undefined) => {
 };
 
 const formatResultado = (l: LancEdit) => {
+  if (l.codigo === "09998") return formatHorasDecimais(Number(l.resultado || 0));
   if (l.resultado == null || Number(l.resultado) === 0) return "";
   if (l.codigo === "09990") return "";
   if (["18445", "28651", "28652"].includes(l.codigo)) return formatHorasDecimais(l.resultado);
