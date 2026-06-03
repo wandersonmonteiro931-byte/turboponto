@@ -130,6 +130,10 @@ export type VinculoAtivoComDias = {
   jornadaId: string;
   nome: string;
   codigo: string;
+  horario_entrada: string | null;
+  horario_intervalo_saida: string | null;
+  horario_intervalo_retorno: string | null;
+  horario_saida: string | null;
   tolerancia_atraso_minutos: number;
   data_inicio: string;
   data_fim: string | null;
@@ -139,7 +143,7 @@ export type VinculoAtivoComDias = {
 export async function carregarVinculosAtivos(funcionarioId: string): Promise<VinculoAtivoComDias[]> {
   const { data: vincs, error: errVinc } = await supabase
     .from("funcionarios_jornadas")
-    .select("id,jornada_id,data_inicio,data_fim,jornadas(nome,codigo,tolerancia_atraso_minutos)")
+    .select("id,jornada_id,data_inicio,data_fim,jornadas(nome,codigo,horario_entrada,horario_intervalo_saida,horario_intervalo_retorno,horario_saida,tolerancia_atraso_minutos)")
     .eq("funcionario_id", funcionarioId)
     .eq("ativo", true)
     .order("data_inicio", { ascending: false });
@@ -149,7 +153,15 @@ export async function carregarVinculosAtivos(funcionarioId: string): Promise<Vin
     jornada_id: string;
     data_inicio: string;
     data_fim: string | null;
-    jornadas: { nome: string; codigo: string | null; tolerancia_atraso_minutos: number } | null;
+    jornadas: {
+      nome: string;
+      codigo: string | null;
+      horario_entrada: string | null;
+      horario_intervalo_saida: string | null;
+      horario_intervalo_retorno: string | null;
+      horario_saida: string | null;
+      tolerancia_atraso_minutos: number;
+    } | null;
   }>;
   if (!rows.length) return [];
   const jornadaIds = Array.from(new Set(rows.map((r) => r.jornada_id)));
@@ -169,6 +181,10 @@ export async function carregarVinculosAtivos(funcionarioId: string): Promise<Vin
     jornadaId: r.jornada_id,
     nome: r.jornadas?.nome ?? "Jornada",
     codigo: r.jornadas?.codigo ?? "—",
+    horario_entrada: r.jornadas?.horario_entrada ?? null,
+    horario_intervalo_saida: r.jornadas?.horario_intervalo_saida ?? null,
+    horario_intervalo_retorno: r.jornadas?.horario_intervalo_retorno ?? null,
+    horario_saida: r.jornadas?.horario_saida ?? null,
     tolerancia_atraso_minutos: r.jornadas?.tolerancia_atraso_minutos ?? 0,
     data_inicio: r.data_inicio,
     data_fim: r.data_fim,
