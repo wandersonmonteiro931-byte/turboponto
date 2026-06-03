@@ -172,7 +172,9 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
   // Justificativas aplicadas no período
   const { data: justApls } = await supabase
     .from("justificativas_aplicadas")
-    .select("id,tipo_id,data,data_inicio,data_fim,observacao,anexo_url,status,quantidade_minutos")
+    .select(
+      "id,tipo_id,data,data_inicio,data_fim,observacao,anexo_url,status,quantidade_minutos,jornada_compensacao_id",
+    )
     .eq("funcionario_id", funcionarioId)
     .gte("data", ini)
     .lte("data", fim);
@@ -199,6 +201,7 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
     anexo_url: string | null;
     status: string;
     quantidade_minutos: number | null;
+    jornada_compensacao_id: string | null;
   }>) {
     const tipo = tiposPorId.get(j.tipo_id);
     if (!tipo) continue;
@@ -209,6 +212,7 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
       anexo_url: j.anexo_url,
       status: j.status,
       quantidadeMinutos: j.quantidade_minutos,
+      jornadaCompensacaoId: j.jornada_compensacao_id,
       tipo,
     };
     const arr = justPorDia.get(j.data) ?? [];
