@@ -136,6 +136,38 @@ const normalizaTextoPdf = (valor: string | null | undefined): string =>
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase();
 
+const nomeJustificativaPdf = (j: any): string => {
+  const nomeBase = String(j?.tipo?.nome ?? "").trim();
+  const codigoBase = String(j?.tipo?.codigo ?? "").trim();
+  const textoCompleto = [
+    nomeBase,
+    codigoBase,
+    j?.observacao,
+    j?.observacoes,
+    j?.motivo,
+    j?.descricao,
+    j?.descricao_manual,
+    j?.texto,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toUpperCase();
+
+  if (textoCompleto.includes("TROCA FOLGA")) return "TROCA FOLGA";
+  if (textoCompleto.includes("TROCA COMPENSADA")) return "TROCA COMPENSADA";
+
+  return nomeBase || codigoBase || "";
+};
+
+const justificativasLinhaPdf = (justificativas: any[] | undefined | null): string => {
+  const nomes = (justificativas ?? []).map((j) => nomeJustificativaPdf(j)).filter(Boolean);
+
+  return nomes.join(" / ");
+};
+
+const temJustificativaPdf = (justificativas: any[] | undefined | null, termo: string): boolean =>
+  (justificativas ?? []).some((j) => nomeJustificativaPdf(j).toUpperCase().includes(termo.toUpperCase()));
+
 type Irregularidade = {
   label: string;
   qtde: number;
@@ -449,7 +481,7 @@ export function gerarPdfCartao(opts: {
       }
 
       drawRow({
-        irreg: index === 0 ? "JUSTIFICATIVAS" : "",
+        irreg: index === 0 ? "" : "",
         qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
         just: nomeJustificativaPdf(j),
       });
@@ -573,7 +605,7 @@ export function gerarPdfCartao(opts: {
 
     if (semJornada) {
       linhas.push({
-        label: d.trabalhadoMinutos > 0 ? "TRABALHADO" : "DIA SEM JORNADA CADASTRADA",
+        label: d.trabalhadoMinutos > 0 ? "TRABALHADO" : "",
         qtde: d.trabalhadoMinutos > 0 ? fmtMinHHMM(d.trabalhadoMinutos) : "",
       });
     } else if (faltaInjustificada) {
