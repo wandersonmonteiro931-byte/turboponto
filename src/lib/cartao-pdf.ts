@@ -130,6 +130,12 @@ const textoSeguro = (valor: unknown, fallback = "-"): string => {
   return txt.length > 0 ? txt : fallback;
 };
 
+const normalizaTextoPdf = (valor: string | null | undefined): string =>
+  (valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
 type Irregularidade = {
   label: string;
   qtde: number;
@@ -423,8 +429,17 @@ export function gerarPdfCartao(opts: {
   const nomeJustificativaCurto = (nome: string) =>
     textoSeguro(nome, "").replace(/\s+/g, " ").replace("REGIST", "REG.").replace("COLAB", "COLAB.").trim();
 
+  const nomeJustificativaPdf = (j: { tipo: { nome: string }; observacao?: string | null }) => {
+    const txt = normalizaTextoPdf(`${j.tipo.nome} ${j.observacao ?? ""}`);
+
+    if (txt.includes("TROCA FOLGA")) return "TROCA FOLGA";
+    if (txt.includes("TROCA COMPENSADA")) return "TROCA COMPENSADA";
+
+    return nomeJustificativaCurto(j.tipo.nome);
+  };
+
   const drawJustificativasDoDia = (
-    justificativas: Array<{ tipo: { nome: string }; quantidadeMinutos?: number | null }>,
+    justificativas: Array<{ tipo: { nome: string }; observacao?: string | null; quantidadeMinutos?: number | null }>,
   ) => {
     justificativas.forEach((j, index) => {
       if (y > pageH - 35) {
@@ -436,10 +451,19 @@ export function gerarPdfCartao(opts: {
       drawRow({
         irreg: index === 0 ? "JUSTIFICATIVAS" : "",
         qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
-        just: `${index + 1}) ${nomeJustificativaCurto(j.tipo.nome)}`,
+        just: nomeJustificativaPdf(j),
       });
     });
   };
+
+  const textoJustificativaRegra = (j: { tipo: { nome: string }; observacao?: string | null }) =>
+    normalizaTextoPdf(`${j.tipo.nome} ${j.observacao ?? ""}`);
+
+  const temTrocaFolga = (justificativas: Array<{ tipo: { nome: string }; observacao?: string | null }>) =>
+    justificativas.some((j) => textoJustificativaRegra(j).includes("TROCA FOLGA"));
+
+  const temTrocaCompensada = (justificativas: Array<{ tipo: { nome: string }; observacao?: string | null }>) =>
+    justificativas.some((j) => textoJustificativaRegra(j).includes("TROCA COMPENSADA"));
 
   for (const d of resumo.dias) {
     if (y > pageH - 35) {
@@ -454,6 +478,7 @@ export function gerarPdfCartao(opts: {
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
       const j0 = justs[0];
+      const trocaFolga = temTrocaFolga(justs);
       const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
       drawRow({
@@ -497,7 +522,7 @@ export function gerarPdfCartao(opts: {
         esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temReg ? "TRABALHO EM FOLGA" : justs.length > 0 ? "" : "FOLGA",
+        irreg: trocaFolga ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
         qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
         adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
@@ -548,8 +573,8 @@ export function gerarPdfCartao(opts: {
 
     if (semJornada) {
       linhas.push({
-        label: "DIA SEM JORNADA CADASTRADA",
-        qtde: "",
+        label: d.trabalhadoMinutos > 0 ? "TRABALHADO" : "DIA SEM JORNADA CADASTRADA",
+        qtde: d.trabalhadoMinutos > 0 ? fmtMinHHMM(d.trabalhadoMinutos) : "",
       });
     } else if (faltaInjustificada) {
       linhas.push({

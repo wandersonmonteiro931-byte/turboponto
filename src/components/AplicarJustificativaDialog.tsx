@@ -68,7 +68,11 @@ export function AplicarJustificativaDialog({
       return;
     }
     if (tipo.categoria === "troca" && !dataCompensada) {
-      toast.error("Informe o dia compensado");
+      toast.error("Informe obrigatoriamente a data que será compensada pela troca de folga");
+      return;
+    }
+    if (tipo.categoria === "troca" && dataCompensada === data) {
+      toast.error("A data da folga e a data compensada não podem ser iguais");
       return;
     }
     setSaving(true);
@@ -104,16 +108,26 @@ export function AplicarJustificativaDialog({
         quantidade_minutos: qtdMin,
       };
 
-      const datasAlvo = tipo.categoria === "troca" ? [data, dataCompensada] : [data];
       const obsTrim = observacao.trim();
-      const obsCross =
+
+      const rows =
         tipo.categoria === "troca"
-          ? `Troca: ${data.split("-").reverse().join("/")} ↔ ${dataCompensada.split("-").reverse().join("/")}${obsTrim ? ` · ${obsTrim}` : ""}`
-          : obsTrim || null;
+          ? [
+              {
+                ...baseRow,
+                data,
+                observacao: `TROCA FOLGA - folga em ${data.split("-").reverse().join("/")} compensada em ${dataCompensada.split("-").reverse().join("/")}${obsTrim ? ` · ${obsTrim}` : ""}`,
+              },
+              {
+                ...baseRow,
+                data: dataCompensada,
+                observacao: `TROCA COMPENSADA - trabalho em ${dataCompensada.split("-").reverse().join("/")} compensando a folga de ${data.split("-").reverse().join("/")}${obsTrim ? ` · ${obsTrim}` : ""}`,
+              },
+            ]
+          : [{ ...baseRow, data, observacao: obsTrim || null }];
 
       // Permite mais de uma justificativa no mesmo dia.
       // Não removemos justificativas anteriores; cada nova aplicação vira uma nova linha.
-      const rows = datasAlvo.map((dt) => ({ ...baseRow, data: dt, observacao: obsCross }));
       const { error } = await supabase.from("justificativas_aplicadas").insert(rows);
       if (error) throw error;
 
@@ -183,7 +197,7 @@ export function AplicarJustificativaDialog({
           {tipo?.categoria === "troca" && (
             <div>
               <Label>
-                Dia compensado <span className="text-destructive">*</span>
+                Data que vai compensar esta folga <span className="text-destructive">*</span>
               </Label>
               <input
                 type="date"
@@ -192,7 +206,8 @@ export function AplicarJustificativaDialog({
                 onChange={(e) => setDataCompensada(e.target.value)}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Dia em que o funcionário trabalhou para compensar a ausência de {data.split("-").reverse().join("/")}.
+                O sistema criará duas marcações de troca: TROCA FOLGA para {data.split("-").reverse().join("/")} e TROCA
+                COMPENSADA para a data informada acima.
               </p>
             </div>
           )}

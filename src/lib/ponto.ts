@@ -9,8 +9,7 @@ export const TIPOS_PONTO = [
 
 export type TipoPonto = (typeof TIPOS_PONTO)[number]["v"];
 
-export const tipoLabel = (t: string) =>
-  TIPOS_PONTO.find((x) => x.v === t)?.label ?? t;
+export const tipoLabel = (t: string) => TIPOS_PONTO.find((x) => x.v === t)?.label ?? t;
 
 export const statusLabel: Record<string, string> = {
   no_horario: "No horário",
@@ -35,20 +34,28 @@ export const statusColor: Record<string, string> = {
 };
 
 export function horarioProgramado(dia: JornadaDia | null | undefined, tipo: TipoPonto): string | null {
-  if (!dia || !dia.trabalha) return null;
+  if (!dia) return null;
+  if (!dia.trabalha) return null;
   switch (tipo) {
-    case "entrada": return dia.horario_entrada;
-    case "saida_intervalo": return dia.horario_intervalo_saida;
-    case "retorno_intervalo": return dia.horario_intervalo_retorno;
-    case "saida_final": return dia.horario_saida;
+    case "entrada":
+      return dia.horario_entrada;
+    case "saida_intervalo":
+      return dia.horario_intervalo_saida;
+    case "retorno_intervalo":
+      return dia.horario_intervalo_retorno;
+    case "saida_final":
+      return dia.horario_saida;
   }
 }
 
 export function proximoTipo(dia: JornadaDia | null | undefined, jaRegistrados: TipoPonto[]): TipoPonto | null {
-  if (!dia || !dia.trabalha) return null;
+  if (!dia) return null;
+
+  // Mesmo em dia de folga, o funcionário pode registrar ponto.
+  // Em folga usamos apenas Entrada e Saída final, sem horário programado.
   const sequencia: TipoPonto[] = ["entrada"];
-  if (dia.horario_intervalo_saida) sequencia.push("saida_intervalo");
-  if (dia.horario_intervalo_retorno) sequencia.push("retorno_intervalo");
+  if (dia.trabalha && dia.horario_intervalo_saida) sequencia.push("saida_intervalo");
+  if (dia.trabalha && dia.horario_intervalo_retorno) sequencia.push("retorno_intervalo");
   sequencia.push("saida_final");
   for (const t of sequencia) {
     if (!jaRegistrados.includes(t)) return t;
@@ -72,7 +79,16 @@ export function inferirTipo(
   agora: Date,
   jaRegistrados: TipoPonto[],
 ): { tipo: TipoPonto; programado: string | null } | null {
-  if (!dia || !dia.trabalha) return null;
+  if (!dia) return null;
+
+  // Em dia de folga, permite registrar Entrada e Saída final.
+  // Como não há horário previsto, o registro fica fora do horário e não gera débito/crédito automático.
+  if (!dia.trabalha) {
+    if (!jaRegistrados.includes("entrada")) return { tipo: "entrada", programado: null };
+    if (!jaRegistrados.includes("saida_final")) return { tipo: "saida_final", programado: null };
+    return null;
+  }
+
   const candidatos: Array<{ tipo: TipoPonto; prog: string }> = [];
   if (dia.horario_entrada) candidatos.push({ tipo: "entrada", prog: dia.horario_entrada });
   if (dia.horario_saida) candidatos.push({ tipo: "saida_final", prog: dia.horario_saida });
@@ -99,7 +115,10 @@ export function avaliar(
   agora: Date,
   toleranciaMin: number,
   tipo?: TipoPonto,
-): { atraso: number; status: "no_horario" | "atrasado" | "entrada_antecipada" | "saida_antecipada" | "hora_extra" | "fora_do_horario" } {
+): {
+  atraso: number;
+  status: "no_horario" | "atrasado" | "entrada_antecipada" | "saida_antecipada" | "hora_extra" | "fora_do_horario";
+} {
   if (!programado) return { atraso: 0, status: "fora_do_horario" };
   const progMin = hhmmToMin(programado);
   const agoraMin = minutosDoDia(agora);
@@ -151,7 +170,11 @@ export function statusJornadaHoje(
   toleranciaMin: number = 0,
 ): { label: string; tone: "ok" | "warn" | "bad" | "muted" | "info" } {
   if (!dia) return { label: "Sem jornada cadastrada", tone: "muted" };
-  if (!dia.trabalha) return { label: "Folga hoje", tone: "muted" };
+  if (!dia.trabalha) {
+    if (jaRegistrados.includes("saida_final")) return { label: "Trabalho em folga concluído", tone: "ok" };
+    if (jaRegistrados.includes("entrada")) return { label: "Trabalhando em dia de folga", tone: "info" };
+    return { label: "Folga hoje — ponto liberado se houver trabalho", tone: "info" };
+  }
 
   const agoraMin = minutosDoDia(agora);
   const has = (t: TipoPonto) => jaRegistrados.includes(t);

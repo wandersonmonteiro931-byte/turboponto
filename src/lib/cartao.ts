@@ -87,6 +87,33 @@ function diffRelogioAssinado(previsto: number, real: number): number {
   return diff;
 }
 
+function normalizaTextoRegra(valor: string | null | undefined): string {
+  return (valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function ehTrocaFolga(j: JustificativaAplicadaDia): boolean {
+  const nome = normalizaTextoRegra(j.tipo.nome);
+  const codigo = normalizaTextoRegra(j.tipo.codigo);
+  const obs = normalizaTextoRegra(j.observacao);
+  return (
+    j.tipo.categoria === "troca" &&
+    (nome.includes("TROCA FOLGA") || codigo.includes("TROCA_FOLGA") || obs.includes("TROCA FOLGA"))
+  );
+}
+
+function ehTrocaCompensada(j: JustificativaAplicadaDia): boolean {
+  const nome = normalizaTextoRegra(j.tipo.nome);
+  const codigo = normalizaTextoRegra(j.tipo.codigo);
+  const obs = normalizaTextoRegra(j.observacao);
+  return (
+    j.tipo.categoria === "troca" &&
+    (nome.includes("TROCA COMPENSADA") || codigo.includes("TROCA_COMPENSADA") || obs.includes("TROCA COMPENSADA"))
+  );
+}
+
 function tsHm(ts: string): number {
   const d = new Date(ts);
   return d.getHours() * 60 + d.getMinutes();
@@ -101,11 +128,7 @@ function diasNoMes(ano: number, mes: number): string[] {
   return out;
 }
 
-export async function carregarCartao(
-  funcionarioId: string,
-  ano: number,
-  mes: number,
-): Promise<ResumoCartao> {
+export async function carregarCartao(funcionarioId: string, ano: number, mes: number): Promise<ResumoCartao> {
   const datas = diasNoMes(ano, mes);
   const ini = datas[0];
   const fim = datas[datas.length - 1];
@@ -127,12 +150,9 @@ export async function carregarCartao(
   // Tolerância CLT (art. 58 §1º): 5 minutos por batida, máximo 10 minutos por dia.
   const toleranciaMin = 5;
 
-
   const { data: registros } = await supabase
     .from("registros_ponto")
-    .select(
-      "id,data_referencia,tipo_ponto,horario_registrado,horario_programado,atraso_minutos,observacao",
-    )
+    .select("id,data_referencia,tipo_ponto,horario_registrado,horario_programado,atraso_minutos,observacao")
     .eq("funcionario_id", funcionarioId)
     .gte("data_referencia", ini)
     .lte("data_referencia", fim);
@@ -218,10 +238,8 @@ export async function carregarCartao(
     const jornadaNome = escolha?.vinculo.nome ?? null;
     let trabalha = !!jd?.trabalha;
 
-
     // Fora do vínculo: antes da admissão ou após desligamento
-    const foraVinculo =
-      (dataAdmissao != null && data < dataAdmissao) || (dataDeslig != null && data > dataDeslig);
+    const foraVinculo = (dataAdmissao != null && data < dataAdmissao) || (dataDeslig != null && data > dataDeslig);
     if (foraVinculo) trabalha = false;
 
     const regs = porDia.get(data) ?? [];
@@ -251,10 +269,16 @@ export async function carregarCartao(
     // Quando há marcação do dia, mas o intervalo não foi registrado,
     // considera o intervalo programado para manter o cálculo do cartão correto.
     const temMarcacaoDoDia = Object.values(reg).some(Boolean);
+
+    // Se houve marcação em dia previsto como folga, o dia deixa de ser tratado como folga.
+    // Ele entra como dia trabalhado sem gerar crédito/débito automático por ser "folga".
+    if (!trabalha && temMarcacaoDoDia && !foraVinculo) {
+      trabalha = true;
+    }
+
     if (trabalha && temMarcacaoDoDia) {
       if (!reg.saida_intervalo && prog.saida_intervalo) reg.saida_intervalo = prog.saida_intervalo;
-      if (!reg.retorno_intervalo && prog.retorno_intervalo)
-        reg.retorno_intervalo = prog.retorno_intervalo;
+      if (!reg.retorno_intervalo && prog.retorno_intervalo) reg.retorno_intervalo = prog.retorno_intervalo;
     }
 
     // Atraso é calculado mais abaixo, junto com a tolerância diária compartilhada.
@@ -330,7 +354,6 @@ export async function carregarCartao(
     }
     let extras = creditoHoraExtra;
 
-
     // Hoje em horário de Brasília (America/Sao_Paulo)
     const fmtBR = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Sao_Paulo",
@@ -354,22 +377,49 @@ export async function carregarCartao(
     }
 
     // Hoje, sem marcação de entrada, e já passou do horário previsto de entrada → débito até registrar/justificar.
-    const hojePassouEntradaSemRegistro =
-      data === todayStr && trabalha && !reg.entrada && pe != null && agoraMinBR > pe;
+    const hojePassouEntradaSemRegistro = data === todayStr && trabalha && !reg.entrada && pe != null && agoraMinBR > pe;
 
     const isFuturo = data > todayStr;
-    const semRegistro = trabalha && regs.length === 0;
+    let semRegistro = trabalha && regs.length === 0;
     let falta = semRegistro && setFaltas.has(data);
-    const faltaRegistrada = falta;
+    let faltaRegistrada = falta;
     // "Marcação não registrada" agora é exclusivo de dias futuros.
     // Dias passados sem registro viram débito automático de banco de horas.
-    const marcacaoNaoRegistrada = semRegistro && isFuturo;
+    let marcacaoNaoRegistrada = semRegistro && isFuturo;
     let pendente = marcacaoNaoRegistrada && !falta;
     let bancoHorasMin = 0;
 
     // Aplica regras das justificativas, mas mantém todas registradas para exibição no PDF
     const justificativas = justPorDia.get(data) ?? [];
     const just = justificativas[0] ?? null;
+    const trocaFolga = justificativas.some(ehTrocaFolga);
+    const trocaCompensada = justificativas.some(ehTrocaCompensada);
+
+    if (trocaFolga) {
+      // TROCA FOLGA: o dia vira folga normal. Não gera débito nem crédito.
+      trabalha = false;
+      semRegistro = false;
+      falta = false;
+      faltaRegistrada = false;
+      marcacaoNaoRegistrada = false;
+      pendente = false;
+      atraso = 0;
+      extras = 0;
+      bancoHorasMin = 0;
+    }
+
+    if (trocaCompensada && !foraVinculo) {
+      // TROCA COMPENSADA: mesmo que o dia fosse folga, ele passa a contar como dia trabalhado.
+      trabalha = true;
+      semRegistro = regs.length === 0;
+      if (regs.length > 0) {
+        falta = false;
+        faltaRegistrada = false;
+        marcacaoNaoRegistrada = false;
+        pendente = false;
+      }
+    }
+
     const justHoraExtraPagar = justificativas.find((j) => j.tipo.codigo === "HE_PAGAR");
     const temHoraExtraPagar = !!justHoraExtraPagar;
     const justHoraExtraCredito = justificativas.find((j) => j.tipo.codigo === "HE_CREDITO");
@@ -379,13 +429,14 @@ export async function carregarCartao(
     );
     const faltaComDesconto = faltaComDescontoAplicada || (semRegistro && setFaltas.has(data));
     const temDebitoManualBH = justificativas.some(
-      (j) =>
-        j.tipo.movimenta_banco_horas === "debito" &&
-        !(j.tipo.categoria === "falta" && j.tipo.desconta_salario),
+      (j) => j.tipo.movimenta_banco_horas === "debito" && !(j.tipo.categoria === "falta" && j.tipo.desconta_salario),
     );
     let abonoSemDesconto = false;
     for (const just of justificativas) {
       const t = just.tipo;
+      if (trocaFolga) {
+        continue;
+      }
       // Abona ocorrência: anula falta/pendente e zera atraso, salvo se tipo desconta
       if (t.abona_ocorrencia) {
         falta = false;
@@ -422,7 +473,7 @@ export async function carregarCartao(
 
     // Toda hora extra (após +10 min) vira crédito automaticamente,
     // exceto quando o admin marca HORA EXTRA - PAGAR.
-    if (!temHoraExtraPagar) {
+    if (!trocaFolga && !temHoraExtraPagar) {
       const minutosCreditoHE =
         justHoraExtraCredito?.quantidadeMinutos ?? (!trabalha && justHoraExtraCredito ? trabalhado : creditoHoraExtra);
       bancoHorasMin += Math.max(0, minutosCreditoHE);
@@ -430,7 +481,7 @@ export async function carregarCartao(
 
     // Trabalho em dia de folga nunca pode virar débito. Se não for marcado como
     // HORA EXTRA - PAGAR, entra como crédito de banco de horas pelo período trabalhado.
-    if (!trabalha && trabalhado > 0) {
+    if (!trocaFolga && !trabalha && trabalhado > 0) {
       if (justHoraExtraPagar) {
         extras = Math.max(extras, justHoraExtraPagar.quantidadeMinutos ?? trabalhado);
       } else if (!temCreditoManualBH && !justHoraExtraCredito) {
@@ -439,26 +490,16 @@ export async function carregarCartao(
     }
 
     // Crédito automático por entrada antecipada (sempre crédito, independe de HE_PAGAR).
-    bancoHorasMin += creditoEntradaAntec;
+    if (!trocaFolga) bancoHorasMin += creditoEntradaAntec;
 
     // Débitos automáticos: falta injustificada, atrasos e saída antecipada viram débito de BH.
-    if (trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
+    if (!trocaFolga && trabalha && !abonoSemDesconto && !temDebitoManualBH && !faltaComDesconto) {
       if (falta && cargaProg > 0) {
         bancoHorasMin -= cargaProg;
-      } else if (
-        semRegistro &&
-        !isFuturo &&
-        !aindaDentroDoExpediente &&
-        justificativas.length === 0 &&
-        cargaProg > 0
-      ) {
+      } else if (semRegistro && !isFuturo && !aindaDentroDoExpediente && justificativas.length === 0 && cargaProg > 0) {
         // Dia passado sem nenhuma marcação e sem justificativa → débito da carga prevista.
         bancoHorasMin -= cargaProg;
-      } else if (
-        hojePassouEntradaSemRegistro &&
-        justificativas.length === 0 &&
-        cargaProg > 0
-      ) {
+      } else if (hojePassouEntradaSemRegistro && justificativas.length === 0 && cargaProg > 0) {
         // Hoje: passou da entrada prevista e ainda sem marcação/justificativa → débito.
         bancoHorasMin -= cargaProg;
       } else {
@@ -466,7 +507,6 @@ export async function carregarCartao(
         bancoHorasMin -= Math.max(0, debitoAutomatico);
       }
     }
-
 
     // Fora do vínculo zera ocorrências e adiciona observação informativa
     if (foraVinculo) {
@@ -488,9 +528,7 @@ export async function carregarCartao(
       .map((j) => j.observacao)
       .filter(Boolean)
       .join(" · ");
-    const obsFinal = foraVinculo
-      ? null
-      : obsJustificativas || (falta ? (justFaltas.get(data) ?? obs) : obs);
+    const obsFinal = foraVinculo ? null : obsJustificativas || (falta ? (justFaltas.get(data) ?? obs) : obs);
 
     result.push({
       data,
@@ -579,10 +617,7 @@ export function calcularHorasBenefMinutos(resumo: ResumoCartao): number {
       falta &&
       (!justificativas.length ||
         justificativas.some(
-          (j) =>
-            j.tipo.categoria === "falta" &&
-            j.tipo.desconta_salario &&
-            j.tipo.afeta_assiduidade !== "nao",
+          (j) => j.tipo.categoria === "falta" && j.tipo.desconta_salario && j.tipo.afeta_assiduidade !== "nao",
         ));
     if (faltaInjustificada) {
       const pe = hm(d.programado.entrada);

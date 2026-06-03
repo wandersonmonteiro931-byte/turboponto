@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { JornadaDia } from "@/lib/jornadas";
-import {
-  TipoPonto, tipoLabel, statusLabel, statusColor,
-  inferirTipo, avaliar, diaComercialISO,
-} from "@/lib/ponto";
+import { TipoPonto, tipoLabel, statusLabel, statusColor, inferirTipo, avaliar, diaComercialISO } from "@/lib/ponto";
 import { formatMinutos } from "@/lib/format";
 import { getMeuIp, normalizeIp } from "@/lib/ip-ponto.functions";
 
@@ -48,8 +51,12 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
     const { data: func } = await supabase
       .from("funcionarios")
       .select("id,status,permite_bater_ponto")
-      .eq("usuario_id", user.id).maybeSingle();
-    if (!func) { setLoading(false); return; }
+      .eq("usuario_id", user.id)
+      .maybeSingle();
+    if (!func) {
+      setLoading(false);
+      return;
+    }
     const f = func as { id: string; status: string; permite_bater_ponto: boolean };
     setFuncId(f.id);
     setFuncStatus(f.status);
@@ -93,22 +100,29 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
 
   const inferido = inferirTipo(dia, now, tipos);
   const emBloqueio = !!bloqueioAte && bloqueioAte > now;
-  const podeBater = funcStatus === "ativo" && permitePonto && !!jornadaId && !!dia?.trabalha && !!inferido && !emBloqueio;
+  const podeBater = funcStatus === "ativo" && permitePonto && !!jornadaId && !!dia && !!inferido && !emBloqueio;
   const previa = inferido ? avaliar(inferido.programado, now, tolerancia, inferido.tipo) : null;
 
   const motivo = !podeBater
     ? emBloqueio
       ? `Aguarde 10h após a saída final.`
-      : !jornadaId ? "Sem jornada cadastrada."
-      : funcStatus !== "ativo" ? `Funcionário ${funcStatus}.`
-      : !permitePonto ? "Registro desabilitado."
-      : !dia?.trabalha ? "Hoje não é dia de trabalho."
-      : !inferido ? "Todos os pontos do dia já foram registrados."
-      : "Não disponível"
+      : !jornadaId
+        ? "Sem jornada cadastrada."
+        : funcStatus !== "ativo"
+          ? `Funcionário ${funcStatus}.`
+          : !permitePonto
+            ? "Registro desabilitado."
+            : !dia
+              ? "Sem dia configurado na jornada."
+              : !inferido
+                ? "Todos os pontos do dia já foram registrados."
+                : "Não disponível"
     : null;
 
   const bater = async () => {
@@ -150,7 +164,7 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
         else toast.error(error.message);
         return;
       }
-      if (inferido.tipo === "saida_final" && dia) {
+      if (inferido.tipo === "saida_final" && dia?.trabalha) {
         const dataRef = diaComercialISO(new Date());
         const jaTipos = registrosDia.map((r) => r.tipo_ponto);
         const autos: Array<{ tipo: TipoPonto; hora: string }> = [];
@@ -197,7 +211,7 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
         {podeBater && inferido && (
           <div className="text-xs text-muted-foreground">
             Será registrado como <strong className="text-foreground">{tipoLabel(inferido.tipo)}</strong>
-            {inferido.programado && ` · prog. ${inferido.programado.slice(0,5)}`}
+            {inferido.programado && ` · prog. ${inferido.programado.slice(0, 5)}`}
           </div>
         )}
         <Button
@@ -208,9 +222,7 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
         >
           Bater Ponto
         </Button>
-        {!loading && !podeBater && motivo && (
-          <div className="text-xs text-orange-600">{motivo}</div>
-        )}
+        {!loading && !podeBater && motivo && <div className="text-xs text-orange-600">{motivo}</div>}
       </div>
 
       <AlertDialog open={confirmando} onOpenChange={(o) => !enviando && setConfirmando(o)}>
@@ -219,24 +231,40 @@ export function BaterPontoButton({ size = "lg", className, onRegistered }: Props
             <AlertDialogTitle>Confirmar registro de ponto</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
-                <div>Tipo: <strong>{inferido ? tipoLabel(inferido.tipo) : "—"}</strong></div>
-                <div>Horário atual: <strong className="font-mono">{horaStr}</strong></div>
+                <div>
+                  Tipo: <strong>{inferido ? tipoLabel(inferido.tipo) : "—"}</strong>
+                </div>
+                <div>
+                  Horário atual: <strong className="font-mono">{horaStr}</strong>
+                </div>
                 {inferido?.programado && (
-                  <div>Programado: <strong className="font-mono">{inferido.programado.slice(0, 5)}</strong></div>
+                  <div>
+                    Programado: <strong className="font-mono">{inferido.programado.slice(0, 5)}</strong>
+                  </div>
                 )}
                 {previa && previa.status !== "no_horario" && (
-                  <span className={`inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}>
+                  <span
+                    className={`inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}
+                  >
                     {statusLabel[previa.status]}
                     {previa.atraso > 0 ? ` · ${formatMinutos(previa.atraso)}` : ""}
                   </span>
                 )}
-                <div className="text-muted-foreground">Após confirmar, o registro não poderá ser alterado por você.</div>
+                <div className="text-muted-foreground">
+                  Após confirmar, o registro não poderá ser alterado por você.
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={enviando}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); bater(); }} disabled={enviando}>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                bater();
+              }}
+              disabled={enviando}
+            >
               {enviando ? "Registrando..." : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>

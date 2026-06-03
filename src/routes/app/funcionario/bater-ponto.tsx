@@ -4,16 +4,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { JornadaDia } from "@/lib/jornadas";
 import {
-  TipoPonto, tipoLabel, statusLabel, statusColor,
-  inferirTipo, avaliar, diaComercialISO, statusJornadaHoje,
+  TipoPonto,
+  tipoLabel,
+  statusLabel,
+  statusColor,
+  inferirTipo,
+  avaliar,
+  diaComercialISO,
+  statusJornadaHoje,
 } from "@/lib/ponto";
 
 const fmtHorasMin = (minutos: number | null | undefined) => {
@@ -75,8 +87,12 @@ function BaterPontoPage() {
     const { data: func } = await supabase
       .from("funcionarios")
       .select("id,status,permite_bater_ponto")
-      .eq("usuario_id", user.id).maybeSingle();
-    if (!func) { setLoading(false); return; }
+      .eq("usuario_id", user.id)
+      .maybeSingle();
+    if (!func) {
+      setLoading(false);
+      return;
+    }
     const f = func as { id: string; status: string; permite_bater_ponto: boolean };
     setFuncId(f.id);
     setFuncStatus(f.status);
@@ -98,7 +114,6 @@ function BaterPontoPage() {
       : null;
     setJornada(j);
     setDia(escolha?.dia ?? null);
-
 
     const { data: regs } = await supabase
       .from("registros_ponto")
@@ -122,9 +137,7 @@ function BaterPontoPage() {
     if (ultSaida) {
       const u = ultSaida as { data_referencia: string; horario_programado: string | null; horario_registrado: string };
       const registrado = new Date(u.horario_registrado);
-      let base = u.horario_programado
-        ? new Date(`${u.data_referencia}T${u.horario_programado}`)
-        : registrado;
+      let base = u.horario_programado ? new Date(`${u.data_referencia}T${u.horario_programado}`) : registrado;
       // Se o horário programado parece estar no futuro em relação ao registro,
       // a saída pertence ao dia comercial anterior (ex.: registrou 01:08 de 22/05,
       // programado 23:50 → na verdade 21/05 23:50).
@@ -139,7 +152,9 @@ function BaterPontoPage() {
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
 
   const tiposJaRegistrados = registros.map((r) => r.tipo_ponto);
   const inferido = inferirTipo(dia, now, tiposJaRegistrados);
@@ -147,22 +162,27 @@ function BaterPontoPage() {
   const statusDia = statusJornadaHoje(dia, tiposJaRegistrados, now, tolerancia);
 
   const emBloqueio = !!bloqueioAte && bloqueioAte > now;
-  const podeBater = funcStatus === "ativo" && permitePonto && !!jornada && !!dia?.trabalha && !!inferido && !emBloqueio;
+  const podeBater = funcStatus === "ativo" && permitePonto && !!jornada && !!dia && !!inferido && !emBloqueio;
 
-  const fmtBloqueio = bloqueioAte?.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const fmtBloqueio = bloqueioAte?.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const motivoBloqueio = emBloqueio
     ? `Aguarde 10h após a saída final. Próximo ponto liberado às ${fmtBloqueio}.`
     : !jornada
-    ? "Você não possui jornada cadastrada. Procure o administrador."
-    : funcStatus !== "ativo"
-    ? `Funcionário ${funcStatus}. Procure o administrador.`
-    : !permitePonto
-    ? "Registro de ponto desabilitado para sua conta."
-    : !dia?.trabalha
-    ? "Hoje não é um dia de trabalho conforme sua jornada."
-    : !inferido
-    ? "Todos os pontos do dia já foram registrados."
-    : null;
+      ? "Você não possui jornada cadastrada. Procure o administrador."
+      : funcStatus !== "ativo"
+        ? `Funcionário ${funcStatus}. Procure o administrador.`
+        : !permitePonto
+          ? "Registro de ponto desabilitado para sua conta."
+          : !dia
+            ? "Sem dia configurado na jornada."
+            : !inferido
+              ? "Todos os pontos do dia já foram registrados."
+              : null;
 
   const previa = inferido ? avaliar(inferido.programado, now, tolerancia, inferido.tipo) : null;
 
@@ -193,7 +213,7 @@ function BaterPontoPage() {
       }
 
       // Após saída final, gera automaticamente os registros de intervalo do dia
-      if (inferido.tipo === "saida_final" && dia) {
+      if (inferido.tipo === "saida_final" && dia?.trabalha) {
         const dataRef = diaComercialISO(new Date());
         const jaTipos = registros.map((r) => r.tipo_ponto);
         const autos: Array<{ tipo: TipoPonto; hora: string }> = [];
@@ -245,9 +265,7 @@ function BaterPontoPage() {
           <div>
             <div className="text-xs text-white/70 capitalize">{dataStr}</div>
             <div className="text-xl font-bold mt-0.5">{nome || "Funcionário"}</div>
-            <div className="text-xs text-primary mt-1">
-              {jornada ? `Jornada: ${jornada.nome}` : "Sem jornada"}
-            </div>
+            <div className="text-xs text-primary mt-1">{jornada ? `Jornada: ${jornada.nome}` : "Sem jornada"}</div>
           </div>
           <div className="text-right">
             <div className="text-4xl sm:text-5xl font-mono font-bold text-primary tabular-nums">{horaStr}</div>
@@ -275,7 +293,9 @@ function BaterPontoPage() {
                 </div>
               )}
               {previa && previa.status !== "no_horario" && (
-                <span className={`mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}>
+                <span
+                  className={`mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${statusColor[previa.status]}`}
+                >
                   {statusLabel[previa.status]}
                   {previa.atraso > 0 ? ` · ${fmtHorasMin(previa.atraso)}` : ""}
                 </span>
@@ -293,7 +313,9 @@ function BaterPontoPage() {
             <>
               <AlertTriangle className="h-10 w-10 text-orange-500 mb-2" />
               <div className="text-sm font-medium">{motivoBloqueio ?? "Não é possível bater ponto agora"}</div>
-              <Button size="lg" className="mt-4" disabled>Bater Ponto</Button>
+              <Button size="lg" className="mt-4" disabled>
+                Bater Ponto
+              </Button>
             </>
           )}
         </CardContent>
@@ -321,7 +343,9 @@ function BaterPontoPage() {
                       {r.atraso_minutos > 0 && ` · atraso ${r.atraso_minutos}min`}
                     </div>
                   </div>
-                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${statusColor[r.status] ?? "bg-muted"}`}>
+                  <span
+                    className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${statusColor[r.status] ?? "bg-muted"}`}
+                  >
                     {statusLabel[r.status] ?? r.status}
                   </span>
                 </li>
@@ -366,7 +390,13 @@ function BaterPontoPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={enviando}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); bater(); }} disabled={enviando}>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                bater();
+              }}
+              disabled={enviando}
+            >
               {enviando ? "Registrando..." : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
