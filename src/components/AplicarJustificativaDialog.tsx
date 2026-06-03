@@ -117,6 +117,7 @@ export function AplicarJustificativaDialog({
         aprovado_em: status === "aprovada" ? new Date().toISOString() : null,
         anexo_url: anexoUrl,
         quantidade_minutos: qtdMin,
+        jornada_compensacao_id: tipo.categoria === "troca" ? jornadaCompensacaoId : null,
       };
 
       const obsTrim = observacao.trim();
