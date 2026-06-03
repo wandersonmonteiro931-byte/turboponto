@@ -250,7 +250,9 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
       const vincComp = vinculos.find((v) => v.jornadaId === compensacao.jornadaCompensacaoId);
       const diaComp = vincComp?.dias.find((d) => d.dia_semana === dow) ?? null;
       if (vincComp) {
-        jd = diaComp ?? {
+        jd = diaComp?.trabalha
+          ? diaComp
+          : {
           id: `compensacao-${vincComp.jornadaId}-${dow}`,
           jornada_id: vincComp.jornadaId,
           dia_semana: dow,
