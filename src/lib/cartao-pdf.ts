@@ -484,22 +484,41 @@ export function gerarPdfCartao(opts: {
   };
   void nomeJustificativaLinha;
 
-  const drawJustificativasDoDia = (
+  const justEntriesOf = (
+    justificativas: Array<{ tipo: { nome: string }; observacao?: string | null; quantidadeMinutos?: number | null }>,
+  ) =>
+    justificativas
+      .map((j) => ({
+        text: nomeJustificativaLinha(j),
+        qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
+      }))
+      .filter((e) => e.text);
+
+  const drawDiaComJust = (
+    rowBase: Record<string, string>,
+    linhas: Array<{ label: string; qtde: string }>,
     justificativas: Array<{ tipo: { nome: string }; observacao?: string | null; quantidadeMinutos?: number | null }>,
   ) => {
-    justificativas.forEach((j, index) => {
+    const justEntries = justEntriesOf(justificativas);
+    const total = Math.max(1, linhas.length, justEntries.length);
+
+    for (let i = 0; i < total; i++) {
       if (y > pageH - 35) {
         doc.addPage();
         y = 10;
         drawHeader();
       }
 
-      drawRow({
-        irreg: index === 0 ? "" : "",
-        qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
-        just: nomeJustificativaPdf(j),
-      });
-    });
+      const linha = linhas[i];
+      const just = justEntries[i];
+
+      const row: Record<string, string> = i === 0 ? { ...rowBase } : {};
+      row.irreg = linha?.label ?? "";
+      row.qtde = linha?.qtde || just?.qtde || "";
+      row.just = just?.text ?? "";
+
+      drawRow(row);
+    }
   };
 
   const textoJustificativaRegra = (j: { tipo: { nome: string }; observacao?: string | null }) =>
@@ -523,19 +542,18 @@ export function gerarPdfCartao(opts: {
 
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
-      const j0 = justs[0];
-      void temTrocaFolga(justs);
       const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
-      drawRow({
-        dia: diaSem,
-        data: dataStr,
-        esc: d.jornadaCodigo ?? "",
-        irreg: "FORA DO VINCULO",
-        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
-      });
-
-      drawJustificativasDoDia(justs);
+      drawDiaComJust(
+        {
+          dia: diaSem,
+          data: dataStr,
+          esc: d.jornadaCodigo ?? "",
+          adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
+        },
+        [{ label: "FORA DO VINCULO", qtde: "" }],
+        justs,
+      );
 
       continue;
     }
@@ -562,18 +580,23 @@ export function gerarPdfCartao(opts: {
               ? fmtMinHHMM(d.trabalhadoMinutos)
               : "";
 
-      drawRow({
-        dia: diaSem,
-        data: dataStr,
-        esc: d.jornadaCodigo ?? "",
-        entReal: temReg ? (d.registrado.entrada ?? "") : "",
-        saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
-        qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
-        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
-      });
-
-      drawJustificativasDoDia(justs);
+      drawDiaComJust(
+        {
+          dia: diaSem,
+          data: dataStr,
+          esc: d.jornadaCodigo ?? "",
+          entReal: temReg ? (d.registrado.entrada ?? "") : "",
+          saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
+          adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
+        },
+        [
+          {
+            label: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
+            qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
+          },
+        ],
+        justs,
+      );
 
       continue;
     }
@@ -706,32 +729,24 @@ export function gerarPdfCartao(opts: {
       });
     }
 
-    const primeira = linhas[0];
     const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
-    drawRow({
-      dia: diaSem,
-      data: dataStr,
-      esc: d.jornadaCodigo ?? "",
-      entPrev: d.programado.entrada ?? "",
-      intSai: d.programado.saida_intervalo ?? "",
-      intRet: d.programado.retorno_intervalo ?? "",
-      saiPrev: d.programado.saida_final ?? "",
-      entReal: semMarcacao || falta ? "" : (d.registrado.entrada ?? ""),
-      saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
-      irreg: primeira.label,
-      qtde: primeira.qtde,
-      adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
-    });
-
-    for (let i = 1; i < linhas.length; i++) {
-      drawRow({
-        irreg: linhas[i].label,
-        qtde: linhas[i].qtde,
-      });
-    }
-
-    drawJustificativasDoDia(justificativas);
+    drawDiaComJust(
+      {
+        dia: diaSem,
+        data: dataStr,
+        esc: d.jornadaCodigo ?? "",
+        entPrev: d.programado.entrada ?? "",
+        intSai: d.programado.saida_intervalo ?? "",
+        intRet: d.programado.retorno_intervalo ?? "",
+        saiPrev: d.programado.saida_final ?? "",
+        entReal: semMarcacao || falta ? "" : (d.registrado.entrada ?? ""),
+        saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
+        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
+      },
+      linhas,
+      justificativas,
+    );
   }
 
   hr(y);
