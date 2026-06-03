@@ -729,32 +729,24 @@ export function gerarPdfCartao(opts: {
       });
     }
 
-    const primeira = linhas[0];
     const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
-    drawRow({
-      dia: diaSem,
-      data: dataStr,
-      esc: d.jornadaCodigo ?? "",
-      entPrev: d.programado.entrada ?? "",
-      intSai: d.programado.saida_intervalo ?? "",
-      intRet: d.programado.retorno_intervalo ?? "",
-      saiPrev: d.programado.saida_final ?? "",
-      entReal: semMarcacao || falta ? "" : (d.registrado.entrada ?? ""),
-      saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
-      irreg: primeira.label,
-      qtde: primeira.qtde,
-      adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
-    });
-
-    for (let i = 1; i < linhas.length; i++) {
-      drawRow({
-        irreg: linhas[i].label,
-        qtde: linhas[i].qtde,
-      });
-    }
-
-    drawJustificativasDoDia(justificativas);
+    drawDiaComJust(
+      {
+        dia: diaSem,
+        data: dataStr,
+        esc: d.jornadaCodigo ?? "",
+        entPrev: d.programado.entrada ?? "",
+        intSai: d.programado.saida_intervalo ?? "",
+        intRet: d.programado.retorno_intervalo ?? "",
+        saiPrev: d.programado.saida_final ?? "",
+        entReal: semMarcacao || falta ? "" : (d.registrado.entrada ?? ""),
+        saiReal: semMarcacao || falta ? "" : (d.registrado.saida_final ?? ""),
+        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
+      },
+      linhas,
+      justificativas,
+    );
   }
 
   hr(y);
