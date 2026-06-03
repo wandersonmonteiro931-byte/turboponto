@@ -1212,6 +1212,7 @@ export type Database = {
           empresa_id: string
           funcionario_id: string
           id: string
+          jornada_compensacao_id: string | null
           observacao: string | null
           quantidade_minutos: number | null
           status: string
@@ -1230,6 +1231,7 @@ export type Database = {
           empresa_id: string
           funcionario_id: string
           id?: string
+          jornada_compensacao_id?: string | null
           observacao?: string | null
           quantidade_minutos?: number | null
           status?: string
@@ -1248,6 +1250,7 @@ export type Database = {
           empresa_id?: string
           funcionario_id?: string
           id?: string
+          jornada_compensacao_id?: string | null
           observacao?: string | null
           quantidade_minutos?: number | null
           status?: string
@@ -1260,6 +1263,13 @@ export type Database = {
             columns: ["funcionario_id"]
             isOneToOne: false
             referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "justificativas_aplicadas_jornada_compensacao_id_fkey"
+            columns: ["jornada_compensacao_id"]
+            isOneToOne: false
+            referencedRelation: "jornadas"
             referencedColumns: ["id"]
           },
           {

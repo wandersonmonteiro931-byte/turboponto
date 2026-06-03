@@ -1,0 +1,2 @@
+ALTER TABLE public.justificativas_aplicadas ADD COLUMN IF NOT EXISTS jornada_compensacao_id uuid REFERENCES public.jornadas(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_just_aplic_jornada_comp ON public.justificativas_aplicadas(jornada_compensacao_id);
