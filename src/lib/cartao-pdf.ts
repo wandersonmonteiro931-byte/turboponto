@@ -484,22 +484,41 @@ export function gerarPdfCartao(opts: {
   };
   void nomeJustificativaLinha;
 
-  const drawJustificativasDoDia = (
+  const justEntriesOf = (
+    justificativas: Array<{ tipo: { nome: string }; observacao?: string | null; quantidadeMinutos?: number | null }>,
+  ) =>
+    justificativas
+      .map((j) => ({
+        text: nomeJustificativaLinha(j),
+        qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
+      }))
+      .filter((e) => e.text);
+
+  const drawDiaComJust = (
+    rowBase: Record<string, string>,
+    linhas: Array<{ label: string; qtde: string }>,
     justificativas: Array<{ tipo: { nome: string }; observacao?: string | null; quantidadeMinutos?: number | null }>,
   ) => {
-    justificativas.forEach((j, index) => {
+    const justEntries = justEntriesOf(justificativas);
+    const total = Math.max(1, linhas.length, justEntries.length);
+
+    for (let i = 0; i < total; i++) {
       if (y > pageH - 35) {
         doc.addPage();
         y = 10;
         drawHeader();
       }
 
-      drawRow({
-        irreg: index === 0 ? "" : "",
-        qtde: j.quantidadeMinutos != null ? fmtMinHHMM(j.quantidadeMinutos) : "",
-        just: nomeJustificativaPdf(j),
-      });
-    });
+      const linha = linhas[i];
+      const just = justEntries[i];
+
+      const row: Record<string, string> = i === 0 ? { ...rowBase } : {};
+      row.irreg = linha?.label ?? "";
+      row.qtde = linha?.qtde || just?.qtde || "";
+      row.just = just?.text ?? "";
+
+      drawRow(row);
+    }
   };
 
   const textoJustificativaRegra = (j: { tipo: { nome: string }; observacao?: string | null }) =>
