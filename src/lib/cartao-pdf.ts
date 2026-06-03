@@ -555,7 +555,7 @@ export function gerarPdfCartao(opts: {
         esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: trocaFolga ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
+        irreg: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
         qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
         adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
