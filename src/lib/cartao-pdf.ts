@@ -580,18 +580,24 @@ export function gerarPdfCartao(opts: {
               ? fmtMinHHMM(d.trabalhadoMinutos)
               : "";
 
+      const ehFolga = temTrocaFolga(justs) || (!temReg && d.bancoHorasMinutos <= 0 && !temTrocaCompensada(justs));
+
       drawDiaComJust(
         {
           dia: diaSem,
           data: dataStr,
           esc: d.jornadaCodigo ?? "",
+          entPrev: ehFolga ? "" : (d.programado.entrada ?? ""),
+          intSai: ehFolga ? "" : (d.programado.saida_intervalo ?? ""),
+          intRet: ehFolga ? "" : (d.programado.retorno_intervalo ?? ""),
+          saiPrev: ehFolga ? "" : (d.programado.saida_final ?? ""),
           entReal: temReg ? (d.registrado.entrada ?? "") : "",
           saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
           adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
         },
         [
           {
-            label: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
+            label: ehFolga ? "FOLGA" : temReg ? "TRABALHADO" : temTrocaCompensada(justs) ? "TROCA COMPENSADA" : "FOLGA",
             qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
           },
         ],
