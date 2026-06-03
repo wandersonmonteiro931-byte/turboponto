@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { listarJustificativasTipos, type JustificativaTipo } from "@/lib/justificativas";
+import { carregarVinculosAtivos, type VinculoAtivoComDias } from "@/lib/jornadas";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,8 @@ export function AplicarJustificativaDialog({
   const [tipoId, setTipoId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [dataCompensada, setDataCompensada] = useState("");
+  const [vinculos, setVinculos] = useState<VinculoAtivoComDias[]>([]);
+  const [jornadaCompensacaoId, setJornadaCompensacaoId] = useState<string>("");
 
   const [anexo, setAnexo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -45,12 +48,16 @@ export function AplicarJustificativaDialog({
     listarJustificativasTipos(empresaId).then((all) => {
       setTipos(all.filter((t) => t.ativo && t.pode_aplicar_individual));
     });
+    if (funcionarioId) {
+      carregarVinculosAtivos(funcionarioId).then(setVinculos).catch(() => setVinculos([]));
+    }
     setObservacao("");
     setTipoId("");
     setDataCompensada("");
+    setJornadaCompensacaoId("");
 
     setAnexo(null);
-  }, [open, empresaId]);
+  }, [open, empresaId, funcionarioId]);
 
   const tipo = tipos.find((t) => t.id === tipoId);
 
@@ -73,6 +80,10 @@ export function AplicarJustificativaDialog({
     }
     if (tipo.categoria === "troca" && dataCompensada === data) {
       toast.error("A data da folga e a data compensada não podem ser iguais");
+      return;
+    }
+    if (tipo.categoria === "troca" && !jornadaCompensacaoId) {
+      toast.error("Selecione a escala que será usada para compensar a folga");
       return;
     }
     setSaving(true);
@@ -106,6 +117,7 @@ export function AplicarJustificativaDialog({
         aprovado_em: status === "aprovada" ? new Date().toISOString() : null,
         anexo_url: anexoUrl,
         quantidade_minutos: qtdMin,
+        jornada_compensacao_id: tipo.categoria === "troca" ? jornadaCompensacaoId : null,
       };
 
       const obsTrim = observacao.trim();
@@ -195,21 +207,43 @@ export function AplicarJustificativaDialog({
             )}
           </div>
           {tipo?.categoria === "troca" && (
-            <div>
-              <Label>
-                Data que vai compensar esta folga <span className="text-destructive">*</span>
-              </Label>
-              <input
-                type="date"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={dataCompensada}
-                onChange={(e) => setDataCompensada(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                O sistema criará duas marcações de troca: TROCA FOLGA para {data.split("-").reverse().join("/")} e TROCA
-                COMPENSADA para a data informada acima.
-              </p>
-            </div>
+            <>
+              <div>
+                <Label>
+                  Data que vai compensar esta folga <span className="text-destructive">*</span>
+                </Label>
+                <input
+                  type="date"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={dataCompensada}
+                  onChange={(e) => setDataCompensada(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  O sistema criará duas marcações de troca: TROCA FOLGA para {data.split("-").reverse().join("/")} e
+                  TROCA COMPENSADA para a data informada acima.
+                </p>
+              </div>
+              <div>
+                <Label>
+                  Escala de compensação <span className="text-destructive">*</span>
+                </Label>
+                <Select value={jornadaCompensacaoId} onValueChange={setJornadaCompensacaoId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a escala" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vinculos.map((v) => (
+                      <SelectItem key={v.jornadaId} value={v.jornadaId}>
+                        [{v.codigo}] {v.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Os horários previstos (E.Prev, I.Sai, I.Ret, S.Prev) do dia compensado serão puxados desta escala.
+                </p>
+              </div>
+            </>
           )}
           <div>
             <Label>Observação{tipo?.exige_observacao && <span className="text-destructive"> *</span>}</Label>

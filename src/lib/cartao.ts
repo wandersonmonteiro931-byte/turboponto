@@ -21,6 +21,7 @@ export type JustificativaAplicadaDia = {
   anexo_url: string | null;
   status: string;
   quantidadeMinutos: number | null;
+  jornadaCompensacaoId: string | null;
 };
 
 export type DiaCartao = {
@@ -171,7 +172,9 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
   // Justificativas aplicadas no período
   const { data: justApls } = await supabase
     .from("justificativas_aplicadas")
-    .select("id,tipo_id,data,data_inicio,data_fim,observacao,anexo_url,status,quantidade_minutos")
+    .select(
+      "id,tipo_id,data,data_inicio,data_fim,observacao,anexo_url,status,quantidade_minutos,jornada_compensacao_id",
+    )
     .eq("funcionario_id", funcionarioId)
     .gte("data", ini)
     .lte("data", fim);
@@ -198,6 +201,7 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
     anexo_url: string | null;
     status: string;
     quantidade_minutos: number | null;
+    jornada_compensacao_id: string | null;
   }>) {
     const tipo = tiposPorId.get(j.tipo_id);
     if (!tipo) continue;
@@ -208,6 +212,7 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
       anexo_url: j.anexo_url,
       status: j.status,
       quantidadeMinutos: j.quantidade_minutos,
+      jornadaCompensacaoId: j.jornada_compensacao_id,
       tipo,
     };
     const arr = justPorDia.get(j.data) ?? [];
@@ -233,9 +238,23 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
     const d = new Date(data + "T00:00");
     const dow = d.getDay();
     const escolha = escolherJornadaParaData(vinculos, data);
-    const jd = escolha?.dia ?? null;
-    const jornadaCodigo = escolha?.vinculo.codigo ?? null;
-    const jornadaNome = escolha?.vinculo.nome ?? null;
+    let jd = escolha?.dia ?? null;
+    let jornadaCodigo = escolha?.vinculo.codigo ?? null;
+    let jornadaNome = escolha?.vinculo.nome ?? null;
+
+    // Se houver justificativa de TROCA com escala de compensação, usa a escala
+    // selecionada pelo admin como referência de horário previsto.
+    const justsDoDiaParaEscala = justPorDia.get(data) ?? [];
+    const compensacao = justsDoDiaParaEscala.find((j) => j.jornadaCompensacaoId);
+    if (compensacao?.jornadaCompensacaoId) {
+      const vincComp = vinculos.find((v) => v.jornadaId === compensacao.jornadaCompensacaoId);
+      const diaComp = vincComp?.dias.find((d) => d.dia_semana === dow) ?? null;
+      if (vincComp && diaComp) {
+        jd = diaComp;
+        jornadaCodigo = vincComp.codigo;
+        jornadaNome = vincComp.nome;
+      }
+    }
     let trabalha = !!jd?.trabalha;
 
     // Fora do vínculo: antes da admissão ou após desligamento
