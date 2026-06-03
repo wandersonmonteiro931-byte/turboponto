@@ -473,14 +473,16 @@ export function gerarPdfCartao(opts: {
   const nomeJustificativaCurto = (nome: string) =>
     textoSeguro(nome, "").replace(/\s+/g, " ").replace("REGIST", "REG.").replace("COLAB", "COLAB.").trim();
 
-  const nomeJustificativaPdf = (j: { tipo: { nome: string }; observacao?: string | null }) => {
-    const txt = normalizaTextoPdf(`${nomeJustificativaPdf(j)} ${j.observacao ?? ""}`);
+  const nomeJustificativaLinha = (j: { tipo: { nome: string }; observacao?: string | null }): string => {
+    const base = nomeJustificativaPdf(j);
+    const txt = normalizaTextoPdf(`${base} ${j.observacao ?? ""}`);
 
     if (txt.includes("TROCA FOLGA")) return "TROCA FOLGA";
     if (txt.includes("TROCA COMPENSADA")) return "TROCA COMPENSADA";
 
-    return nomeJustificativaCurto(nomeJustificativaPdf(j));
+    return nomeJustificativaCurto(base);
   };
+  void nomeJustificativaLinha;
 
   const drawJustificativasDoDia = (
     justificativas: Array<{ tipo: { nome: string }; observacao?: string | null; quantidadeMinutos?: number | null }>,
@@ -522,7 +524,7 @@ export function gerarPdfCartao(opts: {
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
       const j0 = justs[0];
-      const trocaFolga = temTrocaFolga(justs);
+      void temTrocaFolga(justs);
       const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
       drawRow({
@@ -566,7 +568,7 @@ export function gerarPdfCartao(opts: {
         esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: trocaFolga ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
+        irreg: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
         qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
         adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
