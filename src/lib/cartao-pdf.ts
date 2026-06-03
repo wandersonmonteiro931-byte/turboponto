@@ -430,12 +430,12 @@ export function gerarPdfCartao(opts: {
     textoSeguro(nome, "").replace(/\s+/g, " ").replace("REGIST", "REG.").replace("COLAB", "COLAB.").trim();
 
   const nomeJustificativaPdf = (j: { tipo: { nome: string }; observacao?: string | null }) => {
-    const txt = normalizaTextoPdf(`${j.tipo.nome} ${j.observacao ?? ""}`);
+    const txt = normalizaTextoPdf(`${nomeJustificativaPdf(j)} ${j.observacao ?? ""}`);
 
     if (txt.includes("TROCA FOLGA")) return "TROCA FOLGA";
     if (txt.includes("TROCA COMPENSADA")) return "TROCA COMPENSADA";
 
-    return nomeJustificativaCurto(j.tipo.nome);
+    return nomeJustificativaCurto(nomeJustificativaPdf(j));
   };
 
   const drawJustificativasDoDia = (
@@ -457,7 +457,7 @@ export function gerarPdfCartao(opts: {
   };
 
   const textoJustificativaRegra = (j: { tipo: { nome: string }; observacao?: string | null }) =>
-    normalizaTextoPdf(`${j.tipo.nome} ${j.observacao ?? ""}`);
+    normalizaTextoPdf(`${nomeJustificativaPdf(j)} ${j.observacao ?? ""}`);
 
   const temTrocaFolga = (justificativas: Array<{ tipo: { nome: string }; observacao?: string | null }>) =>
     justificativas.some((j) => textoJustificativaRegra(j).includes("TROCA FOLGA"));
@@ -478,7 +478,7 @@ export function gerarPdfCartao(opts: {
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
       const j0 = justs[0];
-      void temTrocaFolga;
+      const trocaFolga = temTrocaFolga(justs);
       const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
       drawRow({
@@ -522,7 +522,7 @@ export function gerarPdfCartao(opts: {
         esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temReg ? "TRABALHADO" : "FOLGA",
+        irreg: trocaFolga ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
         qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
         adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
