@@ -461,13 +461,14 @@ export function gerarPdfCartao(opts: {
   const nomeJustificativaCurto = (nome: string) =>
     textoSeguro(nome, "").replace(/\s+/g, " ").replace("REGIST", "REG.").replace("COLAB", "COLAB.").trim();
 
-  const nomeJustificativaPdf = (j: { tipo: { nome: string }; observacao?: string | null }) => {
-    const txt = normalizaTextoPdf(`${nomeJustificativaPdf(j)} ${j.observacao ?? ""}`);
+  const nomeJustificativaLinha = (j: { tipo: { nome: string }; observacao?: string | null }) => {
+    const base = nomeJustificativaPdf(j);
+    const txt = normalizaTextoPdf(`${base} ${j.observacao ?? ""}`);
 
     if (txt.includes("TROCA FOLGA")) return "TROCA FOLGA";
     if (txt.includes("TROCA COMPENSADA")) return "TROCA COMPENSADA";
 
-    return nomeJustificativaCurto(nomeJustificativaPdf(j));
+    return nomeJustificativaCurto(base);
   };
 
   const drawJustificativasDoDia = (
