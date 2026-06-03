@@ -207,21 +207,43 @@ export function AplicarJustificativaDialog({
             )}
           </div>
           {tipo?.categoria === "troca" && (
-            <div>
-              <Label>
-                Data que vai compensar esta folga <span className="text-destructive">*</span>
-              </Label>
-              <input
-                type="date"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={dataCompensada}
-                onChange={(e) => setDataCompensada(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                O sistema criará duas marcações de troca: TROCA FOLGA para {data.split("-").reverse().join("/")} e TROCA
-                COMPENSADA para a data informada acima.
-              </p>
-            </div>
+            <>
+              <div>
+                <Label>
+                  Data que vai compensar esta folga <span className="text-destructive">*</span>
+                </Label>
+                <input
+                  type="date"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={dataCompensada}
+                  onChange={(e) => setDataCompensada(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  O sistema criará duas marcações de troca: TROCA FOLGA para {data.split("-").reverse().join("/")} e
+                  TROCA COMPENSADA para a data informada acima.
+                </p>
+              </div>
+              <div>
+                <Label>
+                  Escala de compensação <span className="text-destructive">*</span>
+                </Label>
+                <Select value={jornadaCompensacaoId} onValueChange={setJornadaCompensacaoId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a escala" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vinculos.map((v) => (
+                      <SelectItem key={v.jornadaId} value={v.jornadaId}>
+                        [{v.codigo}] {v.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Os horários previstos (E.Prev, I.Sai, I.Ret, S.Prev) do dia compensado serão puxados desta escala.
+                </p>
+              </div>
+            </>
           )}
           <div>
             <Label>Observação{tipo?.exige_observacao && <span className="text-destructive"> *</span>}</Label>
