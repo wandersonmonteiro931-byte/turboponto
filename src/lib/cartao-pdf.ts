@@ -510,8 +510,7 @@ export function gerarPdfCartao(opts: {
 
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
-      const j0 = justs[0];
-      const trocaFolga = temTrocaFolga(justs);
+      void temTrocaFolga(justs);
       const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
       drawRow({
