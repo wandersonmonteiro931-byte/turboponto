@@ -244,7 +244,7 @@ function HoleritesPage() {
 
         supabase
           .from("funcionarios")
-          .select("nome,cpf,rg,endereco,cargo,data_admissao,matricula")
+          .select("nome,cpf,rg,endereco,cargo,data_admissao,matricula,banco_agencia,conta,num_dep_irrf,num_dep_sal_fam,salario,lotacao")
           .eq("id", holeriteAtual.funcionario_id)
           .maybeSingle(),
 
