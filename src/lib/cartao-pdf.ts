@@ -542,19 +542,18 @@ export function gerarPdfCartao(opts: {
 
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
-      const j0 = justs[0];
-      void temTrocaFolga(justs);
       const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
-      drawRow({
-        dia: diaSem,
-        data: dataStr,
-        esc: d.jornadaCodigo ?? "",
-        irreg: "FORA DO VINCULO",
-        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
-      });
-
-      drawJustificativasDoDia(justs);
+      drawDiaComJust(
+        {
+          dia: diaSem,
+          data: dataStr,
+          esc: d.jornadaCodigo ?? "",
+          adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
+        },
+        [{ label: "FORA DO VINCULO", qtde: "" }],
+        justs,
+      );
 
       continue;
     }
@@ -581,18 +580,23 @@ export function gerarPdfCartao(opts: {
               ? fmtMinHHMM(d.trabalhadoMinutos)
               : "";
 
-      drawRow({
-        dia: diaSem,
-        data: dataStr,
-        esc: d.jornadaCodigo ?? "",
-        entReal: temReg ? (d.registrado.entrada ?? "") : "",
-        saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
-        qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
-        adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
-      });
-
-      drawJustificativasDoDia(justs);
+      drawDiaComJust(
+        {
+          dia: diaSem,
+          data: dataStr,
+          esc: d.jornadaCodigo ?? "",
+          entReal: temReg ? (d.registrado.entrada ?? "") : "",
+          saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
+          adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
+        },
+        [
+          {
+            label: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
+            qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
+          },
+        ],
+        justs,
+      );
 
       continue;
     }
