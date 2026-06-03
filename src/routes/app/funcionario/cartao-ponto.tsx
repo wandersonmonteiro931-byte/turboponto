@@ -204,7 +204,7 @@ function CartaoFuncPage() {
         </div>
         <Button variant="outline" onClick={baixarPdf} disabled={!resumo}>
           <Download className="h-4 w-4 mr-1" />
-          PDF FUNC V9
+          BAIXAR PDF
         </Button>
       </div>
 
