@@ -159,10 +159,12 @@ const nomeJustificativaPdf = (j: any): string => {
   return nomeBase || codigoBase || "";
 };
 
-const justificativasLinhaPdf = (justificativas: any[] | undefined | null): string => {
-  const nomes = (justificativas ?? []).map((j) => nomeJustificativaPdf(j)).filter(Boolean);
+const nomesJustificativasPdf = (justificativas: any[] | undefined | null): string[] =>
+  (justificativas ?? []).map((j) => nomeJustificativaPdf(j)).filter(Boolean);
 
-  return nomes.join(" / ");
+const justificativasLinhaPdf = (justificativas: any[] | undefined | null): string => {
+  const nomes = nomesJustificativasPdf(justificativas);
+  return nomes[0] ?? "";
 };
 
 const temJustificativaPdf = (justificativas: any[] | undefined | null, termo: string): boolean =>
@@ -458,17 +460,26 @@ export function gerarPdfCartao(opts: {
     y += rowH;
   };
 
+  const drawJustificativasExtras = (justificativas: any[] | undefined | null) => {
+    const nomes = nomesJustificativasPdf(justificativas);
+
+    for (let i = 1; i < nomes.length; i++) {
+      drawRow({
+        just: nomes[i],
+      });
+    }
+  };
+
   const nomeJustificativaCurto = (nome: string) =>
     textoSeguro(nome, "").replace(/\s+/g, " ").replace("REGIST", "REG.").replace("COLAB", "COLAB.").trim();
 
-  const nomeJustificativaLinha = (j: { tipo: { nome: string }; observacao?: string | null }) => {
-    const base = nomeJustificativaPdf(j);
-    const txt = normalizaTextoPdf(`${base} ${j.observacao ?? ""}`);
+  const nomeJustificativaPdf = (j: { tipo: { nome: string }; observacao?: string | null }) => {
+    const txt = normalizaTextoPdf(`${nomeJustificativaPdf(j)} ${j.observacao ?? ""}`);
 
     if (txt.includes("TROCA FOLGA")) return "TROCA FOLGA";
     if (txt.includes("TROCA COMPENSADA")) return "TROCA COMPENSADA";
 
-    return nomeJustificativaCurto(base);
+    return nomeJustificativaCurto(nomeJustificativaPdf(j));
   };
 
   const drawJustificativasDoDia = (
@@ -510,7 +521,8 @@ export function gerarPdfCartao(opts: {
 
     if (d.foraVinculo) {
       const justs = d.justificativas ?? [];
-      void temTrocaFolga(justs);
+      const j0 = justs[0];
+      const trocaFolga = temTrocaFolga(justs);
       const adicNoturnoMin = minutosAdicionalNoturnoDiaCartao(d);
 
       drawRow({
@@ -554,7 +566,7 @@ export function gerarPdfCartao(opts: {
         esc: d.jornadaCodigo ?? "",
         entReal: temReg ? (d.registrado.entrada ?? "") : "",
         saiReal: temReg ? (d.registrado.saida_final ?? "") : "",
-        irreg: temTrocaFolga(justs) ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
+        irreg: trocaFolga ? "FOLGA" : temReg ? "TRABALHADO" : "FOLGA",
         qtde: d.bancoHorasMinutos > 0 || (d.trabalhadoMinutos > 0 && temReg) ? qtdePrimeira : "",
         adic: adicNoturnoMin > 0 ? fmtMinHHMM(adicNoturnoMin) : "",
       });
