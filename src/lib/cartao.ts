@@ -21,6 +21,7 @@ export type JustificativaAplicadaDia = {
   anexo_url: string | null;
   status: string;
   quantidadeMinutos: number | null;
+  jornadaCompensacaoId: string | null;
 };
 
 export type DiaCartao = {
