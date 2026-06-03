@@ -238,9 +238,23 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
     const d = new Date(data + "T00:00");
     const dow = d.getDay();
     const escolha = escolherJornadaParaData(vinculos, data);
-    const jd = escolha?.dia ?? null;
-    const jornadaCodigo = escolha?.vinculo.codigo ?? null;
-    const jornadaNome = escolha?.vinculo.nome ?? null;
+    let jd = escolha?.dia ?? null;
+    let jornadaCodigo = escolha?.vinculo.codigo ?? null;
+    let jornadaNome = escolha?.vinculo.nome ?? null;
+
+    // Se houver justificativa de TROCA com escala de compensação, usa a escala
+    // selecionada pelo admin como referência de horário previsto.
+    const justsDoDiaParaEscala = justPorDia.get(data) ?? [];
+    const compensacao = justsDoDiaParaEscala.find((j) => j.jornadaCompensacaoId);
+    if (compensacao?.jornadaCompensacaoId) {
+      const vincComp = vinculos.find((v) => v.jornadaId === compensacao.jornadaCompensacaoId);
+      const diaComp = vincComp?.dias.find((d) => d.dia_semana === dow) ?? null;
+      if (vincComp && diaComp) {
+        jd = diaComp;
+        jornadaCodigo = vincComp.codigo;
+        jornadaNome = vincComp.nome;
+      }
+    }
     let trabalha = !!jd?.trabalha;
 
     // Fora do vínculo: antes da admissão ou após desligamento
