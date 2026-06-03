@@ -249,8 +249,17 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
     if (compensacao?.jornadaCompensacaoId) {
       const vincComp = vinculos.find((v) => v.jornadaId === compensacao.jornadaCompensacaoId);
       const diaComp = vincComp?.dias.find((d) => d.dia_semana === dow) ?? null;
-      if (vincComp && diaComp) {
-        jd = diaComp;
+      if (vincComp) {
+        jd = diaComp ?? {
+          id: `compensacao-${vincComp.jornadaId}-${dow}`,
+          jornada_id: vincComp.jornadaId,
+          dia_semana: dow,
+          trabalha: true,
+          horario_entrada: vincComp.horario_entrada,
+          horario_intervalo_saida: vincComp.horario_intervalo_saida,
+          horario_intervalo_retorno: vincComp.horario_intervalo_retorno,
+          horario_saida: vincComp.horario_saida,
+        };
         jornadaCodigo = vincComp.codigo;
         jornadaNome = vincComp.nome;
       }
