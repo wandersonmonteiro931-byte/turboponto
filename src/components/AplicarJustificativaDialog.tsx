@@ -82,6 +82,10 @@ export function AplicarJustificativaDialog({
       toast.error("A data da folga e a data compensada não podem ser iguais");
       return;
     }
+    if (tipo.categoria === "troca" && !jornadaCompensacaoId) {
+      toast.error("Selecione a escala que será usada para compensar a folga");
+      return;
+    }
     setSaving(true);
     try {
       const { data: u } = await supabase.auth.getUser();
