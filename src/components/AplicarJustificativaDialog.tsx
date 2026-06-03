@@ -37,6 +37,8 @@ export function AplicarJustificativaDialog({
   const [tipoId, setTipoId] = useState<string>("");
   const [observacao, setObservacao] = useState("");
   const [dataCompensada, setDataCompensada] = useState("");
+  const [vinculos, setVinculos] = useState<VinculoAtivoComDias[]>([]);
+  const [jornadaCompensacaoId, setJornadaCompensacaoId] = useState<string>("");
 
   const [anexo, setAnexo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -46,12 +48,16 @@ export function AplicarJustificativaDialog({
     listarJustificativasTipos(empresaId).then((all) => {
       setTipos(all.filter((t) => t.ativo && t.pode_aplicar_individual));
     });
+    if (funcionarioId) {
+      carregarVinculosAtivos(funcionarioId).then(setVinculos).catch(() => setVinculos([]));
+    }
     setObservacao("");
     setTipoId("");
     setDataCompensada("");
+    setJornadaCompensacaoId("");
 
     setAnexo(null);
-  }, [open, empresaId]);
+  }, [open, empresaId, funcionarioId]);
 
   const tipo = tipos.find((t) => t.id === tipoId);
 
