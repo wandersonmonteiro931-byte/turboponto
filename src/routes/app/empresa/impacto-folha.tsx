@@ -145,6 +145,57 @@ async function obterQzTray() {
   return qz;
 }
 
+const ESC = String.fromCharCode(27);
+const GS = String.fromCharCode(29);
+
+function normalizarTermica(texto: string) {
+  return String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .trim();
+}
+
+function linhaTermica(texto = "") {
+  return normalizarTermica(texto).slice(0, 48);
+}
+
+function centralizarTermica(texto: string) {
+  const limpo = linhaTermica(texto);
+  const espacos = Math.max(0, Math.floor((48 - limpo.length) / 2));
+  return `${" ".repeat(espacos)}${limpo}`;
+}
+
+function separarTermica() {
+  return "-".repeat(48);
+}
+
+function campoTermica(label: string, valor: string) {
+  const l = normalizarTermica(label).slice(0, 16);
+  const v = normalizarTermica(valor).slice(0, 48 - l.length - 2);
+  return `${l}: ${v}`;
+}
+
+function quebrarTermica(texto: string, largura = 48) {
+  const palavras = normalizarTermica(texto).split(/\s+/).filter(Boolean);
+  const linhas: string[] = [];
+  let atual = "";
+
+  for (const palavra of palavras) {
+    const tentativa = atual ? `${atual} ${palavra}` : palavra;
+
+    if (tentativa.length > largura) {
+      if (atual) linhas.push(atual);
+      atual = palavra.slice(0, largura);
+    } else {
+      atual = tentativa;
+    }
+  }
+
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
 function montarTextoReciboVale(params: {
   funcionarioNome: string;
   matricula?: string | null;
@@ -157,44 +208,49 @@ function montarTextoReciboVale(params: {
   const folha = `${MESES[params.mes - 1]}/${params.ano}`;
   const observacao = params.observacao?.trim();
 
-  const linhas = [
-    "\\x1B@", // inicia impressora
-    "\\x1B\\x61\\x01", // centralizar
-    "RECIBO DE VALE",
-    "TURBO LANCHES",
-    "--------------------------------",
-    "\\x1B\\x61\\x00", // alinhar à esquerda
-    `Data do vale: ${dataIsoParaBr(params.data_vale)}`,
-    `Funcionario: ${params.funcionarioNome}`,
-    `Matricula: ${params.matricula || "-"}`,
-    `Folha desc.: ${folha}`,
-    "Rubrica: 07075",
-    "--------------------------------",
-    "\\x1B\\x61\\x01",
-    `VALOR: ${moeda(params.valor)}`,
-    "\\x1B\\x61\\x00",
-    "--------------------------------",
-    "Declaro que recebi o valor acima",
-    "como vale/emprestimo interno e",
-    "autorizo o desconto na folha",
-    "indicada pela rubrica 07075 -",
-    "VALE EMPREST INT.",
-    ...(observacao ? ["--------------------------------", "Observacao:", observacao] : []),
-    "--------------------------------",
+  const linhas: string[] = [
+    ESC + "@",
+    ESC + "a" + String.fromCharCode(0),
+    centralizarTermica("RECIBO DE VALE"),
+    centralizarTermica("TURBO LANCHES"),
+    separarTermica(),
+    campoTermica("Data do vale", dataIsoParaBr(params.data_vale)),
+    campoTermica("Funcionario", params.funcionarioNome),
+    campoTermica("Matricula", params.matricula || "-"),
+    campoTermica("Folha desc.", folha),
+    campoTermica("Rubrica", "07075"),
+    separarTermica(),
+    centralizarTermica("VALOR"),
+    centralizarTermica(moeda(params.valor)),
+    separarTermica(),
+    ...quebrarTermica(
+      "Declaro que recebi o valor acima como vale/emprestimo interno e autorizo o desconto na folha indicada pela rubrica 07075 - VALE EMPREST INT.",
+    ),
+  ];
+
+  if (observacao) {
+    linhas.push(separarTermica());
+    linhas.push("Observacao:");
+    linhas.push(...quebrarTermica(observacao));
+  }
+
+  linhas.push(
+    separarTermica(),
     "",
     "",
     "",
     "________________________________",
-    "Assinatura do funcionario",
+    centralizarTermica("Assinatura do funcionario"),
     "",
     "",
     "",
     "",
     "",
-  ];
+    "",
+    GS + "V" + String.fromCharCode(0),
+  );
 
-  // Não envia comando de corte. Isso evita corte automático/adiantado em alguns drivers.
-  return linhas.join("\\n");
+  return linhas.join("\n");
 }
 
 function imprimirReciboValeNavegador(params: {
@@ -376,11 +432,11 @@ async function imprimirReciboVale(params: {
 
     const config = qz.configs.create(printer, {
       encoding: "CP850",
-      rasterize: false,
       margins: 0,
-      scaleContent: false,
-      units: "in",
+      copies: 1,
       density: 203,
+      units: "mm",
+      size: { width: 80 },
     });
 
     await qz.print(config, [
