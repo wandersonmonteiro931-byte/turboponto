@@ -105,6 +105,46 @@ function gerarFolhasBase() {
   return folhas;
 }
 
+function carregarScriptQzTray(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (window.qz) {
+      resolve(window.qz);
+      return;
+    }
+
+    const existente = document.querySelector<HTMLScriptElement>('script[data-qz-tray="true"]');
+    if (existente) {
+      existente.addEventListener("load", () => resolve(window.qz), { once: true });
+      existente.addEventListener("error", () => reject(new Error("Não foi possível carregar o QZ Tray.")), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js";
+    script.async = true;
+    script.dataset.qzTray = "true";
+    script.onload = () => resolve(window.qz);
+    script.onerror = () => reject(new Error("Não foi possível carregar o QZ Tray."));
+    document.head.appendChild(script);
+  });
+}
+
+async function obterQzTray() {
+  const qz = await carregarScriptQzTray();
+
+  if (!qz) {
+    throw new Error("QZ Tray não carregado.");
+  }
+
+  if (!qz.websocket.isActive()) {
+    await qz.websocket.connect();
+  }
+
+  return qz;
+}
+
 function montarTextoReciboVale(params: {
   funcionarioNome: string;
   matricula?: string | null;
@@ -314,23 +354,33 @@ async function imprimirReciboVale(params: {
   observacao?: string | null;
 }) {
   try {
-    const qz = window.qz;
+    const qz = await obterQzTray();
 
-    if (!qz) {
-      imprimirReciboValeNavegador(params);
-      return;
+    const printerName = localStorage.getItem("vale_qz_printer") || "POS-80";
+    let printer = printerName;
+
+    try {
+      const impressoras: string[] = await qz.printers.find();
+      const encontrada =
+        impressoras.find((nome) => nome.toLowerCase() === printerName.toLowerCase()) ||
+        impressoras.find((nome) => nome.toLowerCase().includes("pos")) ||
+        impressoras[0];
+
+      if (encontrada) {
+        printer = encontrada;
+        localStorage.setItem("vale_qz_printer", encontrada);
+      }
+    } catch {
+      printer = await qz.printers.getDefault();
     }
 
-    if (!qz.websocket.isActive()) {
-      await qz.websocket.connect();
-    }
-
-    const printer = await qz.printers.getDefault();
     const config = qz.configs.create(printer, {
       encoding: "CP850",
       rasterize: false,
       margins: 0,
       scaleContent: false,
+      units: "in",
+      density: 203,
     });
 
     await qz.print(config, [
@@ -341,10 +391,12 @@ async function imprimirReciboVale(params: {
       },
     ]);
 
-    toast.success("Recibo enviado para o QZ Tray.");
+    toast.success(`Recibo enviado para o QZ Tray: ${printer}`);
   } catch (error) {
     console.error("[vale] erro ao imprimir pelo QZ Tray", error);
-    toast.error("Falha no QZ Tray. Abrindo impressão pelo navegador.");
+    toast.error("Não foi possível conectar ao QZ Tray. Abra o QZ Tray no computador e permita a conexão.");
+
+    // Mantém alternativa manual somente se o QZ estiver fechado/bloqueado.
     imprimirReciboValeNavegador(params);
   }
 }
@@ -711,7 +763,7 @@ function ValePage() {
                             }
                           >
                             <Printer className="h-3 w-3 mr-1" />
-                            Recibo
+                            Recibo QZ
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => abrirEditar(vale)} disabled={!podeEditar}>
                             <Pencil className="h-3 w-3 mr-1" />
