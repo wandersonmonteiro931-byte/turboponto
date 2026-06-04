@@ -30,6 +30,7 @@ type ValeLancamento = {
   mes_referencia: number;
   ano_referencia: number;
   valor: number;
+  data_vale: string | null;
   observacao: string | null;
   status: string;
   created_at: string;
@@ -60,11 +61,12 @@ const moeda = (valor: number) =>
     currency: "BRL",
   }).format(Number(valor || 0));
 
-const dataHoraBr = () =>
-  new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date());
+function dataIsoParaBr(dataIso: string | null | undefined) {
+  if (!dataIso) return "";
+  const [ano, mes, dia] = dataIso.split("-");
+  if (!ano || !mes || !dia) return dataIso;
+  return `${dia}/${mes}/${ano}`;
+}
 
 function chaveFolha(ano: number, mes: number) {
   return `${ano}-${String(mes).padStart(2, "0")}`;
@@ -101,6 +103,7 @@ function imprimirReciboVale(params: {
   funcionarioNome: string;
   matricula?: string | null;
   valor: number;
+  data_vale: string;
   ano: number;
   mes: number;
   observacao?: string | null;
@@ -202,7 +205,7 @@ function imprimirReciboVale(params: {
 
   <div class="row">
     <span class="label">Data:</span>
-    <span class="value">${dataHoraBr()}</span>
+    <span class="value">${dataIsoParaBr(params.data_vale)}</span>
   </div>
   <div class="row">
     <span class="label">Funcionário:</span>
@@ -234,8 +237,6 @@ function imprimirReciboVale(params: {
     <div class="signature-line"></div>
     Assinatura do funcionário
   </div>
-
-  <div class="small">Via do funcionário/empresa - impressão térmica 80mm</div>
 
   <script>
     window.onload = () => {
@@ -269,6 +270,7 @@ function ValePage() {
     funcionario_id: "",
     folha: chaveFolha(hoje.getFullYear(), hoje.getMonth() + 1),
     valor: "",
+    data_vale: new Date().toISOString().slice(0, 10),
     observacao: "",
   });
 
@@ -321,7 +323,7 @@ function ValePage() {
     let query = (supabase as any)
       .from("vales_funcionarios")
       .select(
-        "id,empresa_id,funcionario_id,mes_referencia,ano_referencia,valor,observacao,status,created_at,funcionarios(nome,matricula)",
+        "id,empresa_id,funcionario_id,mes_referencia,ano_referencia,valor,data_vale,observacao,status,created_at,funcionarios(nome,matricula)",
       )
       .eq("empresa_id", empresaId)
       .eq("status", "ativo")
@@ -360,6 +362,7 @@ function ValePage() {
       funcionario_id: filtroFuncionario !== "todos" ? filtroFuncionario : "",
       folha: folhaDefault,
       valor: "",
+      data_vale: new Date().toISOString().slice(0, 10),
       observacao: "",
     });
 
@@ -372,6 +375,7 @@ function ValePage() {
       funcionario_id: vale.funcionario_id,
       folha: chaveFolha(vale.ano_referencia, vale.mes_referencia),
       valor: String(Number(vale.valor || 0).toFixed(2)),
+      data_vale: vale.data_vale ?? new Date().toISOString().slice(0, 10),
       observacao: vale.observacao ?? "",
     });
     setOpen(true);
@@ -382,6 +386,7 @@ function ValePage() {
     if (!podeEditar) return toast.error("Sem permissão para alterar vales.");
     if (!form.funcionario_id) return toast.error("Selecione o funcionário.");
     if (!form.folha) return toast.error("Selecione a folha para desconto.");
+    if (!form.data_vale) return toast.error("Informe a data real do vale.");
 
     const valor = Number(String(form.valor).replace(",", "."));
 
@@ -402,6 +407,7 @@ function ValePage() {
       ano_referencia: ano,
       mes_referencia: mes,
       valor,
+      data_vale: form.data_vale,
       observacao: form.observacao.trim() || null,
       status: "ativo",
     };
@@ -430,6 +436,7 @@ function ValePage() {
       funcionarioNome: funcionario?.nome ?? "Funcionário",
       matricula: funcionario?.matricula,
       valor,
+      data_vale: form.data_vale,
       ano,
       mes,
       observacao: form.observacao,
@@ -566,6 +573,7 @@ function ValePage() {
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="p-3 text-left">Funcionário</th>
+                    <th className="p-3 text-left">Data do vale</th>
                     <th className="p-3 text-left">Folha</th>
                     <th className="p-3 text-right">Valor</th>
                     <th className="p-3 text-left">Observação</th>
@@ -581,6 +589,7 @@ function ValePage() {
                           <div className="text-xs text-muted-foreground">Matrícula #{vale.funcionarios.matricula}</div>
                         )}
                       </td>
+                      <td className="p-3">{dataIsoParaBr(vale.data_vale)}</td>
                       <td className="p-3">
                         {MESES[Number(vale.mes_referencia) - 1]}/{vale.ano_referencia}
                       </td>
@@ -596,6 +605,7 @@ function ValePage() {
                                 funcionarioNome: vale.funcionarios?.nome ?? "Funcionário",
                                 matricula: vale.funcionarios?.matricula,
                                 valor: Number(vale.valor),
+                                data_vale: vale.data_vale || new Date().toISOString().slice(0, 10),
                                 ano: vale.ano_referencia,
                                 mes: vale.mes_referencia,
                                 observacao: vale.observacao,
@@ -679,6 +689,15 @@ function ValePage() {
                 value={form.valor}
                 onChange={(event) => setForm((prev) => ({ ...prev, valor: event.target.value }))}
                 placeholder="0,00"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">Data real do vale</Label>
+              <Input
+                type="date"
+                value={form.data_vale}
+                onChange={(event) => setForm((prev) => ({ ...prev, data_vale: event.target.value }))}
               />
             </div>
 
