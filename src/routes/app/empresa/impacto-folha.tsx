@@ -79,7 +79,9 @@ function gerarFolhasBase() {
   const hoje = new Date();
   const folhas: Array<{ ano: number; mes: number; label: string; value: string }> = [];
 
-  for (let i = 0; i < 14; i++) {
+  // Mostra folhas anteriores também.
+  // Exemplo: se Maio/2026 foi reaberto em Junho/2026, ele precisa aparecer para lançamento de vale.
+  for (let i = -12; i < 14; i++) {
     const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
     const ano = data.getFullYear();
     const mes = data.getMonth() + 1;
