@@ -12,6 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Pencil, Plus, Printer, Trash2, Wallet } from "lucide-react";
 
+declare global {
+  interface Window {
+    qz?: any;
+  }
+}
+
 export const Route = createFileRoute("/app/empresa/impacto-folha")({
   component: ValePage,
 });
@@ -99,7 +105,7 @@ function gerarFolhasBase() {
   return folhas;
 }
 
-function imprimirReciboVale(params: {
+function montarTextoReciboVale(params: {
   funcionarioNome: string;
   matricula?: string | null;
   valor: number;
@@ -108,7 +114,59 @@ function imprimirReciboVale(params: {
   mes: number;
   observacao?: string | null;
 }) {
-  const popup = window.open("", "recibo_vale", "width=420,height=680");
+  const folha = `${MESES[params.mes - 1]}/${params.ano}`;
+  const observacao = params.observacao?.trim();
+
+  const linhas = [
+    "\\x1B@", // inicia impressora
+    "\\x1B\\x61\\x01", // centralizar
+    "RECIBO DE VALE",
+    "TURBO LANCHES",
+    "--------------------------------",
+    "\\x1B\\x61\\x00", // alinhar à esquerda
+    `Data do vale: ${dataIsoParaBr(params.data_vale)}`,
+    `Funcionario: ${params.funcionarioNome}`,
+    `Matricula: ${params.matricula || "-"}`,
+    `Folha desc.: ${folha}`,
+    "Rubrica: 07075",
+    "--------------------------------",
+    "\\x1B\\x61\\x01",
+    `VALOR: ${moeda(params.valor)}`,
+    "\\x1B\\x61\\x00",
+    "--------------------------------",
+    "Declaro que recebi o valor acima",
+    "como vale/emprestimo interno e",
+    "autorizo o desconto na folha",
+    "indicada pela rubrica 07075 -",
+    "VALE EMPREST INT.",
+    ...(observacao ? ["--------------------------------", "Observacao:", observacao] : []),
+    "--------------------------------",
+    "",
+    "",
+    "",
+    "________________________________",
+    "Assinatura do funcionario",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ];
+
+  // Não envia comando de corte. Isso evita corte automático/adiantado em alguns drivers.
+  return linhas.join("\\n");
+}
+
+function imprimirReciboValeNavegador(params: {
+  funcionarioNome: string;
+  matricula?: string | null;
+  valor: number;
+  data_vale: string;
+  ano: number;
+  mes: number;
+  observacao?: string | null;
+}) {
+  const popup = window.open("", "recibo_vale", "width=420,height=760");
 
   if (!popup) {
     toast.error("O navegador bloqueou a impressão. Permita pop-ups para imprimir o recibo.");
@@ -188,11 +246,6 @@ function imprimirReciboVale(params: {
       border-top: 1px solid #000;
       margin-bottom: 1.5mm;
     }
-    .small {
-      font-size: 10px;
-      text-align: center;
-      margin-top: 3mm;
-    }
   </style>
 </head>
 <body>
@@ -204,7 +257,7 @@ function imprimirReciboVale(params: {
   <div class="line"></div>
 
   <div class="row">
-    <span class="label">Data:</span>
+    <span class="label">Data do vale:</span>
     <span class="value">${dataIsoParaBr(params.data_vale)}</span>
   </div>
   <div class="row">
@@ -249,6 +302,51 @@ function imprimirReciboVale(params: {
   `);
 
   popup.document.close();
+}
+
+async function imprimirReciboVale(params: {
+  funcionarioNome: string;
+  matricula?: string | null;
+  valor: number;
+  data_vale: string;
+  ano: number;
+  mes: number;
+  observacao?: string | null;
+}) {
+  try {
+    const qz = window.qz;
+
+    if (!qz) {
+      imprimirReciboValeNavegador(params);
+      return;
+    }
+
+    if (!qz.websocket.isActive()) {
+      await qz.websocket.connect();
+    }
+
+    const printer = await qz.printers.getDefault();
+    const config = qz.configs.create(printer, {
+      encoding: "CP850",
+      rasterize: false,
+      margins: 0,
+      scaleContent: false,
+    });
+
+    await qz.print(config, [
+      {
+        type: "raw",
+        format: "plain",
+        data: montarTextoReciboVale(params),
+      },
+    ]);
+
+    toast.success("Recibo enviado para o QZ Tray.");
+  } catch (error) {
+    console.error("[vale] erro ao imprimir pelo QZ Tray", error);
+    toast.error("Falha no QZ Tray. Abrindo impressão pelo navegador.");
+    imprimirReciboValeNavegador(params);
+  }
 }
 
 function ValePage() {
