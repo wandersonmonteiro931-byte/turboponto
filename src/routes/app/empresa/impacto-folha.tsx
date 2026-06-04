@@ -15,6 +15,7 @@ import { Pencil, Plus, Printer, Trash2, Wallet } from "lucide-react";
 declare global {
   interface Window {
     qz?: any;
+    __turboQzConnecting?: boolean;
   }
 }
 
