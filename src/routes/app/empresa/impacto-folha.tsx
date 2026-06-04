@@ -15,7 +15,7 @@ import { Pencil, Plus, Printer, Trash2, Wallet } from "lucide-react";
 declare global {
   interface Window {
     qz?: any;
-    __turboQzConnecting?: Promise<any>;
+    __turboQzConnecting?: boolean;
   }
 }
 
@@ -47,6 +47,31 @@ type ValeLancamento = {
   } | null;
 };
 
+const QZ_DIGITAL_CERTIFICATE = `-----BEGIN CERTIFICATE-----
+MIIECzCCAvOgAwIBAgIGAZ6T5U0IMA0GCSqGSIb3DQEBCwUAMIGiMQswCQYDVQQG
+EwJVUzELMAkGA1UECAwCTlkxEjAQBgNVBAcMCUNhbmFzdG90YTEbMBkGA1UECgwS
+UVogSW5kdXN0cmllcywgTExDMRswGQYDVQQLDBJRWiBJbmR1c3RyaWVzLCBMTEMx
+HDAaBgkqhkiG9w0BCQEWDXN1cHBvcnRAcXouaW8xGjAYBgNVBAMMEVFaIFRyYXkg
+RGVtbyBDZXJ0MB4XDTI2MDYwMzE4Mjg1OFoXDTQ2MDYwMzE4Mjg1OFowgaIxCzAJ
+BgNVBAYTAlVTMQswCQYDVQQIDAJOWTESMBAGA1UEBwwJQ2FuYXN0b3RhMRswGQYD
+VQQKDBJRWiBJbmR1c3RyaWVzLCBMTEMxGzAZBgNVBAsMElFaIEluZHVzdHJpZXMs
+IExMQzEcMBoGCSqGSIb3DQEJARYNc3VwcG9ydEBxei5pbzEaMBgGA1UEAwwRUVog
+VHJheSBEZW1vIENlcnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCw
+GNKR/1Z39qvhYdi35L8ilk4xcbZj0gvGTCnri30U9Of3FnElfPYUZMtCx9my5dhT
+nnpzERCjdA2Ka05iERqYZlJDmN0536O12Ho/gdCT2ktjshj05IFbNsFv69ja1yHB
+Nq6hjrBFi2hrBbbUSog+Q4wUF0mcIxMGPuHbKFob9GN+nzrFpr77qyBsr/yZhw+K
+YvCZR6gyt8FfsxkqXzgIyRhZX3ek17JzMLfLddwGLnpuOaX/PVNF9EA7YzNViu2a
+n4wePHolp4fWXO46RiAZUFq0+g1m2U08aeC31Dzq0/zadkTeCUXHGv1Ui4B29FI2
+TbJdqWGyNc+BGpEM5jw3AgMBAAGjRTBDMBIGA1UdEwEB/wQIMAYBAf8CAQEwDgYD
+VR0PAQH/BAQDAgEGMB0GA1UdDgQWBBQcATB/NUBvnIlRPPC6/ibuXVPn1TANBgkq
+hkiG9w0BAQsFAAOCAQEAeubIKU9A9RDUn7IpbhVndsr8M5KK1nYHoryGZrpzsVDk
+0vdYSg62Ip+wxiXSC0b8kTP6Arn+72eQeEGlNgfGhroQPfDkd7r0Tn5QDBR5WSGH
+VlURx4Drwnfdq//cpItRpTd2K0k690HGXgveOyCp5rbmIK+LgcH4w/pt+PX/9m0Y
+SDUBCJsMr0TCtGHP4fBg4zg8SuA3ot6IR7T0++sRPonR74NK/WQiBtj3dRP+59Q0
+oB3s7OWPdw72Fup+c7HbSJeNzf2aW+cAcQJnQhxmWtwGiu60Oqfo7L3obRdd9++B
+UGQROe5pyyk4mq8+AKUtzLL5V6LH9mC3k4gHWxpvAw==
+-----END CERTIFICATE-----`;
+
 const MESES = [
   "Janeiro",
   "Fevereiro",
@@ -67,6 +92,7 @@ const moeda = (valor: number) =>
     style: "currency",
     currency: "BRL",
   }).format(Number(valor || 0));
+
 
 function dataIsoParaBr(dataIso: string | null | undefined) {
   if (!dataIso) return "";
@@ -106,6 +132,43 @@ function gerarFolhasBase() {
   return folhas;
 }
 
+
+
+function configurarAssinaturaQzTray(qz: any) {
+  if ((qz as any).__turboAssinaturaConfigurada) return;
+
+  qz.security.setCertificatePromise((resolve: (cert: string) => void) => {
+    resolve(QZ_DIGITAL_CERTIFICATE);
+  });
+
+  qz.security.setSignatureAlgorithm("SHA512");
+
+  qz.security.setSignaturePromise((toSign: string) => {
+    return async (resolve: (signature: string) => void, reject: (error: Error) => void) => {
+      try {
+        const { data, error } = await supabase.functions.invoke("qz-sign", {
+          body: { request: toSign },
+        });
+
+        if (error) throw error;
+
+        const signature = data?.signature;
+
+        if (!signature) {
+          throw new Error("A Edge Function qz-sign não retornou assinatura.");
+        }
+
+        resolve(signature);
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error("Erro ao assinar requisição do QZ Tray."));
+      }
+    };
+  });
+
+  (qz as any).__turboAssinaturaConfigurada = true;
+}
+
+
 function carregarScriptQzTray(): Promise<any> {
   return new Promise((resolve, reject) => {
     if (window.qz) {
@@ -116,9 +179,7 @@ function carregarScriptQzTray(): Promise<any> {
     const existente = document.querySelector<HTMLScriptElement>('script[data-qz-tray="true"]');
     if (existente) {
       existente.addEventListener("load", () => resolve(window.qz), { once: true });
-      existente.addEventListener("error", () => reject(new Error("Não foi possível carregar o QZ Tray.")), {
-        once: true,
-      });
+      existente.addEventListener("error", () => reject(new Error("Não foi possível carregar o QZ Tray.")), { once: true });
       return;
     }
 
@@ -139,6 +200,8 @@ async function obterQzTray() {
     throw new Error("QZ Tray não carregado.");
   }
 
+  configurarAssinaturaQzTray(qz);
+
   if (qz.websocket.isActive()) {
     return qz;
   }
@@ -155,6 +218,7 @@ async function obterQzTray() {
   await window.__turboQzConnecting;
   return qz;
 }
+
 
 const ESC = String.fromCharCode(27);
 const GS = String.fromCharCode(29);
@@ -423,10 +487,23 @@ async function imprimirReciboVale(params: {
   try {
     const qz = await obterQzTray();
 
-    // Usa diretamente a impressora configurada.
-    // Não chama qz.printers.find() nem qz.printers.getDefault(),
-    // porque essas chamadas também podem gerar novas permissões no QZ Tray.
-    const printer = localStorage.getItem("vale_qz_printer") || "POS-80";
+    const printerName = localStorage.getItem("vale_qz_printer") || "POS-80";
+    let printer = printerName;
+
+    try {
+      const impressoras: string[] = await qz.printers.find();
+      const encontrada =
+        impressoras.find((nome) => nome.toLowerCase() === printerName.toLowerCase()) ||
+        impressoras.find((nome) => nome.toLowerCase().includes("pos")) ||
+        impressoras[0];
+
+      if (encontrada) {
+        printer = encontrada;
+        localStorage.setItem("vale_qz_printer", encontrada);
+      }
+    } catch {
+      printer = await qz.printers.getDefault();
+    }
 
     const config = qz.configs.create(printer, {
       encoding: "CP850",
@@ -487,7 +564,10 @@ function ValePage() {
     });
   }, [fechamentos]);
 
-  const totalFiltrado = useMemo(() => vales.reduce((s, item) => s + Number(item.valor || 0), 0), [vales]);
+  const totalFiltrado = useMemo(
+    () => vales.reduce((s, item) => s + Number(item.valor || 0), 0),
+    [vales],
+  );
 
   const carregar = async () => {
     if (!empresaId) return;
@@ -526,9 +606,7 @@ function ValePage() {
 
     let query = (supabase as any)
       .from("vales_funcionarios")
-      .select(
-        "id,empresa_id,funcionario_id,mes_referencia,ano_referencia,valor,data_vale,observacao,status,created_at,funcionarios(nome,matricula)",
-      )
+      .select("id,empresa_id,funcionario_id,mes_referencia,ano_referencia,valor,data_vale,observacao,status,created_at,funcionarios(nome,matricula)")
       .eq("empresa_id", empresaId)
       .eq("status", "ativo")
       .order("ano_referencia", { ascending: false })
@@ -560,7 +638,7 @@ function ValePage() {
 
     const folhaDefault = folhasAbertas.some((f) => f.value === filtroFolha)
       ? filtroFolha
-      : (folhasAbertas[0]?.value ?? chaveFolha(hoje.getFullYear(), hoje.getMonth() + 1));
+      : folhasAbertas[0]?.value ?? chaveFolha(hoje.getFullYear(), hoje.getMonth() + 1);
 
     setForm({
       funcionario_id: filtroFuncionario !== "todos" ? filtroFuncionario : "",
@@ -623,7 +701,11 @@ function ValePage() {
           .eq("id", editando.id)
           .select("id")
           .maybeSingle()
-      : await (supabase as any).from("vales_funcionarios").insert(payload).select("id").maybeSingle();
+      : await (supabase as any)
+          .from("vales_funcionarios")
+          .insert(payload)
+          .select("id")
+          .maybeSingle();
 
     if (error) {
       toast.error(error.message);
@@ -686,10 +768,6 @@ function ValePage() {
           </h2>
           <p className="text-sm text-muted-foreground">
             Desconto automático no holerite pela rubrica 07075 - VALE EMPREST INT.
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            No primeiro uso do QZ Tray, clique em <b>Remember this decision</b> e depois em <b>Allow</b>. Sem isso, o QZ
-            Tray vai pedir autorização a cada impressão.
           </p>
         </div>
 
@@ -883,9 +961,7 @@ function ValePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Só aparecem folhas em aberto, sem fechamento/liberação.
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Só aparecem folhas em aberto, sem fechamento/liberação.</p>
             </div>
 
             <div>
