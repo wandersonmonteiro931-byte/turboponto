@@ -1600,6 +1600,69 @@ export type Database = {
           },
         ]
       }
+      vales_funcionarios: {
+        Row: {
+          ano_referencia: number
+          created_at: string
+          criado_por: string | null
+          data_vale: string
+          empresa_id: string
+          funcionario_id: string
+          id: string
+          mes_referencia: number
+          observacao: string | null
+          removido_em: string | null
+          status: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ano_referencia: number
+          created_at?: string
+          criado_por?: string | null
+          data_vale?: string
+          empresa_id: string
+          funcionario_id: string
+          id?: string
+          mes_referencia: number
+          observacao?: string | null
+          removido_em?: string | null
+          status?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ano_referencia?: number
+          created_at?: string
+          criado_por?: string | null
+          data_vale?: string
+          empresa_id?: string
+          funcionario_id?: string
+          id?: string
+          mes_referencia?: number
+          observacao?: string | null
+          removido_em?: string | null
+          status?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vales_funcionarios_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vales_funcionarios_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
