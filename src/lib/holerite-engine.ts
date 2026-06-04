@@ -958,6 +958,53 @@ export async function recalcular(
     }
   }
 
+  // ==== VALE / EMPRÉSTIMO INTERNO (07075) ====
+  // Lançamentos cadastrados na seção "Vale" entram automaticamente no holerite
+  // da folha escolhida pelo admin.
+  if (porCodigo.has("07075")) {
+    const { data: valesMes, error: valesError } = await (supabase as any)
+      .from("vales_funcionarios")
+      .select("valor")
+      .eq("empresa_id", ctx.empresaId)
+      .eq("funcionario_id", ctx.funcionarioId)
+      .eq("ano_referencia", ctx.ano)
+      .eq("mes_referencia", ctx.mes)
+      .eq("status", "ativo");
+
+    if (valesError) {
+      console.warn("[holerite] falha ao carregar vales do funcionário", valesError);
+    }
+
+    const totalVales = round(
+      (valesMes ?? []).reduce((s: number, item: { valor: number | string | null }) => s + Number(item.valor || 0), 0),
+    );
+
+    const idxVale = linhas.findIndex((l) => l.codigo === "07075");
+
+    if (totalVales > 0) {
+      const r = porCodigo.get("07075")!;
+      const payload: EngineLanc = {
+        _k: idxVale >= 0 ? linhas[idxVale]._k : crypto.randomUUID(),
+        id: idxVale >= 0 ? linhas[idxVale].id : undefined,
+        codigo: r.codigo,
+        descricao: r.descricao || "VALE EMPREST INT",
+        qtde: 1,
+        provento: 0,
+        desconto: totalVales,
+        resultado: -totalVales,
+        modo: r.modo,
+        tipo: r.tipo,
+        editavel_manual: r.editavel_manual,
+        rubrica_id: r.id,
+      };
+
+      if (idxVale >= 0) linhas[idxVale] = payload;
+      else linhas.push(payload);
+    } else if (idxVale >= 0) {
+      linhas.splice(idxVale, 1);
+    }
+  }
+
   // ==== FASE 2: bases ====
   let baseInss = 0;
   let baseFgts = 0;

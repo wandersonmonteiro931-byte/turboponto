@@ -1,9 +1,21 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import {
-  LayoutDashboard, Building2, Users, Clock, ClipboardList,
-  CreditCard, CalendarCheck, Gift, FileText, BarChart3, Settings, ShieldCheck, Wallet,
-  Calculator, History,
+  LayoutDashboard,
+  Building2,
+  Users,
+  Clock,
+  ClipboardList,
+  CreditCard,
+  CalendarCheck,
+  Gift,
+  FileText,
+  BarChart3,
+  Settings,
+  ShieldCheck,
+  Wallet,
+  Calculator,
+  History,
 } from "lucide-react";
 import { AppShell, type NavItem } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
@@ -17,11 +29,23 @@ const items: NavItem[] = [
   { to: "/app/empresa/cartao-ponto", label: "Cartão de Ponto", icon: <CreditCard className="h-4 w-4" /> },
   { to: "/app/empresa/fechamento", label: "Fechamento Mensal", icon: <CalendarCheck className="h-4 w-4" /> },
   { to: "/app/empresa/justificativas", label: "Justificativas", icon: <ShieldCheck className="h-4 w-4" /> },
-  { to: "/app/empresa/justificativas-pendentes", label: "Pendentes Aprovação", icon: <ShieldCheck className="h-4 w-4" /> },
+  {
+    to: "/app/empresa/justificativas-pendentes",
+    label: "Pendentes Aprovação",
+    icon: <ShieldCheck className="h-4 w-4" />,
+  },
   { to: "/app/empresa/justificativas-massa", label: "Aplicar em Massa", icon: <Users className="h-4 w-4" /> },
-  { to: "/app/empresa/justificativas-relatorio", label: "Relatório Justificativas", icon: <BarChart3 className="h-4 w-4" /> },
-  { to: "/app/empresa/justificativas-historico", label: "Histórico Justificativas", icon: <History className="h-4 w-4" /> },
-  { to: "/app/empresa/impacto-folha", label: "Impacto em Folha", icon: <Calculator className="h-4 w-4" /> },
+  {
+    to: "/app/empresa/justificativas-relatorio",
+    label: "Relatório Justificativas",
+    icon: <BarChart3 className="h-4 w-4" />,
+  },
+  {
+    to: "/app/empresa/justificativas-historico",
+    label: "Histórico Justificativas",
+    icon: <History className="h-4 w-4" />,
+  },
+  { to: "/app/empresa/impacto-folha", label: "Vale / Empréstimo", icon: <Wallet className="h-4 w-4" /> },
   { to: "/app/empresa/banco-horas", label: "Banco de Horas", icon: <Wallet className="h-4 w-4" /> },
   { to: "/app/empresa/beneficios", label: "Benefícios", icon: <Gift className="h-4 w-4" /> },
   { to: "/app/empresa/holerites", label: "Holerites", icon: <FileText className="h-4 w-4" /> },
