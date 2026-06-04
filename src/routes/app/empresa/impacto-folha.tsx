@@ -15,6 +15,7 @@ import { Pencil, Plus, Printer, Trash2, Wallet } from "lucide-react";
 declare global {
   interface Window {
     qz?: any;
+    __turboQzConnecting?: Promise<any>;
   }
 }
 
@@ -138,10 +139,20 @@ async function obterQzTray() {
     throw new Error("QZ Tray não carregado.");
   }
 
-  if (!qz.websocket.isActive()) {
-    await qz.websocket.connect();
+  if (qz.websocket.isActive()) {
+    return qz;
   }
 
+  if (!window.__turboQzConnecting) {
+    window.__turboQzConnecting = qz.websocket
+      .connect()
+      .then(() => qz)
+      .finally(() => {
+        window.__turboQzConnecting = undefined;
+      });
+  }
+
+  await window.__turboQzConnecting;
   return qz;
 }
 
@@ -412,23 +423,10 @@ async function imprimirReciboVale(params: {
   try {
     const qz = await obterQzTray();
 
-    const printerName = localStorage.getItem("vale_qz_printer") || "POS-80";
-    let printer = printerName;
-
-    try {
-      const impressoras: string[] = await qz.printers.find();
-      const encontrada =
-        impressoras.find((nome) => nome.toLowerCase() === printerName.toLowerCase()) ||
-        impressoras.find((nome) => nome.toLowerCase().includes("pos")) ||
-        impressoras[0];
-
-      if (encontrada) {
-        printer = encontrada;
-        localStorage.setItem("vale_qz_printer", encontrada);
-      }
-    } catch {
-      printer = await qz.printers.getDefault();
-    }
+    // Usa diretamente a impressora configurada.
+    // Não chama qz.printers.find() nem qz.printers.getDefault(),
+    // porque essas chamadas também podem gerar novas permissões no QZ Tray.
+    const printer = localStorage.getItem("vale_qz_printer") || "POS-80";
 
     const config = qz.configs.create(printer, {
       encoding: "CP850",
@@ -688,6 +686,10 @@ function ValePage() {
           </h2>
           <p className="text-sm text-muted-foreground">
             Desconto automático no holerite pela rubrica 07075 - VALE EMPREST INT.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            No primeiro uso do QZ Tray, clique em <b>Remember this decision</b> e depois em <b>Allow</b>. Sem isso, o QZ
+            Tray vai pedir autorização a cada impressão.
           </p>
         </div>
 
