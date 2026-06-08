@@ -918,10 +918,72 @@ const limparLancamentosAutomaticosZeradosHolerite = (linhas: LancEdit[]) => {
   });
 };
 
+const calcularDsrBancoHorasPagasHolerite = (linhas: LancEdit[]) => {
+  const novas = linhas.filter((linha) => linha.codigo !== "00115");
+
+  const salarioLinha = novas.find((linha) => linha.codigo === "00005");
+  const diasPagos = Math.max(1, Number(salarioLinha?.qtde || 30));
+
+  const proventoBHPositivo = novas
+    .filter((linha) => ["00120", "00121"].includes(linha.codigo))
+    .reduce((s, linha) => s + Math.max(0, Number(linha.provento || 0)), 0);
+
+  // 00120 só entra se for positivo/provento.
+  // 00121 positivo também entra.
+  // Débito/desconto não gera DSR.
+  if (proventoBHPositivo <= 0) return novas;
+
+  const dsrRef = calcularDsrProporcionalAutoHolerite(diasPagos);
+  const valorDsr = roundAutoHolerite((proventoBHPositivo / diasPagos) * dsrRef);
+
+  if (valorDsr <= 0) return novas;
+
+  return [
+    ...novas,
+    {
+      _k: crypto.randomUUID(),
+      codigo: "00115",
+      descricao: "DSR HE 50%",
+      qtde: dsrRef,
+      provento: valorDsr,
+      desconto: 0,
+      resultado: valorDsr,
+    },
+  ];
+};
+
+const recalcularInssDepoisDsrBH = (linhas: LancEdit[]) => {
+  const idx = linhas.findIndex((linha) => linha.codigo === "07000");
+  const totalProventos = linhas.reduce((s, linha) => s + Number(linha.provento || 0), 0);
+  const inss = calcularInssAutoHolerite(totalProventos);
+
+  const linhaInss: LancEdit = {
+    _k: idx >= 0 ? linhas[idx]._k : crypto.randomUUID(),
+    id: idx >= 0 ? linhas[idx].id : undefined,
+    codigo: "07000",
+    descricao: "INSS MES",
+    qtde: 7.5,
+    provento: 0,
+    desconto: inss,
+    resultado: -inss,
+  };
+
+  const next = [...linhas];
+  if (idx >= 0) next[idx] = linhaInss;
+  else next.push(linhaInss);
+
+  return next;
+};
+
 const prepararLancamentosFinaisHolerite = (linhas: LancEdit[]) => {
-  return ordenarLancamentosHolerite(
-    limparLancamentosAutomaticosZeradosHolerite(linhas).filter((linha) => linha.codigo !== "28651"),
+  const semAntigoSaldoBH = limparLancamentosAutomaticosZeradosHolerite(linhas).filter(
+    (linha) => linha.codigo !== "28651",
   );
+
+  const comDsrBH = calcularDsrBancoHorasPagasHolerite(semAntigoSaldoBH);
+  const comInssAtualizado = recalcularInssDepoisDsrBH(comDsrBH);
+
+  return ordenarLancamentosHolerite(comInssAtualizado);
 };
 
 const ordenarLancamentosHolerite = (linhas: LancEdit[]) => {
@@ -1256,10 +1318,8 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     minutosFechamento / 60,
   );
 
-  // Se não há HE 50, não pode sobrar DSR HE de fechamento antigo.
-  if (!novas.find((linha) => linha.codigo === "00090" && Number(linha.provento || 0) > 0)) {
-    removerLinha("00115");
-  }
+  // DSR HE 50% será recalculado em prepararLancamentosFinaisHolerite
+  // quando houver 00120/00121 positivo. Saldo negativo não gera DSR.
 
   // Recalcula o INSS depois de incluir fechamento BH.
   const totalProventosRecalculado = novas.reduce((s, linha) => s + Number(linha.provento || 0), 0);
