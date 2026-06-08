@@ -33,6 +33,7 @@ const criarLinhaFechamentoBHAutomatico = (minutos: number, valorHora: number) =>
   const isProvento = minutos > 0;
 
   return {
+    _k: crypto.randomUUID(),
     codigo: "00120",
     descricao: "FECHAMENTO BH",
     tipo: isProvento ? "provento" : "desconto",
@@ -48,6 +49,7 @@ const criarLinhaFechamentoBHAutomatico = (minutos: number, valorHora: number) =>
 
 const criarLinhaSaldoBHInformativo = (minutos: number) => {
   return {
+    _k: crypto.randomUUID(),
     codigo: "28651",
     descricao: "SALDO BH",
     tipo: "resultado",
@@ -439,7 +441,7 @@ function HoleritesPage() {
       // se a rubrica foi excluída, ela não entra mais no PDF novo.
       // se a descrição foi editada, o PDF usa a descrição nova.
       const rubricasMap = new Map((rubricasAtuais ?? []).map((r) => [r.codigo, r]));
-      const linhasPdf = prepararLancamentosFinaisHolerite(
+      let linhasPdf = prepararLancamentosFinaisHolerite(
         (lancs ?? [])
           .filter((l) => rubricasMap.has(l.codigo))
           .map((l) => ({
@@ -462,16 +464,15 @@ function HoleritesPage() {
         return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
       };
 
-      const linhaSaldoPendenteMesAnterior = criarLinhaSaldoPendenteMesAnterior(
-        minutosSaldoPendenteMesAnterior,
-        valorHora,
-      );
+      const bhPdfAtualizado = await adicionarFechamentoBancoHorasHolerite({
+        funcionarioId: holeriteAtual.funcionario_id,
+        ano: holeriteAtual.ano_referencia,
+        mes: holeriteAtual.mes_referencia,
+        salario: Number(func?.salario ?? holeriteAtual.salario_contratual ?? 0),
+        linhas: linhasPdf,
+      });
 
-      if (linhaSaldoPendenteMesAnterior) {
-        rubricas.push(linhaSaldoPendenteMesAnterior as any);
-      }
-
-      linhas = await aplicarRubricasBHObrigatorias(linhas, funcionarioId, ano, mes, valorHora);
+      linhasPdf = prepararLancamentosFinaisHolerite(bhPdfAtualizado.linhas);
 
       const totalProventosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.provento || 0) : s), 0);
       const totalDescontosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.desconto || 0) : s), 0);
