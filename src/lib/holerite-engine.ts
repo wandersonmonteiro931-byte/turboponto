@@ -8,6 +8,40 @@ import { calcularHorasBenefMinutos } from "@/lib/cartao";
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
 // preservando linhas manuais já lançadas pelo operador.
 
+const RUBRICA_SALDO_PEND_MES_ANT = "SALDO PEND MES ANT";
+
+const criarRubricaSaldoPendenteMesAnterior = (minutos: number, valorHora: number): RubricaCalculada | null => {
+  if (!minutos)
+    const rubricaSaldoPendenteMesAnterior = criarRubricaSaldoPendenteMesAnterior(
+      minutosSaldoPendenteMesAnterior,
+      valorHora,
+    );
+
+  if (rubricaSaldoPendenteMesAnterior) {
+    rubricas.push(rubricaSaldoPendenteMesAnterior);
+  }
+
+  return null;
+
+  const horas = round(Math.abs(minutos) / 60);
+  const valor = round(horas * valorHora);
+  const isProvento = minutos > 0;
+
+  return {
+    codigo: "00121",
+    descricao: RUBRICA_SALDO_PEND_MES_ANT,
+    tipo: isProvento ? "provento" : "desconto",
+    referencia: formatHoras(Math.abs(minutos)),
+    quantidade: formatHoras(Math.abs(minutos)),
+    valor,
+    automatico: true,
+    origem: "saldo_pendente_mes_anterior",
+    observacao: isProvento
+      ? "Saldo positivo de banco de horas de mês anterior pendente de pagamento."
+      : "Saldo negativo de banco de horas de mês anterior pendente de desconto.",
+  } as RubricaCalculada;
+};
+
 export type EngineLanc = {
   _k: string;
   id?: string;
@@ -492,14 +526,14 @@ export async function recalcular(
   // Fechamento mensal do banco de horas:
   // positivo = pagar em folha; negativo = descontar em folha; zero = não cria linha.
   const fechamentoBH = await carregarFechamentoBancoHorasFolha(ctx, ini, fim);
-  const minutosFechamentoBH =
-    fechamentoBH.minutosPagar > 0
-      ? fechamentoBH.minutosPagar
-      : fechamentoBH.minutosDescontar > 0
-        ? -fechamentoBH.minutosDescontar
-        : 0;
-  const horasFechamentoBH = round(minutosFechamentoBH / 60);
-  const valorFechamentoBH = round(Math.abs(horasFechamentoBH) * valorHora);
+  let minutosFechamentoBH = fechamentoBH.minutosPagar - fechamentoBH.minutosDescontar;
+
+  // 00120 é usado somente para fechamento do mês atual com justificativa de fechamento.
+  // Saldo antigo pendurado não deve entrar aqui; entra na rubrica própria 00121.
+  const minutosSaldoPendenteMesAnterior = minutosFechamentoBH === 0 && saldoBHMinutos !== 0 ? saldoBHMinutos : 0;
+
+  const horasFechamentoBH = round(Math.abs(minutosFechamentoBH) / 60);
+  const valorFechamentoBH = round(horasFechamentoBH * valorHora);
 
   // Mantém linhas atuais; recalcula apenas as automáticas.
   const linhas: EngineLanc[] = linhasAtuais
@@ -771,7 +805,10 @@ export async function recalcular(
 
   // ==== Informativos automáticos baseados no cartão de ponto ====
   // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
-  const saldoBHHoras = round(saldoBHMinutos / 60);
+  // Quando o banco é tratado em 00120 ou em SALDO PEND MES ANT, o saldo informativo do mês fica zerado.
+  const saldoBHInformativoMinutos =
+    minutosFechamentoBH !== 0 || minutosSaldoPendenteMesAnterior !== 0 ? 0 : saldoBHMinutos;
+  const saldoBHHoras = round(saldoBHInformativoMinutos / 60);
 
   // Adiciona/remove SALDO BANCO POSITIVO (28651)
   const idxPos = linhas.findIndex((l) => l.codigo === "28651");
@@ -821,11 +858,11 @@ export async function recalcular(
     linhas.splice(idxNeg, 1);
   }
 
-  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas que afetam o benefício.
-  // REGRA OFICIAL: conta TODOS os débitos do cartão de ponto:
-  // atrasos, saídas antecipadas, faltas injustificadas pela carga prevista
-  // e qualquer débito de banco de horas/fechamento. Não compensa com créditos.
-  // A base é a mesma exibida no PDF em "QTDE HORAS BENEF".
+  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito (atrasos /
+  // saídas antecipadas) do mês que conta para a regra da cesta básica.
+  // Sempre puxa do total de débitos do cartão de ponto (mesma base usada
+  // pelo cálculo do benefício, mas independente da existência do benefício
+  // cadastrado) para refletir imediatamente o saldo do mês.
   if (porCodigo.has("18445")) {
     // Mantém o cálculo do benefício "Cesta Básica" sincronizado, se existir.
     try {
@@ -842,7 +879,9 @@ export async function recalcular(
     } catch (e) {
       console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
     }
-    // Base oficial do cartão de ponto (QTDE HORAS BENEF), recalculada ao gerar o holerite.
+    // Saldo de débito do mês em horas, vindo direto do cartão de ponto.
+    // Mesma base do cartão de ponto (QTDE HORAS BENEF): inclui faltas
+    // injustificadas (carga programada) + débitos de banco de horas.
     const horasCB = round(minHorasBenef / 60);
     const idxCB = linhas.findIndex((l) => l.codigo === "18445");
     if (horasCB > 0) {

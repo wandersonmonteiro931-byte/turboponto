@@ -19,6 +19,30 @@ import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
 
+const RUBRICA_SALDO_PEND_MES_ANT = {
+  codigo: "00121",
+  descricao: "SALDO PEND MES ANT",
+};
+
+const criarLinhaSaldoPendenteMesAnterior = (minutos: number, valorHora: number) => {
+  if (!minutos) return null;
+
+  const horas = Math.abs(minutos) / 60;
+  const valor = Math.round(horas * valorHora * 100) / 100;
+  const isProvento = minutos > 0;
+
+  return {
+    codigo: RUBRICA_SALDO_PEND_MES_ANT.codigo,
+    descricao: RUBRICA_SALDO_PEND_MES_ANT.descricao,
+    tipo: isProvento ? "provento" : "desconto",
+    referencia: `${String(Math.floor(Math.abs(minutos) / 60)).padStart(2, "0")}:${String(Math.abs(minutos) % 60).padStart(2, "0")}`,
+    quantidade: `${String(Math.floor(Math.abs(minutos) / 60)).padStart(2, "0")}:${String(Math.abs(minutos) % 60).padStart(2, "0")}`,
+    valor,
+    automatico: true,
+    origem: "saldo_pendente_mes_anterior",
+  };
+};
+
 export const Route = createFileRoute("/app/empresa/holerites")({
   component: HoleritesPage,
 });
@@ -244,7 +268,9 @@ function HoleritesPage() {
 
         supabase
           .from("funcionarios")
-          .select("nome,cpf,rg,endereco,cargo,data_admissao,matricula,banco_agencia,conta,num_dep_irrf,num_dep_sal_fam,salario,lotacao")
+          .select(
+            "nome,cpf,rg,endereco,cargo,data_admissao,matricula,banco_agencia,conta,num_dep_irrf,num_dep_sal_fam,salario,lotacao",
+          )
           .eq("id", holeriteAtual.funcionario_id)
           .maybeSingle(),
 
@@ -288,6 +314,15 @@ function HoleritesPage() {
         const r = rubricasMap.get(l.codigo);
         return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
       };
+
+      const linhaSaldoPendenteMesAnterior = criarLinhaSaldoPendenteMesAnterior(
+        minutosSaldoPendenteMesAnterior,
+        valorHora,
+      );
+
+      if (linhaSaldoPendenteMesAnterior) {
+        rubricas.push(linhaSaldoPendenteMesAnterior as any);
+      }
 
       const totalProventosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.provento || 0) : s), 0);
       const totalDescontosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.desconto || 0) : s), 0);
@@ -1035,9 +1070,11 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     if (ehDescontar) minutosDescontar += qtd;
   }
 
-  let minutosFechamento = minutosPagar > 0 ? minutosPagar : minutosDescontar > 0 ? -minutosDescontar : 0;
+  let minutosFechamento = minutosPagar - minutosDescontar;
+  let minutosSaldoPendenteMesAnterior = 0;
 
-  // Plano B: se o cartão foi fechado/liberado, usa o saldo informativo do próprio holerite.
+  // Plano B: saldo antigo pendurado não entra como 00120.
+  // Ele entra na rubrica própria SALDO PEND MES ANT, podendo ser provento ou desconto.
   if (minutosFechamento === 0) {
     const { data: cartaoFechado } = await supabase
       .from("cartoes_ponto")
