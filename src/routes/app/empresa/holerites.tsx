@@ -113,10 +113,10 @@ const aplicarRubricasBHObrigatorias = async (
   const linhaFechamento = criarLinhaFechamentoBHAutomatico(fechamentoMinutos, valorHora);
   if (linhaFechamento) semBH.push(linhaFechamento);
 
-  // Se o fechamento foi tratado no holerite, o saldo informativo deve sair 0h00.
-  // Se não houve fechamento, mostra o saldo encontrado.
-  const saldoInformativo = fechamentoMinutos !== 0 ? 0 : fechamentoMinutos;
-  semBH.push(criarLinhaSaldoBHInformativo(saldoInformativo));
+  // 28651 deve mostrar a quantidade de horas do fechamento como informativo.
+  // Se o fechamento foi -1h47, o 28651 mostra -1h47.
+  // Se foi +0h35, mostra 0h35.
+  semBH.push(criarLinhaSaldoBHInformativo(fechamentoMinutos));
 
   return semBH;
 };
@@ -1238,8 +1238,9 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     setLinha("00120", "FECHAMENTO BH", horas, 0, valorFechamento);
   }
 
-  // 28651 sempre aparece. Se o fechamento foi lançado no holerite, o saldo informativo é zero.
-  setLinha("28651", "SALDO BH", null, 0, 0, minutosFechamento !== 0 ? 0 : minutosFechamento / 60);
+  // 28651 sempre aparece com a quantidade de horas do fechamento.
+  // Não zerar aqui: é informativo para mostrar quanto foi fechado no banco.
+  setLinha("28651", "SALDO BH", null, 0, 0, minutosFechamento / 60);
 
   // Se não há HE 50, não pode sobrar DSR HE de fechamento antigo.
   if (!novas.find((linha) => linha.codigo === "00090" && Number(linha.provento || 0) > 0)) {

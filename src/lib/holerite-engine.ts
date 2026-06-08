@@ -952,8 +952,10 @@ export async function recalcular(
 
   // ==== Informativos automáticos baseados no cartão de ponto ====
   // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
-  const saldoBHInformativoMinutos =
-    minutosFechamentoBH !== 0 || minutosSaldoPendenteMesAnterior !== 0 ? 0 : saldoBHMinutos;
+  // 28651 - SALDO BH deve mostrar a quantidade de horas fechadas no banco.
+  // Se o fechamento do mês foi -1h47, o informativo mostra -1h47.
+  // Se não houve fechamento, mostra o saldo normal calculado do banco.
+  const saldoBHInformativoMinutos = minutosFechamentoBH !== 0 ? minutosFechamentoBH : saldoBHMinutos;
   const saldoBHHoras = round(saldoBHInformativoMinutos / 60);
 
   // Adiciona/remove SALDO BANCO POSITIVO (28651)
