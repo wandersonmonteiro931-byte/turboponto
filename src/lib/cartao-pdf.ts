@@ -1,5 +1,12 @@
 import jsPDF from "jspdf";
-import { DIAS_SEMANA_CURTO, NOMES_MES, formatMin, type ResumoCartao, type DiaCartao } from "@/lib/cartao";
+import {
+  DIAS_SEMANA_CURTO,
+  NOMES_MES,
+  formatMin,
+  calcularHorasBenefMinutos,
+  type ResumoCartao,
+  type DiaCartao,
+} from "@/lib/cartao";
 import { resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
 
 export type EmpresaInfo = {
@@ -443,7 +450,12 @@ export function gerarPdfCartao(opts: {
 
   let creditos = 0;
   let debitos = 0;
-  let horasBenef = 0;
+
+  // QTDE HORAS BENEF deve vir da regra central do cartão.
+  // Conta todos os débitos: atrasos, saídas antecipadas, faltas injustificadas
+  // pela carga prevista e qualquer débito de banco de horas/fechamento.
+  // Não compensar com créditos.
+  const horasBenef = calcularHorasBenefMinutos(resumo);
 
   const drawRow = (vals: Record<string, string>) => {
     cols.forEach((c, i) => {
@@ -657,7 +669,7 @@ export function gerarPdfCartao(opts: {
         qtde: cargaProgDia > 0 ? fmtMinHHMM(cargaProgDia) : "",
       });
 
-      horasBenef += cargaProgDia;
+      // QTDE HORAS BENEF já foi calculada pela regra central calcularHorasBenefMinutos(resumo).
     } else if (!falta && semMarcacao && !temJustificativa && d.bancoHorasMinutos >= 0) {
       linhas.push({
         label: "MARCAÇÃO NÃO REGISTRADA",
@@ -719,7 +731,7 @@ export function gerarPdfCartao(opts: {
       const restante = -d.bancoHorasMinutos - debitoJaRepresentadoPorIrreg;
 
       if (!debitoJaRepresentadoPelaFalta && restante > 0) {
-        horasBenef += restante;
+        // QTDE HORAS BENEF já inclui este débito pela regra central.
 
         linhas.push({
           label: "DÉBITO BCO DE HORAS",

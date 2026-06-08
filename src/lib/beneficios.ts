@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { carregarCartao } from "@/lib/cartao";
+import { carregarCartao, calcularHorasBenefMinutos } from "@/lib/cartao";
 
 export const STATUS_BENEFICIO: Record<string, { label: string; color: string }> = {
   em_calculo: { label: "Em cálculo", color: "bg-muted text-muted-foreground" },
@@ -119,13 +119,11 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
       diasComAtraso = cartao.dias.filter((d) => Number(d.bancoHorasMinutos || 0) < 0).length;
       faltas = cartao.totalFaltas;
 
-      // Débito real do mês: soma TODOS os débitos diários do cartão de ponto,
-      // sem compensar com créditos. Esta é a mesma base exibida no PDF:
-      // "QTDE HORAS BENEF".
-      debito = cartao.dias.reduce((s, d) => {
-        const min = Number(d.bancoHorasMinutos || 0);
-        return min < 0 ? s + Math.abs(min) : s;
-      }, 0);
+      // Débito real do mês: mesma regra exibida no PDF como
+      // "QTDE HORAS BENEF". Conta TODOS os débitos:
+      // atraso, saída antecipada, falta injustificada e fechamento/débito de BH.
+      // Não compensa com créditos.
+      debito = calcularHorasBenefMinutos(cartao);
     } catch (err) {
       // Se falhar, por exemplo sem jornada, assume zero para não bloquear o cálculo.
       console.warn("[beneficios] falha ao carregar cartão", f.id, err);

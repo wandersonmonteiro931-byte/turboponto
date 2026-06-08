@@ -821,11 +821,11 @@ export async function recalcular(
     linhas.splice(idxNeg, 1);
   }
 
-  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito (atrasos /
-  // saídas antecipadas) do mês que conta para a regra da cesta básica.
-  // Sempre puxa do total de débitos do cartão de ponto (mesma base usada
-  // pelo cálculo do benefício, mas independente da existência do benefício
-  // cadastrado) para refletir imediatamente o saldo do mês.
+  // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas que afetam o benefício.
+  // REGRA OFICIAL: conta TODOS os débitos do cartão de ponto:
+  // atrasos, saídas antecipadas, faltas injustificadas pela carga prevista
+  // e qualquer débito de banco de horas/fechamento. Não compensa com créditos.
+  // A base é a mesma exibida no PDF em "QTDE HORAS BENEF".
   if (porCodigo.has("18445")) {
     // Mantém o cálculo do benefício "Cesta Básica" sincronizado, se existir.
     try {
@@ -842,9 +842,7 @@ export async function recalcular(
     } catch (e) {
       console.warn("[holerite] falha ao recalcular cesta básica antes de ler", e);
     }
-    // Saldo de débito do mês em horas, vindo direto do cartão de ponto.
-    // Mesma base do cartão de ponto (QTDE HORAS BENEF): inclui faltas
-    // injustificadas (carga programada) + débitos de banco de horas.
+    // Base oficial do cartão de ponto (QTDE HORAS BENEF), recalculada ao gerar o holerite.
     const horasCB = round(minHorasBenef / 60);
     const idxCB = linhas.findIndex((l) => l.codigo === "18445");
     if (horasCB > 0) {

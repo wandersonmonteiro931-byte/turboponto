@@ -253,15 +253,15 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
         jd = diaComp?.trabalha
           ? diaComp
           : {
-          id: `compensacao-${vincComp.jornadaId}-${dow}`,
-          jornada_id: vincComp.jornadaId,
-          dia_semana: dow,
-          trabalha: true,
-          horario_entrada: vincComp.horario_entrada,
-          horario_intervalo_saida: vincComp.horario_intervalo_saida,
-          horario_intervalo_retorno: vincComp.horario_intervalo_retorno,
-          horario_saida: vincComp.horario_saida,
-        };
+              id: `compensacao-${vincComp.jornadaId}-${dow}`,
+              jornada_id: vincComp.jornadaId,
+              dia_semana: dow,
+              trabalha: true,
+              horario_entrada: vincComp.horario_entrada,
+              horario_intervalo_saida: vincComp.horario_intervalo_saida,
+              horario_intervalo_retorno: vincComp.horario_intervalo_retorno,
+              horario_saida: vincComp.horario_saida,
+            };
         jornadaCodigo = vincComp.codigo;
         jornadaNome = vincComp.nome;
       }
@@ -622,11 +622,15 @@ export const DIAS_SEMANA_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sá
 
 /**
  * Calcula o total de minutos que afetam o benefício (QTDE HORAS BENEF).
- * Mesma regra usada no PDF do cartão de ponto:
- *  - Falta injustificada: soma a carga programada do dia.
- *  - Caso contrário, se houver débito de banco de horas (atrasos / saídas
- *    antecipadas / débitos de fechamento), soma o débito do dia.
- *  - Faltas com justificativa que abona assiduidade não entram.
+ *
+ * REGRA OFICIAL:
+ *  - Deve contar TODOS os débitos do mês.
+ *  - Entra atraso.
+ *  - Entra saída antecipada.
+ *  - Entra falta injustificada pela carga prevista do dia.
+ *  - Entra qualquer débito de banco de horas/fechamento.
+ *  - Não compensa débito com crédito. Crédito de BH não reduz QTDE HORAS BENEF.
+ *  - Falta/ocorrência com justificativa que não afeta assiduidade não entra.
  */
 export function calcularHorasBenefMinutos(resumo: ResumoCartao): number {
   const hm = (t: string | null): number | null => {
@@ -661,8 +665,11 @@ export function calcularHorasBenefMinutos(resumo: ResumoCartao): number {
       }
       continue;
     }
+    // Todos os débitos restantes do dia contam para o benefício:
+    // atraso, saída antecipada, débito lançado por justificativa e fechamento de BH.
+    // Não compensar com créditos de outros dias.
     if (d.bancoHorasMinutos < 0) {
-      total += -d.bancoHorasMinutos;
+      total += Math.abs(d.bancoHorasMinutos);
     }
   }
   return total;
