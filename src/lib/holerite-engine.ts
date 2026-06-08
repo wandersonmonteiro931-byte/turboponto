@@ -391,6 +391,32 @@ async function carregarSaldoPendenteMesAnterior(ctx: EngineCtx): Promise<number>
   return saldo;
 }
 
+const RUBRICA_FALLBACK_FECHAMENTO_BH = {
+  codigo: "00120",
+  descricao: "FECHAMENTO BH",
+};
+
+const RUBRICA_FALLBACK_SALDO_BH = {
+  codigo: "28651",
+  descricao: "SALDO BH",
+};
+
+const getRubricaOrFallback = (
+  porCodigo: Map<string, any>,
+  codigo: string,
+  fallback: { codigo: string; descricao: string },
+) => {
+  return (
+    porCodigo.get(codigo) || {
+      id: undefined,
+      codigo: fallback.codigo,
+      descricao: fallback.descricao,
+      modo: "automatico",
+      editavel_manual: false,
+    }
+  );
+};
+
 export async function recalcular(
   ctx: EngineCtx,
   linhasAtuais: EngineLanc[],
@@ -600,10 +626,21 @@ export async function recalcular(
     .maybeSingle();
 
   const statusCartao = String(cartaoFechado?.status || "");
-  const saldoCartaoFechado =
+  let saldoCartaoFechado =
     statusCartao === "fechado" || statusCartao === "liberado"
       ? Number(cartaoFechado?.fechamento_bh_minutos ?? cartaoFechado?.total_banco_horas_minutos ?? 0)
       : 0;
+
+  // Para cartões fechados antes dos campos novos, ou quando o fechamento ainda não gravou o saldo,
+  // recalcula o cartão do próprio mês e usa o banco de horas atual como fechamento.
+  if ((statusCartao === "fechado" || statusCartao === "liberado") && saldoCartaoFechado === 0) {
+    try {
+      const cartaoMesAtual = await carregarCartao(ctx.funcionarioId, ctx.ano, ctx.mes);
+      saldoCartaoFechado = Number(cartaoMesAtual?.totalBancoHoras || 0);
+    } catch (e) {
+      console.warn("[holerite] falha ao recalcular cartão atual para fechamento BH", e);
+    }
+  }
 
   let minutosFechamentoBH = fechamentoBH.minutosPagar - fechamentoBH.minutosDescontar;
 
@@ -866,20 +903,20 @@ export async function recalcular(
 
   // FECHAMENTO BH: paga se positivo, desconta se negativo, remove se zero.
   const idxFechamentoBH = linhas.findIndex((l) => l.codigo === "00120");
-  if (minutosFechamentoBH !== 0 && porCodigo.has("00120")) {
-    const r = porCodigo.get("00120")!;
+  if (minutosFechamentoBH !== 0) {
+    const r = getRubricaOrFallback(porCodigo, "00120", RUBRICA_FALLBACK_FECHAMENTO_BH);
     const payload: EngineLanc = {
       _k: idxFechamentoBH >= 0 ? linhas[idxFechamentoBH]._k : crypto.randomUUID(),
       id: idxFechamentoBH >= 0 ? linhas[idxFechamentoBH].id : undefined,
-      codigo: r.codigo,
+      codigo: "00120",
       descricao: r.descricao || "FECHAMENTO BH",
-      qtde: Math.abs(horasFechamentoBH),
+      qtde: horasFechamentoBH,
       provento: minutosFechamentoBH > 0 ? valorFechamentoBH : 0,
       desconto: minutosFechamentoBH < 0 ? valorFechamentoBH : 0,
       resultado: minutosFechamentoBH > 0 ? valorFechamentoBH : -valorFechamentoBH,
-      modo: r.modo,
-      tipo: r.tipo,
-      editavel_manual: r.editavel_manual,
+      modo: r.modo || "automatico",
+      tipo: minutosFechamentoBH > 0 ? "provento" : "desconto",
+      editavel_manual: Boolean(r.editavel_manual),
       rubrica_id: r.id,
     };
     if (idxFechamentoBH >= 0) linhas[idxFechamentoBH] = payload;
@@ -891,8 +928,8 @@ export async function recalcular(
   // SALDO PEND MES ANT: saldo de banco de horas de mês anterior que ficou pendente.
   // Positivo vira provento; negativo vira desconto.
   const idxSaldoPendenteMesAnterior = linhas.findIndex((l) => l.codigo === "00121");
-  if (minutosSaldoPendenteMesAnterior !== 0 && porCodigo.has("00121")) {
-    const r = porCodigo.get("00121")!;
+  if (minutosSaldoPendenteMesAnterior !== 0) {
+    const r = getRubricaOrFallback(porCodigo, "00121", { codigo: "00121", descricao: "SALDO PEND MES ANT" });
     const payload: EngineLanc = {
       _k: idxSaldoPendenteMesAnterior >= 0 ? linhas[idxSaldoPendenteMesAnterior]._k : crypto.randomUUID(),
       id: idxSaldoPendenteMesAnterior >= 0 ? linhas[idxSaldoPendenteMesAnterior].id : undefined,
@@ -922,7 +959,7 @@ export async function recalcular(
   // Adiciona/remove SALDO BANCO POSITIVO (28651)
   const idxPos = linhas.findIndex((l) => l.codigo === "28651");
   if (saldoBHHoras > 0 && porCodigo.has("28651")) {
-    const r = porCodigo.get("28651")!;
+    const r = getRubricaOrFallback(porCodigo, "28651", RUBRICA_FALLBACK_SALDO_BH);
     const payload: EngineLanc = {
       _k: idxPos >= 0 ? linhas[idxPos]._k : crypto.randomUUID(),
       id: idxPos >= 0 ? linhas[idxPos].id : undefined,
