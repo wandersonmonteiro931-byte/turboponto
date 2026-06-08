@@ -462,6 +462,16 @@ function HoleritesPage() {
         return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
       };
 
+      const linhaSaldoPendenteMesAnterior = criarLinhaSaldoPendenteMesAnterior(
+        minutosSaldoPendenteMesAnterior,
+        valorHora,
+      );
+
+      if (linhaSaldoPendenteMesAnterior) {
+        rubricas.push(linhaSaldoPendenteMesAnterior as any);
+      }
+
+      linhas = await aplicarRubricasBHObrigatorias(linhas, funcionarioId, ano, mes, valorHora);
 
       const totalProventosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.provento || 0) : s), 0);
       const totalDescontosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.desconto || 0) : s), 0);
@@ -844,6 +854,7 @@ const grupoLancamentoHolerite = (linha: LancEdit) => {
 };
 
 const pesoInformativoHolerite = (codigo: string) => {
+  if (codigo === "28651") return 9998;
   // Dentro dos informativos:
   // banco de horas fica no fim, e QTDE HORAS BENEF fica obrigatoriamente por último.
   if (codigo === CODIGO_QTDE_HORAS_BENEF) return 3;
@@ -1129,11 +1140,21 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
   const novas = [...linhas];
 
   const removerLinha = (codigo: string) => {
-    const idx = novas.findIndex((linha) => linha.codigo === codigo);
-    if (idx >= 0) novas.splice(idx, 1);
+    let idx = novas.findIndex((linha) => linha.codigo === codigo);
+    while (idx >= 0) {
+      novas.splice(idx, 1);
+      idx = novas.findIndex((linha) => linha.codigo === codigo);
+    }
   };
 
-  const setLinha = (codigo: string, descricao: string, qtde: number | null, provento: number, desconto = 0) => {
+  const setLinha = (
+    codigo: string,
+    descricao: string,
+    qtde: number | null,
+    provento: number,
+    desconto = 0,
+    resultado?: number,
+  ) => {
     const idx = novas.findIndex((linha) => linha.codigo === codigo);
     const linha: LancEdit = {
       _k: idx >= 0 ? novas[idx]._k : crypto.randomUUID(),
@@ -1143,25 +1164,11 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
       qtde,
       provento: roundAutoHolerite(provento),
       desconto: roundAutoHolerite(desconto),
-      resultado: roundAutoHolerite(provento - desconto),
+      resultado: resultado ?? roundAutoHolerite(provento - desconto),
     };
 
     if (idx >= 0) novas[idx] = linha;
     else novas.push(linha);
-  };
-
-  const minutosDoSaldoInformativo = () => {
-    const linhaPositiva = novas.find((linha) => linha.codigo === "28651");
-    const linhaNegativa = novas.find((linha) => linha.codigo === "28652");
-
-    const horasPositivas = Number(linhaPositiva?.resultado || linhaPositiva?.qtde || 0);
-    const horasNegativas = Number(linhaNegativa?.resultado || linhaNegativa?.qtde || 0);
-
-    if (horasPositivas > 0) return Math.round(horasPositivas * 60);
-    if (horasNegativas < 0) return Math.round(horasNegativas * 60);
-    if (horasNegativas > 0) return -Math.round(horasNegativas * 60);
-
-    return 0;
   };
 
   const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
@@ -1175,7 +1182,7 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     .lte("data", fim);
 
   if (error) {
-    console.warn("[holerites] não foi possível carregar fechamento BH", error);
+    console.warn("[holerites] não foi possível carregar fechamento BH por justificativa", error);
   }
 
   let minutosPagar = 0;
@@ -1210,46 +1217,35 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
   }
 
   let minutosFechamento = minutosPagar - minutosDescontar;
-  let minutosSaldoPendenteMesAnterior = 0;
 
-  // Plano B: saldo antigo pendurado não entra como 00120.
-  // Ele entra na rubrica própria SALDO PEND MES ANT, buscando o mês anterior.
+  // Se não existe justificativa de fechamento, usa o saldo gravado/recalculado do cartão fechado/liberado.
   if (minutosFechamento === 0) {
-    minutosSaldoPendenteMesAnterior = await buscarSaldoPendenteMesAnterior(funcionarioId, ano, mes);
+    minutosFechamento = await buscarFechamentoBHMesAtual(funcionarioId, ano, mes);
   }
 
-  const horas = roundAutoHolerite(Math.abs(minutosFechamento) / 60);
+  // Limpa versões antigas para evitar duplicidade.
+  removerLinha("00120");
+  removerLinha("28651");
+
   const valorHora = salario > 0 ? salario / 220 : 0;
+  const horas = roundAutoHolerite(Math.abs(minutosFechamento) / 60);
+  const valorFechamento = roundAutoHolerite(horas * valorHora);
 
   if (minutosFechamento > 0) {
-    // Fechamento positivo de banco de horas deve ser pago como hora extra 50%.
-    const valorHe50 = roundAutoHolerite(horas * valorHora * 1.5);
-
-    const linhaSalario = novas.find((linha) => linha.codigo === "00005");
-    const diasSalario = Math.max(1, Number(linhaSalario?.qtde || 1));
-    const dsrReflexo = calcularDsrProporcionalAutoHolerite(diasSalario);
-    const valorDsrHe50 = roundAutoHolerite((valorHe50 / diasSalario) * dsrReflexo);
-
-    setLinha("00090", "HORAS EXTRAS 50%", horas, valorHe50, 0);
-    setLinha("00115", "DSR HORAS EXTRAS 50%", dsrReflexo, valorDsrHe50, 0);
-
-    // Não usar FECHAMENTO BH como provento de hora normal, para evitar pagamento sem adicional.
-    removerLinha("00120");
+    setLinha("00120", "FECHAMENTO BH", horas, valorFechamento, 0);
   } else if (minutosFechamento < 0) {
-    // Fechamento negativo pode ser descontado como FECHAMENTO BH.
-    const valorDesconto = roundAutoHolerite(horas * valorHora);
-    setLinha("00120", "FECHAMENTO BH", horas, 0, valorDesconto);
-
-    // Sem hora extra paga, não pode existir DSR de HE.
-    removerLinha("00115");
-  } else {
-    removerLinha("00120");
-
-    const he50 = novas.find((linha) => linha.codigo === "00090");
-    if (!he50 || Number(he50.provento || 0) <= 0) removerLinha("00115");
+    setLinha("00120", "FECHAMENTO BH", horas, 0, valorFechamento);
   }
 
-  // Recalcula o INSS depois de incluir HE/DSR/fechamento BH.
+  // 28651 sempre aparece. Se o fechamento foi lançado no holerite, o saldo informativo é zero.
+  setLinha("28651", "SALDO BH", null, 0, 0, minutosFechamento !== 0 ? 0 : minutosFechamento / 60);
+
+  // Se não há HE 50, não pode sobrar DSR HE de fechamento antigo.
+  if (!novas.find((linha) => linha.codigo === "00090" && Number(linha.provento || 0) > 0)) {
+    removerLinha("00115");
+  }
+
+  // Recalcula o INSS depois de incluir fechamento BH.
   const totalProventosRecalculado = novas.reduce((s, linha) => s + Number(linha.provento || 0), 0);
   const inssRecalculado = calcularInssAutoHolerite(totalProventosRecalculado);
   setLinha("07000", "INSS MES", 7.5, 0, inssRecalculado);
@@ -1600,13 +1596,14 @@ const formatHorasDecimais = (v: number | null | undefined) => {
 };
 
 const formatResultado = (l: LancEdit) => {
-  if (l.codigo === "09998" || l.codigo === "18445") return formatHorasDecimais(Number(l.resultado || 0));
+  if (l.codigo === "09998" || l.codigo === "18445" || l.codigo === "28651" || l.codigo === "28652") {
+    return formatHorasDecimais(Number(l.resultado || 0));
+  }
   if (l.codigo === "09990") {
     const valor = Math.abs(Number(l.resultado || 0));
     return valor > 0 ? valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
   }
   if (l.resultado == null || Number(l.resultado) === 0) return "";
-  if (["28651", "28652"].includes(l.codigo)) return formatHorasDecimais(l.resultado);
   return Number(l.resultado).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 };
 
@@ -2282,7 +2279,16 @@ function EditorDialog({
                         linhasComInsuficienciaPermitidas,
                         rubricas,
                       );
-                      const linhasOrdenadas = prepararLancamentosFinaisHolerite(linhasComDescricoesAtuais);
+
+                      const linhasComBHObrigatorio = await adicionarFechamentoBancoHorasHolerite({
+                        funcionarioId: funcId,
+                        ano,
+                        mes,
+                        salario: Number(funcionarioAtual?.salario ?? salarioContratual ?? 0),
+                        linhas: linhasComDescricoesAtuais,
+                      });
+
+                      const linhasOrdenadas = prepararLancamentosFinaisHolerite(linhasComBHObrigatorio.linhas);
 
                       setLancamentos(linhasOrdenadas);
 
