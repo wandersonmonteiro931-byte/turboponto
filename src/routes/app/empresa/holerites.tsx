@@ -462,16 +462,6 @@ function HoleritesPage() {
         return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
       };
 
-      const linhaSaldoPendenteMesAnterior = criarLinhaSaldoPendenteMesAnterior(
-        minutosSaldoPendenteMesAnterior,
-        valorHora,
-      );
-
-      if (linhaSaldoPendenteMesAnterior) {
-        rubricas.push(linhaSaldoPendenteMesAnterior as any);
-      }
-
-      linhas = await aplicarRubricasBHObrigatorias(linhas, funcionarioId, ano, mes, valorHora);
 
       const totalProventosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.provento || 0) : s), 0);
       const totalDescontosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.desconto || 0) : s), 0);
