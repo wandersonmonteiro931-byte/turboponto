@@ -8,39 +8,6 @@ import { calcularHorasBenefMinutos } from "@/lib/cartao";
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
 // preservando linhas manuais já lançadas pelo operador.
 
-const RUBRICA_SALDO_PEND_MES_ANT = "SALDO PEND MES ANT";
-
-const criarRubricaSaldoPendenteMesAnterior = (minutos: number, valorHora: number): RubricaCalculada | null => {
-  if (!minutos)
-    const rubricaSaldoPendenteMesAnterior = criarRubricaSaldoPendenteMesAnterior(
-      minutosSaldoPendenteMesAnterior,
-      valorHora,
-    );
-
-  if (rubricaSaldoPendenteMesAnterior) {
-    rubricas.push(rubricaSaldoPendenteMesAnterior);
-  }
-
-  return null;
-
-  const horas = round(Math.abs(minutos) / 60);
-  const valor = round(horas * valorHora);
-  const isProvento = minutos > 0;
-
-  return {
-    codigo: "00121",
-    descricao: RUBRICA_SALDO_PEND_MES_ANT,
-    tipo: isProvento ? "provento" : "desconto",
-    referencia: formatHoras(Math.abs(minutos)),
-    quantidade: formatHoras(Math.abs(minutos)),
-    valor,
-    automatico: true,
-    origem: "saldo_pendente_mes_anterior",
-    observacao: isProvento
-      ? "Saldo positivo de banco de horas de mês anterior pendente de pagamento."
-      : "Saldo negativo de banco de horas de mês anterior pendente de desconto.",
-  } as RubricaCalculada;
-};
 
 export type EngineLanc = {
   _k: string;
