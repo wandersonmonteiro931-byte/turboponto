@@ -55,6 +55,9 @@ type Cartao = {
   total_faltas: number;
   total_horas_trabalhadas_minutos: number;
   total_horas_extras_minutos: number;
+  total_banco_horas_minutos?: number | null;
+  fechamento_bh_minutos?: number | null;
+  fechamento_bh_acao?: string | null;
   fechado_em: string | null;
   liberado_em: string | null;
 };
@@ -279,68 +282,6 @@ function CartaoEmpresaPage() {
     return novo.id as string;
   };
 
-  const sincronizarFechamentoBancoHorasAutomatico = async (status: "aberto" | "fechado" | "liberado") => {
-    if (!empresaId || !funcId || !resumo || status === "aberto") {
-      return { minutos: 0, acao: "nenhuma" as const };
-    }
-
-    const primeiroDia = `${ano}-${String(mes).padStart(2, "0")}-01`;
-    const ultimoDia = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDiaMesSelecionado()).padStart(2, "0")}`;
-    const saldoMinutos = Number(resumo.totalBancoHoras || 0);
-
-    // Garante os dois tipos e remove fechamento anterior do mês.
-    // Assim o fechamento sempre fica zerado e não duplica lançamento.
-    const tipoPagarId = await garantirTipoJustificativaBancoHoras("FECHAMENTO_BH_PAGAR", "FECHAMENTO BANCO - PAGAR");
-    const tipoDescId = await garantirTipoJustificativaBancoHoras("FECHAMENTO_BANCO_DESC", "FECHAMENTO BANCO - DESC");
-
-    const tipoIds = [tipoPagarId, tipoDescId].filter(Boolean);
-
-    if (tipoIds.length > 0) {
-      const { error: removerErro } = await (supabase as any)
-        .from("justificativas_aplicadas")
-        .delete()
-        .eq("empresa_id", empresaId)
-        .eq("funcionario_id", funcId)
-        .gte("data", primeiroDia)
-        .lte("data", ultimoDia)
-        .in("tipo_id", tipoIds);
-
-      if (removerErro) throw removerErro;
-    }
-
-    if (saldoMinutos > 0) {
-      const { error: inserirErro } = await (supabase as any).from("justificativas_aplicadas").insert({
-        empresa_id: empresaId,
-        funcionario_id: funcId,
-        data: ultimoDia,
-        tipo_id: tipoPagarId,
-        quantidade_minutos: saldoMinutos,
-        observacao:
-          "Fechamento mensal automático do banco de horas. Saldo positivo zerado e enviado para pagamento no holerite.",
-      });
-
-      if (inserirErro) throw inserirErro;
-      return { minutos: saldoMinutos, acao: "pagar" as const };
-    }
-
-    if (saldoMinutos < 0) {
-      const { error: inserirErro } = await (supabase as any).from("justificativas_aplicadas").insert({
-        empresa_id: empresaId,
-        funcionario_id: funcId,
-        data: ultimoDia,
-        tipo_id: tipoDescId,
-        quantidade_minutos: Math.abs(saldoMinutos),
-        observacao:
-          "Fechamento mensal automático do banco de horas. Saldo negativo zerado e enviado para desconto no holerite.",
-      });
-
-      if (inserirErro) throw inserirErro;
-      return { minutos: saldoMinutos, acao: "descontar" as const };
-    }
-
-    return { minutos: 0, acao: "zerado" as const };
-  };
-
   const fecharBancoDeHoras = async () => {
     if (!empresaId || !funcId || !resumo) {
       toast.error("Selecione funcionário, mês e ano antes de fechar o banco de horas.");
@@ -351,9 +292,9 @@ function CartaoEmpresaPage() {
 
     const acao =
       saldoMinutos > 0
-        ? `PAGAR ${formatMin(saldoMinutos)} no holerite`
+        ? `PAGAR ${formatMin(saldoMinutos)} no holerite pela rubrica 00120`
         : saldoMinutos < 0
-          ? `DESCONTAR ${formatMin(Math.abs(saldoMinutos))} no holerite`
+          ? `DESCONTAR ${formatMin(Math.abs(saldoMinutos))} no holerite pela rubrica 00120`
           : "fechar com banco de horas zerado";
 
     const confirmar = window.confirm(
@@ -362,7 +303,7 @@ function CartaoEmpresaPage() {
         `Mês/Ano: ${NOMES_MES[mes - 1]}/${ano}\n` +
         `Saldo atual: ${formatMin(saldoMinutos)}\n\n` +
         `Ação automática: ${acao}.\n\n` +
-        "O sistema não deixará saldo positivo ou negativo pendurado. O valor será lançado automaticamente no holerite pela rubrica 00120 · FECHAMENTO BH.",
+        "O sistema não vai mais criar justificativa no último dia do mês. O saldo será gravado diretamente no fechamento do cartão e puxado automaticamente no holerite.",
     );
 
     if (!confirmar) {
@@ -376,48 +317,52 @@ function CartaoEmpresaPage() {
   const persistir = async (status: "aberto" | "fechado" | "liberado") => {
     if (!empresaId || !resumo || !funcId) return;
 
-    try {
-      const fechamento = await sincronizarFechamentoBancoHorasAutomatico(status);
+    const saldoMinutos = Number(resumo.totalBancoHoras || 0);
+    const fechamentoMinutos = status === "aberto" ? 0 : saldoMinutos;
+    const fechamentoAcao =
+      status === "aberto" ? null : saldoMinutos > 0 ? "pagar" : saldoMinutos < 0 ? "descontar" : "zerado";
 
-      const payload = {
-        empresa_id: empresaId,
-        funcionario_id: funcId,
-        mes_referencia: mes,
-        ano_referencia: ano,
-        total_atraso_minutos: resumo.totalAtraso,
-        total_faltas: resumo.totalFaltas,
-        total_horas_trabalhadas_minutos: resumo.totalTrabalhado,
-        total_horas_extras_minutos: resumo.totalExtras,
-        status,
-        fechado_em: status === "fechado" || status === "liberado" ? new Date().toISOString() : null,
-        liberado_em: status === "liberado" ? new Date().toISOString() : null,
-      };
+    const payload = {
+      empresa_id: empresaId,
+      funcionario_id: funcId,
+      mes_referencia: mes,
+      ano_referencia: ano,
+      total_atraso_minutos: resumo.totalAtraso,
+      total_faltas: resumo.totalFaltas,
+      total_horas_trabalhadas_minutos: resumo.totalTrabalhado,
+      total_horas_extras_minutos: resumo.totalExtras,
+      total_banco_horas_minutos: saldoMinutos,
+      fechamento_bh_minutos: fechamentoMinutos,
+      fechamento_bh_acao: fechamentoAcao,
+      status,
+      fechado_em: status === "fechado" || status === "liberado" ? new Date().toISOString() : null,
+      liberado_em: status === "liberado" ? new Date().toISOString() : null,
+    };
 
-      const { error } = await supabase
-        .from("cartoes_ponto")
-        .upsert(payload, { onConflict: "funcionario_id,ano_referencia,mes_referencia" });
+    const { error } = await (supabase as any)
+      .from("cartoes_ponto")
+      .upsert(payload, { onConflict: "funcionario_id,ano_referencia,mes_referencia" });
 
-      if (error) throw error;
-
-      if (status === "aberto") {
-        toast.success("Cartão reaberto.");
-      } else if (fechamento.acao === "pagar") {
-        toast.success(
-          `Cartão fechado. Banco de horas zerado e ${formatMin(Math.abs(fechamento.minutos))} enviado para pagar no holerite.`,
-        );
-      } else if (fechamento.acao === "descontar") {
-        toast.success(
-          `Cartão fechado. Banco de horas zerado e ${formatMin(Math.abs(fechamento.minutos))} enviado para descontar no holerite.`,
-        );
-      } else {
-        toast.success("Cartão fechado com banco de horas zerado.");
-      }
-
-      carregar();
-    } catch (e) {
-      console.error("[cartao] erro ao persistir fechamento", e);
-      toast.error(e instanceof Error ? e.message : "Erro ao fechar cartão.");
+    if (error) {
+      toast.error(error.message || "Erro ao fechar cartão.");
+      return;
     }
+
+    if (status === "aberto") {
+      toast.success("Cartão reaberto.");
+    } else if (saldoMinutos > 0) {
+      toast.success(
+        `Cartão fechado. ${formatMin(saldoMinutos)} será pago automaticamente no holerite pela rubrica 00120.`,
+      );
+    } else if (saldoMinutos < 0) {
+      toast.success(
+        `Cartão fechado. ${formatMin(Math.abs(saldoMinutos))} será descontado automaticamente no holerite pela rubrica 00120.`,
+      );
+    } else {
+      toast.success("Cartão fechado com banco de horas zerado.");
+    }
+
+    carregar();
   };
 
   const baixarPdf = async () => {

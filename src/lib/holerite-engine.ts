@@ -8,7 +8,6 @@ import { calcularHorasBenefMinutos } from "@/lib/cartao";
 // Calcula qtde / provento / desconto para rubricas com modo='automatico' (e propõe valores para 'semi_automatico'),
 // preservando linhas manuais já lançadas pelo operador.
 
-
 export type EngineLanc = {
   _k: string;
   id?: string;
@@ -87,7 +86,11 @@ function minutosNoturnosIntervalo(inicio: string | null, fim: string | null): nu
 
   let start = ini;
   let end = out;
-  if (end <= start) end += 1440;
+
+  // Horário igual não é virada de dia.
+  // Ex.: 22:00 até 22:00 deve ser 00:00, não 07:00 de adicional noturno.
+  if (end === start) return 0;
+  if (end < start) end += 1440;
 
   return (
     sobreposicaoMinutos(start, end, 0, MINUTO_FIM_NOTURNO) +
@@ -294,6 +297,100 @@ function diasVinculo(adm: string | null, des: string | null, ano: number, mes: n
   return Math.min(v, 30);
 }
 
+async function carregarSaldoPendenteMesAnterior(ctx: EngineCtx): Promise<number> {
+  const mesAnt = ctx.mes === 1 ? 12 : ctx.mes - 1;
+  const anoAnt = ctx.mes === 1 ? ctx.ano - 1 : ctx.ano;
+  const iniAnt = `${anoAnt}-${String(mesAnt).padStart(2, "0")}-01`;
+  const fimAnt = `${anoAnt}-${String(mesAnt).padStart(2, "0")}-${String(new Date(anoAnt, mesAnt, 0).getDate()).padStart(2, "0")}`;
+
+  // Se o mês anterior já teve 00120 ou 00121 lançado, não relança no mês atual.
+  const { data: hAntList } = await supabase
+    .from("holerites")
+    .select("id")
+    .eq("funcionario_id", ctx.funcionarioId)
+    .eq("ano_referencia", anoAnt)
+    .eq("mes_referencia", mesAnt);
+
+  const ids = (hAntList ?? []).map((h) => h.id).filter(Boolean);
+  if (ids.length > 0) {
+    const { data: linhasAnt } = await supabase
+      .from("holerite_lancamentos")
+      .select("codigo")
+      .in("holerite_id", ids)
+      .in("codigo", ["00120", "00121"]);
+
+    if ((linhasAnt ?? []).length > 0) return 0;
+  }
+
+  let statusCartaoAnterior = "";
+  let saldo = 0;
+
+  // 1) Primeiro tenta ler o cartão fechado do mês anterior.
+  try {
+    const { data: cartaoAnt } = await (supabase as any)
+      .from("cartoes_ponto")
+      .select("status,total_banco_horas_minutos,fechamento_bh_minutos")
+      .eq("funcionario_id", ctx.funcionarioId)
+      .eq("ano_referencia", anoAnt)
+      .eq("mes_referencia", mesAnt)
+      .maybeSingle();
+
+    statusCartaoAnterior = String(cartaoAnt?.status || "");
+
+    if (statusCartaoAnterior === "fechado" || statusCartaoAnterior === "liberado") {
+      saldo = Number(cartaoAnt?.fechamento_bh_minutos ?? 0);
+
+      // Mês antigo pode ter sido fechado antes da criação dos campos novos.
+      // Nesse caso fechamento_bh_minutos vem 0/null, então tenta total_banco_horas_minutos.
+      if (!saldo) saldo = Number(cartaoAnt?.total_banco_horas_minutos ?? 0);
+    }
+  } catch (e) {
+    console.warn("[holerite] falha ao consultar cartão anterior para saldo pendente", e);
+  }
+
+  // 2) Se o cartão anterior estava fechado/liberado, mas foi fechado antes dos campos novos,
+  // recalcula o cartão do mês anterior e usa o totalBancoHoras.
+  if (!saldo && (statusCartaoAnterior === "fechado" || statusCartaoAnterior === "liberado")) {
+    try {
+      const cartaoAntCalc = await carregarCartao(ctx.funcionarioId, anoAnt, mesAnt);
+      saldo = Number(cartaoAntCalc?.totalBancoHoras || 0);
+    } catch (e) {
+      console.warn("[holerite] falha ao recalcular cartão anterior para saldo pendente", e);
+    }
+  }
+
+  // 3) Último fallback para histórico antigo: usa movimentos de banco de horas do mês anterior.
+  // Isso cobre casos em que o mês foi fechado, mas o saldo ficou apenas nos movimentos.
+  if (!saldo && (statusCartaoAnterior === "fechado" || statusCartaoAnterior === "liberado")) {
+    try {
+      const [creditos, debitos] = await Promise.all([
+        supabase
+          .from("banco_horas_movimentos")
+          .select("minutos")
+          .eq("funcionario_id", ctx.funcionarioId)
+          .eq("tipo", "credito")
+          .gte("data", iniAnt)
+          .lte("data", fimAnt),
+        supabase
+          .from("banco_horas_movimentos")
+          .select("minutos")
+          .eq("funcionario_id", ctx.funcionarioId)
+          .eq("tipo", "debito")
+          .gte("data", iniAnt)
+          .lte("data", fimAnt),
+      ]);
+
+      const creditosMin = (creditos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
+      const debitosMin = (debitos.data ?? []).reduce((s, r) => s + Number(r.minutos || 0), 0);
+      saldo = creditosMin - debitosMin;
+    } catch (e) {
+      console.warn("[holerite] falha ao consultar movimentos de BH anterior", e);
+    }
+  }
+
+  return saldo;
+}
+
 export async function recalcular(
   ctx: EngineCtx,
   linhasAtuais: EngineLanc[],
@@ -493,14 +590,35 @@ export async function recalcular(
   // Fechamento mensal do banco de horas:
   // positivo = pagar em folha; negativo = descontar em folha; zero = não cria linha.
   const fechamentoBH = await carregarFechamentoBancoHorasFolha(ctx, ini, fim);
+
+  const { data: cartaoFechado } = await (supabase as any)
+    .from("cartoes_ponto")
+    .select("status,total_banco_horas_minutos,fechamento_bh_minutos,fechamento_bh_acao")
+    .eq("funcionario_id", ctx.funcionarioId)
+    .eq("ano_referencia", ctx.ano)
+    .eq("mes_referencia", ctx.mes)
+    .maybeSingle();
+
+  const statusCartao = String(cartaoFechado?.status || "");
+  const saldoCartaoFechado =
+    statusCartao === "fechado" || statusCartao === "liberado"
+      ? Number(cartaoFechado?.fechamento_bh_minutos ?? cartaoFechado?.total_banco_horas_minutos ?? 0)
+      : 0;
+
   let minutosFechamentoBH = fechamentoBH.minutosPagar - fechamentoBH.minutosDescontar;
 
-  // 00120 é usado somente para fechamento do mês atual com justificativa de fechamento.
-  // Saldo antigo pendurado não deve entrar aqui; entra na rubrica própria 00121.
-  const minutosSaldoPendenteMesAnterior = minutosFechamentoBH === 0 && saldoBHMinutos !== 0 ? saldoBHMinutos : 0;
+  // Se o cartão do mês foi fechado/liberado com saldo e não existe justificativa de fechamento,
+  // lança automaticamente em 00120 - FECHAMENTO BH.
+  if (minutosFechamentoBH === 0 && saldoCartaoFechado !== 0) {
+    minutosFechamentoBH = saldoCartaoFechado;
+  }
+
+  const minutosSaldoPendenteMesAnterior = await carregarSaldoPendenteMesAnterior(ctx);
 
   const horasFechamentoBH = round(Math.abs(minutosFechamentoBH) / 60);
   const valorFechamentoBH = round(horasFechamentoBH * valorHora);
+  const horasSaldoPendenteMesAnterior = round(Math.abs(minutosSaldoPendenteMesAnterior) / 60);
+  const valorSaldoPendenteMesAnterior = round(horasSaldoPendenteMesAnterior * valorHora);
 
   // Mantém linhas atuais; recalcula apenas as automáticas.
   const linhas: EngineLanc[] = linhasAtuais
@@ -770,9 +888,33 @@ export async function recalcular(
     linhas.splice(idxFechamentoBH, 1);
   }
 
+  // SALDO PEND MES ANT: saldo de banco de horas de mês anterior que ficou pendente.
+  // Positivo vira provento; negativo vira desconto.
+  const idxSaldoPendenteMesAnterior = linhas.findIndex((l) => l.codigo === "00121");
+  if (minutosSaldoPendenteMesAnterior !== 0 && porCodigo.has("00121")) {
+    const r = porCodigo.get("00121")!;
+    const payload: EngineLanc = {
+      _k: idxSaldoPendenteMesAnterior >= 0 ? linhas[idxSaldoPendenteMesAnterior]._k : crypto.randomUUID(),
+      id: idxSaldoPendenteMesAnterior >= 0 ? linhas[idxSaldoPendenteMesAnterior].id : undefined,
+      codigo: r.codigo,
+      descricao: r.descricao || "SALDO PEND MES ANT",
+      qtde: horasSaldoPendenteMesAnterior,
+      provento: minutosSaldoPendenteMesAnterior > 0 ? valorSaldoPendenteMesAnterior : 0,
+      desconto: minutosSaldoPendenteMesAnterior < 0 ? valorSaldoPendenteMesAnterior : 0,
+      resultado: minutosSaldoPendenteMesAnterior > 0 ? valorSaldoPendenteMesAnterior : -valorSaldoPendenteMesAnterior,
+      modo: r.modo,
+      tipo: minutosSaldoPendenteMesAnterior > 0 ? "provento" : "desconto",
+      editavel_manual: r.editavel_manual,
+      rubrica_id: r.id,
+    };
+    if (idxSaldoPendenteMesAnterior >= 0) linhas[idxSaldoPendenteMesAnterior] = payload;
+    else linhas.push(payload);
+  } else if (idxSaldoPendenteMesAnterior >= 0) {
+    linhas.splice(idxSaldoPendenteMesAnterior, 1);
+  }
+
   // ==== Informativos automáticos baseados no cartão de ponto ====
   // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
-  // Quando o banco é tratado em 00120 ou em SALDO PEND MES ANT, o saldo informativo do mês fica zerado.
   const saldoBHInformativoMinutos =
     minutosFechamentoBH !== 0 || minutosSaldoPendenteMesAnterior !== 0 ? 0 : saldoBHMinutos;
   const saldoBHHoras = round(saldoBHInformativoMinutos / 60);

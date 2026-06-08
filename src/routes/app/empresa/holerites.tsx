@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { carregarCartao } from "@/lib/cartao";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,53 @@ import { gerarHoleritePdf, carregarLogoComoDataUrl, type HolerLancamento } from 
 import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
+
+async function buscarSaldoPendenteMesAnterior(funcionarioId: string, ano: number, mes: number) {
+  const mesAnt = mes === 1 ? 12 : mes - 1;
+  const anoAnt = mes === 1 ? ano - 1 : ano;
+
+  const { data: hAntList } = await supabase
+    .from("holerites")
+    .select("id")
+    .eq("funcionario_id", funcionarioId)
+    .eq("ano_referencia", anoAnt)
+    .eq("mes_referencia", mesAnt);
+
+  const ids = (hAntList ?? []).map((h) => h.id).filter(Boolean);
+  if (ids.length > 0) {
+    const { data: linhasAnt } = await supabase
+      .from("holerite_lancamentos")
+      .select("codigo")
+      .in("holerite_id", ids)
+      .in("codigo", ["00120", "00121"]);
+
+    if ((linhasAnt ?? []).length > 0) return 0;
+  }
+
+  const { data: cartaoAnt } = await (supabase as any)
+    .from("cartoes_ponto")
+    .select("status,total_banco_horas_minutos,fechamento_bh_minutos")
+    .eq("funcionario_id", funcionarioId)
+    .eq("ano_referencia", anoAnt)
+    .eq("mes_referencia", mesAnt)
+    .maybeSingle();
+
+  const status = String(cartaoAnt?.status || "");
+  if (status !== "fechado" && status !== "liberado") return 0;
+
+  let saldo = Number(cartaoAnt?.fechamento_bh_minutos ?? cartaoAnt?.total_banco_horas_minutos ?? 0);
+
+  if (!saldo) {
+    try {
+      const cartaoCalc = await carregarCartao(funcionarioId, anoAnt, mesAnt);
+      saldo = Number(cartaoCalc?.totalBancoHoras || 0);
+    } catch (e) {
+      console.warn("[holerites] falha ao recalcular cartão anterior para saldo pendente", e);
+    }
+  }
+
+  return saldo;
+}
 
 const RUBRICA_SALDO_PEND_MES_ANT = {
   codigo: "00121",
@@ -315,8 +363,14 @@ function HoleritesPage() {
         return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
       };
 
+      const linhaSaldoPendenteMesAnterior = criarLinhaSaldoPendenteMesAnterior(
+        minutosSaldoPendenteMesAnterior,
+        valorHora,
+      );
 
-
+      if (linhaSaldoPendenteMesAnterior) {
+        rubricas.push(linhaSaldoPendenteMesAnterior as any);
+      }
 
       const totalProventosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.provento || 0) : s), 0);
       const totalDescontosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.desconto || 0) : s), 0);
@@ -1068,20 +1122,9 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
   let minutosSaldoPendenteMesAnterior = 0;
 
   // Plano B: saldo antigo pendurado não entra como 00120.
-  // Ele entra na rubrica própria SALDO PEND MES ANT, podendo ser provento ou desconto.
+  // Ele entra na rubrica própria SALDO PEND MES ANT, buscando o mês anterior.
   if (minutosFechamento === 0) {
-    const { data: cartaoFechado } = await supabase
-      .from("cartoes_ponto")
-      .select("status")
-      .eq("funcionario_id", funcionarioId)
-      .eq("ano_referencia", ano)
-      .eq("mes_referencia", mes)
-      .maybeSingle();
-
-    const statusCartao = String((cartaoFechado as { status?: string } | null)?.status || "");
-    if (statusCartao === "fechado" || statusCartao === "liberado") {
-      minutosFechamento = minutosDoSaldoInformativo();
-    }
+    minutosSaldoPendenteMesAnterior = await buscarSaldoPendenteMesAnterior(funcionarioId, ano, mes);
   }
 
   const horas = roundAutoHolerite(Math.abs(minutosFechamento) / 60);
