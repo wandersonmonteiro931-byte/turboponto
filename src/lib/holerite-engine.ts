@@ -396,9 +396,14 @@ const RUBRICA_FALLBACK_FECHAMENTO_BH = {
   descricao: "FECHAMENTO BH",
 };
 
-const RUBRICA_FALLBACK_SALDO_BH = {
-  codigo: "28651",
-  descricao: "SALDO BH",
+const RUBRICA_FALLBACK_SALDO_BH_POSITIVO = {
+  codigo: "18060",
+  descricao: "SALDO BANCO DE HORAS POSITIVO",
+};
+
+const RUBRICA_FALLBACK_SALDO_BH_NEGATIVO = {
+  codigo: "28652",
+  descricao: "SALDO BANCO DE HORAS NEGATIVO",
 };
 
 const getRubricaOrFallback = (
@@ -959,9 +964,13 @@ export async function recalcular(
   const saldoBHHoras = round(saldoBHInformativoMinutos / 60);
 
   // Adiciona/remove SALDO BANCO POSITIVO (28651)
-  const idxPos = linhas.findIndex((l) => l.codigo === "28651");
-  if (saldoBHHoras > 0 && porCodigo.has("28651")) {
-    const r = getRubricaOrFallback(porCodigo, "28651", RUBRICA_FALLBACK_SALDO_BH);
+  const idxPos = linhas.findIndex((l) => l.codigo === (saldoBHInformativoMinutos < 0 ? "28652" : "18060"));
+  if (saldoBHHoras > 0 && porCodigo.has("28652")) {
+    const r = getRubricaOrFallback(
+      porCodigo,
+      saldoBHInformativoMinutos < 0 ? "28652" : "18060",
+      saldoBHInformativoMinutos < 0 ? RUBRICA_FALLBACK_SALDO_BH_NEGATIVO : RUBRICA_FALLBACK_SALDO_BH_POSITIVO,
+    );
     const payload: EngineLanc = {
       _k: idxPos >= 0 ? linhas[idxPos]._k : crypto.randomUUID(),
       id: idxPos >= 0 ? linhas[idxPos].id : undefined,
@@ -983,7 +992,7 @@ export async function recalcular(
   }
 
   // Adiciona/remove SALDO BANCO NEGATIVO (28652)
-  const idxNeg = linhas.findIndex((l) => l.codigo === "28652");
+  const idxNeg = linhas.findIndex((l) => l.codigo === (saldoBHInformativoMinutos < 0 ? "28652" : "18060"));
   if (saldoBHHoras < 0 && porCodigo.has("28652")) {
     const r = porCodigo.get("28652")!;
     const payload: EngineLanc = {

@@ -48,16 +48,18 @@ const criarLinhaFechamentoBHAutomatico = (minutos: number, valorHora: number) =>
 };
 
 const criarLinhaSaldoBHInformativo = (minutos: number) => {
+  const isNegativo = Number(minutos || 0) < 0;
+
   return {
     _k: crypto.randomUUID(),
-    codigo: "28651",
-    descricao: "SALDO BH",
+    codigo: isNegativo ? "28652" : "18060",
+    descricao: isNegativo ? "SALDO BANCO DE HORAS NEGATIVO" : "SALDO BANCO DE HORAS POSITIVO",
     tipo: "resultado",
     qtde: "",
     quantidade: "",
     provento: 0,
     desconto: 0,
-    resultado: formatHorasRubricaBH(minutos),
+    resultado: minutos / 60,
     automatico: true,
     origem: "saldo_bh_informativo",
   };
@@ -106,7 +108,8 @@ const aplicarRubricasBHObrigatorias = async (
     (l: any) =>
       !(
         (String(l.codigo) === "00120" && (l.automatico || l.origem === "fechamento_bh_cartao")) ||
-        (String(l.codigo) === "28651" && (l.automatico || l.origem === "saldo_bh_informativo"))
+        (["28651", "28652", "18060"].includes(String(l.codigo)) &&
+          (l.automatico || l.origem === "saldo_bh_informativo"))
       ),
   );
 
@@ -855,11 +858,11 @@ const grupoLancamentoHolerite = (linha: LancEdit) => {
 };
 
 const pesoInformativoHolerite = (codigo: string) => {
-  if (codigo === "28651") return 9998;
+  if (codigo === "28652" || codigo === "18060") return 9998;
   // Dentro dos informativos:
   // banco de horas fica no fim, e QTDE HORAS BENEF fica obrigatoriamente por último.
   if (codigo === CODIGO_QTDE_HORAS_BENEF) return 3;
-  if (codigo === "28651" || codigo === "28652") return 2;
+  if (codigo === "28651" || codigo === "28652" || codigo === "18060") return 2;
   if (codigo === "09990") return 1;
   return 0;
 };
@@ -916,7 +919,9 @@ const limparLancamentosAutomaticosZeradosHolerite = (linhas: LancEdit[]) => {
 };
 
 const prepararLancamentosFinaisHolerite = (linhas: LancEdit[]) => {
-  return ordenarLancamentosHolerite(limparLancamentosAutomaticosZeradosHolerite(linhas));
+  return ordenarLancamentosHolerite(
+    limparLancamentosAutomaticosZeradosHolerite(linhas).filter((linha) => linha.codigo !== "28651"),
+  );
 };
 
 const ordenarLancamentosHolerite = (linhas: LancEdit[]) => {
@@ -1227,6 +1232,8 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
   // Limpa versões antigas para evitar duplicidade.
   removerLinha("00120");
   removerLinha("28651");
+  removerLinha("28652");
+  removerLinha("18060");
 
   const valorHora = salario > 0 ? salario / 220 : 0;
   const horas = roundAutoHolerite(Math.abs(minutosFechamento) / 60);
@@ -1238,9 +1245,16 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     setLinha("00120", "FECHAMENTO BH", horas, 0, valorFechamento);
   }
 
-  // 28651 sempre aparece com a quantidade de horas do fechamento.
-  // Não zerar aqui: é informativo para mostrar quanto foi fechado no banco.
-  setLinha("28651", "SALDO BH", null, 0, 0, minutosFechamento / 60);
+  // 28652 sempre aparece com a quantidade de horas do fechamento.
+  // Não usar mais 28651 - SALDO BH no holerite.
+  setLinha(
+    minutosFechamento < 0 ? "28652" : "18060",
+    minutosFechamento < 0 ? "SALDO BANCO DE HORAS NEGATIVO" : "SALDO BANCO DE HORAS POSITIVO",
+    null,
+    0,
+    0,
+    minutosFechamento / 60,
+  );
 
   // Se não há HE 50, não pode sobrar DSR HE de fechamento antigo.
   if (!novas.find((linha) => linha.codigo === "00090" && Number(linha.provento || 0) > 0)) {
@@ -1598,7 +1612,13 @@ const formatHorasDecimais = (v: number | null | undefined) => {
 };
 
 const formatResultado = (l: LancEdit) => {
-  if (l.codigo === "09998" || l.codigo === "18445" || l.codigo === "28651" || l.codigo === "28652") {
+  if (
+    l.codigo === "09998" ||
+    l.codigo === "18445" ||
+    l.codigo === "28651" ||
+    l.codigo === "28652" ||
+    l.codigo === "18060"
+  ) {
     return formatHorasDecimais(Number(l.resultado || 0));
   }
   if (l.codigo === "09990") {
