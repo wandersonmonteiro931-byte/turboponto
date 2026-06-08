@@ -416,8 +416,10 @@ const getRubricaOrFallback = (
       id: undefined,
       codigo: fallback.codigo,
       descricao: fallback.descricao,
+      tipo: "resultado",
       modo: "automatico",
       editavel_manual: false,
+      entra_liquido: false,
     }
   );
 };
@@ -455,33 +457,6 @@ const calcularDsrBancoHorasPagasEngine = (linhas: EngineLanc[]) => {
       editavel_manual: false,
     } as EngineLanc,
   ];
-};
-
-const recalcularInssEngine = (linhas: EngineLanc[]) => {
-  const idx = linhas.findIndex((linha) => linha.codigo === "07000");
-
-  const totalProventos = linhas.reduce((s, linha) => s + Number(linha.provento || 0), 0);
-  const inss = calcularInss(totalProventos);
-
-  const linhaInss = {
-    _k: idx >= 0 ? linhas[idx]._k : crypto.randomUUID(),
-    id: idx >= 0 ? linhas[idx].id : undefined,
-    codigo: "07000",
-    descricao: "INSS MES",
-    qtde: 7.5,
-    provento: 0,
-    desconto: inss,
-    resultado: -inss,
-    modo: "automatico",
-    tipo: "desconto",
-    editavel_manual: false,
-  } as EngineLanc;
-
-  const next = [...linhas];
-  if (idx >= 0) next[idx] = linhaInss;
-  else next.push(linhaInss);
-
-  return next;
 };
 
 export async function recalcular(
@@ -1044,7 +1019,7 @@ export async function recalcular(
       provento: 0,
       desconto: 0,
       resultado: saldoBHHoras,
-      modo: r.modo,
+      modo: r.modo || "automatico",
       tipo: r.tipo || "resultado",
       editavel_manual: Boolean(r.editavel_manual),
       rubrica_id: r.id,
