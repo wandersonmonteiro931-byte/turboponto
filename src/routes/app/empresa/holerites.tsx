@@ -20,6 +20,105 @@ import turboLogoHolerite from "@/assets/turbo-logo-holerite.png";
 import { calcularRubrica, type TipoCalculo } from "@/lib/holerite-rubricas";
 import { recalcular as engineRecalcular } from "@/lib/holerite-engine";
 
+const formatHorasRubricaBH = (minutos: number) =>
+  `${String(Math.floor(Math.abs(minutos) / 60)).padStart(2, "0")}:${String(Math.abs(minutos) % 60).padStart(2, "0")}`;
+
+const valorPorMinutosBH = (minutos: number, valorHora: number) =>
+  Math.round((Math.abs(minutos) / 60) * valorHora * 100) / 100;
+
+const criarLinhaFechamentoBHAutomatico = (minutos: number, valorHora: number) => {
+  if (!minutos) return null;
+
+  const valor = valorPorMinutosBH(minutos, valorHora);
+  const isProvento = minutos > 0;
+
+  return {
+    codigo: "00120",
+    descricao: "FECHAMENTO BH",
+    tipo: isProvento ? "provento" : "desconto",
+    qtde: Math.round((Math.abs(minutos) / 60) * 100) / 100,
+    quantidade: formatHorasRubricaBH(minutos),
+    provento: isProvento ? valor : 0,
+    desconto: isProvento ? 0 : valor,
+    resultado: isProvento ? valor : -valor,
+    automatico: true,
+    origem: "fechamento_bh_cartao",
+  };
+};
+
+const criarLinhaSaldoBHInformativo = (minutos: number) => {
+  return {
+    codigo: "28651",
+    descricao: "SALDO BH",
+    tipo: "resultado",
+    qtde: "",
+    quantidade: "",
+    provento: 0,
+    desconto: 0,
+    resultado: formatHorasRubricaBH(minutos),
+    automatico: true,
+    origem: "saldo_bh_informativo",
+  };
+};
+
+async function buscarFechamentoBHMesAtual(funcionarioId: string, ano: number, mes: number) {
+  const { data: cartao } = await (supabase as any)
+    .from("cartoes_ponto")
+    .select("status,total_banco_horas_minutos,fechamento_bh_minutos,fechamento_bh_acao")
+    .eq("funcionario_id", funcionarioId)
+    .eq("ano_referencia", ano)
+    .eq("mes_referencia", mes)
+    .maybeSingle();
+
+  const status = String(cartao?.status || "");
+  if (status !== "fechado" && status !== "liberado") return 0;
+
+  let saldo = Number(cartao?.fechamento_bh_minutos ?? cartao?.total_banco_horas_minutos ?? 0);
+
+  // Se foi fechado antes dos campos novos ou não gravou saldo, recalcula o cartão do mês.
+  if (!saldo) {
+    try {
+      const cartaoCalc = await carregarCartao(funcionarioId, ano, mes);
+      saldo = Number(cartaoCalc?.totalBancoHoras || 0);
+    } catch (e) {
+      console.warn("[holerites] falha ao recalcular fechamento BH do mês atual", e);
+    }
+  }
+
+  return saldo;
+}
+
+const aplicarRubricasBHObrigatorias = async (
+  linhas: any[],
+  funcionarioId: string,
+  ano: number,
+  mes: number,
+  valorHora: number,
+) => {
+  const next = [...linhas];
+
+  const fechamentoMinutos = await buscarFechamentoBHMesAtual(funcionarioId, ano, mes);
+
+  // Remove versões antigas automáticas para não duplicar ao recalcular.
+  const semBH = next.filter(
+    (l: any) =>
+      !(
+        (String(l.codigo) === "00120" && (l.automatico || l.origem === "fechamento_bh_cartao")) ||
+        (String(l.codigo) === "28651" && (l.automatico || l.origem === "saldo_bh_informativo"))
+      ),
+  );
+
+  const linhaFechamento = criarLinhaFechamentoBHAutomatico(fechamentoMinutos, valorHora);
+  if (linhaFechamento) semBH.push(linhaFechamento);
+
+  // Se o fechamento foi tratado no holerite, o saldo informativo deve sair 0h00.
+  // Se não houve fechamento, mostra o saldo encontrado.
+  const saldoInformativo = fechamentoMinutos !== 0 ? 0 : fechamentoMinutos;
+  semBH.push(criarLinhaSaldoBHInformativo(saldoInformativo));
+
+  return semBH;
+};
+
 async function buscarSaldoPendenteMesAnterior(funcionarioId: string, ano: number, mes: number) {
   const mesAnt = mes === 1 ? 12 : mes - 1;
   const anoAnt = mes === 1 ? ano - 1 : ano;
@@ -363,6 +462,16 @@ function HoleritesPage() {
         return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
       };
 
+      const linhaSaldoPendenteMesAnterior = criarLinhaSaldoPendenteMesAnterior(
+        minutosSaldoPendenteMesAnterior,
+        valorHora,
+      );
+
+      if (linhaSaldoPendenteMesAnterior) {
+        rubricas.push(linhaSaldoPendenteMesAnterior as any);
+      }
+
+      linhas = await aplicarRubricasBHObrigatorias(linhas, funcionarioId, ano, mes, valorHora);
 
       const totalProventosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.provento || 0) : s), 0);
       const totalDescontosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.desconto || 0) : s), 0);
