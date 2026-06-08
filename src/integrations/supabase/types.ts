@@ -468,6 +468,8 @@ export type Database = {
           created_at: string
           empresa_id: string
           fechado_em: string | null
+          fechamento_bh_acao: string | null
+          fechamento_bh_minutos: number
           funcionario_id: string
           id: string
           liberado_em: string | null
@@ -475,6 +477,7 @@ export type Database = {
           pdf_url: string | null
           status: string
           total_atraso_minutos: number
+          total_banco_horas_minutos: number
           total_faltas: number
           total_horas_extras_minutos: number
           total_horas_trabalhadas_minutos: number
@@ -485,6 +488,8 @@ export type Database = {
           created_at?: string
           empresa_id: string
           fechado_em?: string | null
+          fechamento_bh_acao?: string | null
+          fechamento_bh_minutos?: number
           funcionario_id: string
           id?: string
           liberado_em?: string | null
@@ -492,6 +497,7 @@ export type Database = {
           pdf_url?: string | null
           status?: string
           total_atraso_minutos?: number
+          total_banco_horas_minutos?: number
           total_faltas?: number
           total_horas_extras_minutos?: number
           total_horas_trabalhadas_minutos?: number
@@ -502,6 +508,8 @@ export type Database = {
           created_at?: string
           empresa_id?: string
           fechado_em?: string | null
+          fechamento_bh_acao?: string | null
+          fechamento_bh_minutos?: number
           funcionario_id?: string
           id?: string
           liberado_em?: string | null
@@ -509,6 +517,7 @@ export type Database = {
           pdf_url?: string | null
           status?: string
           total_atraso_minutos?: number
+          total_banco_horas_minutos?: number
           total_faltas?: number
           total_horas_extras_minutos?: number
           total_horas_trabalhadas_minutos?: number
