@@ -428,14 +428,15 @@ const calcularDsrBancoHorasPagasEngine = (linhas: EngineLanc[]) => {
   const salarioLinha = semDsrBh.find((linha) => linha.codigo === "00005");
   const diasPagos = Math.max(1, Number(salarioLinha?.qtde || 30));
 
-  const proventoBHPositivo = semDsrBh
-    .filter((linha) => ["00120", "00121"].includes(linha.codigo))
+  const proventosQueGeramDsr = semDsrBh
+    .filter((linha) => ["00090", "00120", "00121"].includes(linha.codigo))
     .reduce((s, linha) => s + Math.max(0, Number(linha.provento || 0)), 0);
 
-  if (proventoBHPositivo <= 0) return semDsrBh;
+  // Saldo negativo/desconto não gera DSR.
+  if (proventosQueGeramDsr <= 0) return semDsrBh;
 
   const dsrRef = Math.max(1, Math.ceil(diasPagos / 6));
-  const valorDsr = round((proventoBHPositivo / diasPagos) * dsrRef);
+  const valorDsr = round((proventosQueGeramDsr / diasPagos) * dsrRef);
 
   if (valorDsr <= 0) return semDsrBh;
 
@@ -458,7 +459,6 @@ const calcularDsrBancoHorasPagasEngine = (linhas: EngineLanc[]) => {
 
 const recalcularInssEngine = (linhas: EngineLanc[]) => {
   const idx = linhas.findIndex((linha) => linha.codigo === "07000");
-  linhas = recalcularInssEngine(calcularDsrBancoHorasPagasEngine(linhas));
 
   const totalProventos = linhas.reduce((s, linha) => s + Number(linha.provento || 0), 0);
   const inss = calcularInss(totalProventos);
@@ -1018,63 +1018,37 @@ export async function recalcular(
   }
 
   // ==== Informativos automáticos baseados no cartão de ponto ====
-  // Saldo do banco de horas do mês em horas = saldo do cartão de ponto.
-  // 28651 - SALDO BH deve mostrar a quantidade de horas fechadas no banco.
-  // Se o fechamento do mês foi -1h47, o informativo mostra -1h47.
-  // Se não houve fechamento, mostra o saldo normal calculado do banco.
+  // Saldo do banco de horas do mês em horas = saldo do fechamento/cartão.
+  // Usar somente:
+  // 18060 - SALDO BANCO DE HORAS POSITIVO
+  // 28652 - SALDO BANCO DE HORAS NEGATIVO
+  // Nunca usar 28651 - SALDO BH.
   const saldoBHInformativoMinutos = minutosFechamentoBH !== 0 ? minutosFechamentoBH : saldoBHMinutos;
   const saldoBHHoras = round(saldoBHInformativoMinutos / 60);
 
-  // Adiciona/remove SALDO BANCO POSITIVO (28651)
-  const idxPos = linhas.findIndex((l) => l.codigo === (saldoBHInformativoMinutos < 0 ? "28652" : "18060"));
-  if (saldoBHHoras > 0 && porCodigo.has("28652")) {
-    const r = getRubricaOrFallback(
-      porCodigo,
-      saldoBHInformativoMinutos < 0 ? "28652" : "18060",
-      saldoBHInformativoMinutos < 0 ? RUBRICA_FALLBACK_SALDO_BH_NEGATIVO : RUBRICA_FALLBACK_SALDO_BH_POSITIVO,
-    );
-    const payload: EngineLanc = {
-      _k: idxPos >= 0 ? linhas[idxPos]._k : crypto.randomUUID(),
-      id: idxPos >= 0 ? linhas[idxPos].id : undefined,
-      codigo: r.codigo,
-      descricao: r.descricao,
-      qtde: null,
-      provento: 0,
-      desconto: 0,
-      resultado: saldoBHHoras,
-      modo: r.modo,
-      tipo: r.tipo,
-      editavel_manual: r.editavel_manual,
-      rubrica_id: r.id,
-    };
-    if (idxPos >= 0) linhas[idxPos] = payload;
-    else linhas.push(payload);
-  } else if (idxPos >= 0) {
-    linhas.splice(idxPos, 1);
-  }
+  removerLinhaPorCodigo(linhas, "28651");
+  removerLinhaPorCodigo(linhas, "18060");
+  removerLinhaPorCodigo(linhas, "28652");
 
-  // Adiciona/remove SALDO BANCO NEGATIVO (28652)
-  const idxNeg = linhas.findIndex((l) => l.codigo === (saldoBHInformativoMinutos < 0 ? "28652" : "18060"));
-  if (saldoBHHoras < 0 && porCodigo.has("28652")) {
-    const r = porCodigo.get("28652")!;
-    const payload: EngineLanc = {
-      _k: idxNeg >= 0 ? linhas[idxNeg]._k : crypto.randomUUID(),
-      id: idxNeg >= 0 ? linhas[idxNeg].id : undefined,
-      codigo: r.codigo,
-      descricao: r.descricao,
+  if (saldoBHInformativoMinutos !== 0) {
+    const codigoSaldoBH = saldoBHInformativoMinutos < 0 ? "28652" : "18060";
+    const fallbackSaldoBH =
+      saldoBHInformativoMinutos < 0 ? RUBRICA_FALLBACK_SALDO_BH_NEGATIVO : RUBRICA_FALLBACK_SALDO_BH_POSITIVO;
+    const r = getRubricaOrFallback(porCodigo, codigoSaldoBH, fallbackSaldoBH);
+
+    linhas.push({
+      _k: crypto.randomUUID(),
+      codigo: codigoSaldoBH,
+      descricao: r.descricao || fallbackSaldoBH.descricao,
       qtde: null,
       provento: 0,
       desconto: 0,
       resultado: saldoBHHoras,
       modo: r.modo,
-      tipo: r.tipo,
-      editavel_manual: r.editavel_manual,
+      tipo: r.tipo || "resultado",
+      editavel_manual: Boolean(r.editavel_manual),
       rubrica_id: r.id,
-    };
-    if (idxNeg >= 0) linhas[idxNeg] = payload;
-    else linhas.push(payload);
-  } else if (idxNeg >= 0) {
-    linhas.splice(idxNeg, 1);
+    });
   }
 
   // QTD HORAS CESTA BÁSICA (18445) — quantidade de horas de débito (atrasos /
@@ -1261,6 +1235,13 @@ export async function recalcular(
     }
   }
 
+  // DSR sobre banco de horas pago em dinheiro:
+  // 00120 positivo e 00121 positivo geram 00115.
+  // 00120/00121 negativos não geram DSR.
+  const linhasComDsrBH = calcularDsrBancoHorasPagasEngine(linhas);
+  linhas.length = 0;
+  linhas.push(...linhasComDsrBH);
+
   // ==== FASE 2: bases ====
   let baseInss = 0;
   let baseFgts = 0;
@@ -1355,8 +1336,10 @@ export async function recalcular(
     linhas.splice(idx9000, 1);
   }
 
+  const linhasSemSaldoBHAntigo = linhas.filter((linha) => linha.codigo !== "28651");
+
   return {
-    linhas,
+    linhas: linhasSemSaldoBHAntigo,
     totalProv,
     totalDesc,
     totalLiq,
