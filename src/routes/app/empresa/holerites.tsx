@@ -207,6 +207,7 @@ type Func = {
   rg: string | null;
   endereco: string | null;
   data_admissao: string | null;
+  data_desligamento: string | null;
   salario: number | null;
   banco_agencia: string | null;
   conta: string | null;
@@ -236,6 +237,20 @@ type Holerite = {
   funcionarios: { nome: string } | null;
 };
 
+const fimMesIsoHolerite = (ano: number, mes: number) =>
+  `${ano}-${String(mes).padStart(2, "0")}-${String(new Date(ano, mes, 0).getDate()).padStart(2, "0")}`;
+
+const fimCompetenciaComDesligamento = (ano: number, mes: number, dataDesligamento?: string | null) => {
+  const inicioMes = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  const fimMes = fimMesIsoHolerite(ano, mes);
+
+  if (dataDesligamento && dataDesligamento >= inicioMes && dataDesligamento <= fimMes) {
+    return dataDesligamento;
+  }
+
+  return fimMes;
+};
+
 function HoleritesPage() {
   const { empresaId, role, user } = useAuth();
   const podeEditar = role === "admin" || role === "gerente";
@@ -258,10 +273,10 @@ function HoleritesPage() {
     void supabase
       .from("funcionarios")
       .select(
-        "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+        "id,nome,cargo,cpf,rg,endereco,data_admissao,data_desligamento,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
       )
       .eq("empresa_id", empresaId)
-      .eq("status", "ativo")
+      .in("status", ["ativo", "desligado"])
       .order("nome")
       .then(({ data }) => setFuncs((data ?? []) as Func[]));
   }, [empresaId]);
@@ -1240,7 +1255,12 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
   };
 
   const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  const fim = new Date(ano, mes, 0).toISOString().slice(0, 10);
+  const { data: funcionarioPeriodo } = await supabase
+    .from("funcionarios")
+    .select("data_desligamento")
+    .eq("id", funcionarioId)
+    .maybeSingle();
+  const fim = fimCompetenciaComDesligamento(ano, mes, funcionarioPeriodo?.data_desligamento ?? null);
 
   const { data, error } = await supabase
     .from("justificativas_aplicadas")
@@ -1461,7 +1481,12 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
   const diasSalario = Number(linhaSalario?.qtde || 0);
 
   const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  const fim = new Date(ano, mes, 0).toISOString().slice(0, 10);
+  const { data: funcionarioPeriodo } = await supabase
+    .from("funcionarios")
+    .select("data_desligamento")
+    .eq("id", funcionarioId)
+    .maybeSingle();
+  const fim = fimCompetenciaComDesligamento(ano, mes, funcionarioPeriodo?.data_desligamento ?? null);
 
   const { data: registros, error } = await supabase
     .from("registros_ponto")
@@ -1778,9 +1803,9 @@ function EditorDialog({
   // Carregar para edição
   useEffect(() => {
     if (!holeriteId) {
-      const ult = new Date(ano, mes, 0).getDate();
+      const funcionarioSelecionado = funcs.find((x) => x.id === funcId);
       setPeriodoInicio(`${ano}-${String(mes).padStart(2, "0")}-01`);
-      setPeriodoFim(`${ano}-${String(mes).padStart(2, "0")}-${String(ult).padStart(2, "0")}`);
+      setPeriodoFim(fimCompetenciaComDesligamento(ano, mes, funcionarioSelecionado?.data_desligamento ?? null));
       setLancamentos([
         { _k: crypto.randomUUID(), codigo: "", descricao: "", qtde: null, provento: 0, desconto: 0, resultado: 0 },
       ]);
@@ -1793,7 +1818,7 @@ function EditorDialog({
       const { data: funcionarioAtual, error: funcionarioAtualErro } = await supabase
         .from("funcionarios")
         .select(
-          "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+          "id,nome,cargo,cpf,rg,endereco,data_admissao,data_desligamento,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
         )
         .eq("id", h.funcionario_id)
         .maybeSingle();
@@ -1887,16 +1912,16 @@ function EditorDialog({
 
   // Atualiza Período de Pagamento ao trocar mês/ano
   useEffect(() => {
-    const ult = new Date(ano, mes, 0).getDate();
+    const funcionarioSelecionado = funcs.find((x) => x.id === funcId);
     setPeriodoInicio(`${ano}-${String(mes).padStart(2, "0")}-01`);
-    setPeriodoFim(`${ano}-${String(mes).padStart(2, "0")}-${String(ult).padStart(2, "0")}`);
+    setPeriodoFim(fimCompetenciaComDesligamento(ano, mes, funcionarioSelecionado?.data_desligamento ?? null));
     // Default: dia 05 do mês seguinte (apenas se usuário ainda não escolheu manualmente)
     if (!dataPagamentoTocada) {
       const proxMes = mes === 12 ? 1 : mes + 1;
       const proxAno = mes === 12 ? ano + 1 : ano;
       setDataPagamento(`${proxAno}-${String(proxMes).padStart(2, "0")}-05`);
     }
-  }, [mes, ano, dataPagamentoTocada]);
+  }, [mes, ano, funcId, funcs, dataPagamentoTocada]);
 
   const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
 
@@ -1941,7 +1966,7 @@ function EditorDialog({
       const { data: funcionarioBanco, error: funcionarioErro } = await supabase
         .from("funcionarios")
         .select(
-          "id,nome,cargo,cpf,rg,endereco,data_admissao,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
+          "id,nome,cargo,cpf,rg,endereco,data_admissao,data_desligamento,salario,banco_agencia,conta,lotacao,num_dep_irrf,num_dep_sal_fam,matricula",
         )
         .eq("id", funcId)
         .maybeSingle();
@@ -1962,6 +1987,7 @@ function EditorDialog({
       const depIrrfAtual = Number(f.num_dep_irrf ?? numDepIrrf ?? 0);
       const depSalFamAtual = Number(f.num_dep_sal_fam ?? numDepSalFam ?? 0);
       const salarioAtual = Number(f.salario ?? salarioContratual ?? 0);
+      const periodoFimFinal = fimCompetenciaComDesligamento(ano, mes, f.data_desligamento ?? null);
 
       setBancoAg(bancoAgAtual);
       setConta(contaAtual);
@@ -1969,6 +1995,7 @@ function EditorDialog({
       setNumDepIrrf(depIrrfAtual);
       setNumDepSalFam(depSalFamAtual);
       setSalarioContratual(salarioAtual);
+      setPeriodoFim(periodoFimFinal);
       const { data: emp } = await supabase
         .from("empresas")
         .select("nome_fantasia,razao_social,cnpj,endereco,logo_url")
@@ -2028,7 +2055,7 @@ function EditorDialog({
         ano_referencia: ano,
         folha_tipo: folhaTipo,
         periodo_inicio: periodoInicio || null,
-        periodo_fim: periodoFim || null,
+        periodo_fim: periodoFimFinal || null,
         data_pagamento: dataPagamento || null,
         banco_agencia: bancoAg || null,
         conta: conta || null,
@@ -2113,7 +2140,7 @@ function EditorDialog({
           mes_referencia: mes,
           ano_referencia: ano,
           periodo_inicio: periodoInicio,
-          periodo_fim: periodoFim,
+          periodo_fim: periodoFimFinal,
           data_pagamento: dataPagamento,
           banco_agencia: bancoAgAtual,
           conta,
@@ -2308,6 +2335,9 @@ function EditorDialog({
                       }));
 
                       const funcionarioAtual = funcs.find((f) => f.id === funcId);
+                      setPeriodoFim(
+                        fimCompetenciaComDesligamento(ano, mes, funcionarioAtual?.data_desligamento ?? null),
+                      );
                       const rubricasObrigatorias = await adicionarRubricasNoturnoDsrObrigatorias({
                         funcionarioId: funcId,
                         ano,

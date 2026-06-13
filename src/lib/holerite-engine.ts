@@ -297,6 +297,18 @@ function diasVinculo(adm: string | null, des: string | null, ano: number, mes: n
   return Math.min(v, 30);
 }
 
+function fimCompetenciaHolerite(ano: number, mes: number, dataDesligamento: string | null): string {
+  const mesStr = String(mes).padStart(2, "0");
+  const inicioMes = `${ano}-${mesStr}-01`;
+  const fimMes = `${ano}-${mesStr}-${String(new Date(ano, mes, 0).getDate()).padStart(2, "0")}`;
+
+  if (dataDesligamento && dataDesligamento >= inicioMes && dataDesligamento <= fimMes) {
+    return dataDesligamento;
+  }
+
+  return fimMes;
+}
+
 async function carregarSaldoPendenteMesAnterior(ctx: EngineCtx): Promise<number> {
   const mesAnt = ctx.mes === 1 ? 12 : ctx.mes - 1;
   const anoAnt = ctx.mes === 1 ? ctx.ano - 1 : ctx.ano;
@@ -503,7 +515,7 @@ export async function recalcular(
   // Ponto do mês: usa o mesmo resumo do cartão de ponto para manter banco de
   // horas e benefício alinhados ao que é exibido no mês de referência.
   const ini = `${ctx.ano}-${String(ctx.mes).padStart(2, "0")}-01`;
-  const fim = new Date(ctx.ano, ctx.mes, 0).toISOString().slice(0, 10);
+  const fim = fimCompetenciaHolerite(ctx.ano, ctx.mes, f?.data_desligamento ?? null);
   let minHE = 0;
   let minAtraso = 0;
   let numFaltas = 0;
