@@ -6,9 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { mesNome } from "@/lib/beneficios";
 import { Download, FileText } from "lucide-react";
@@ -36,16 +34,23 @@ function MeusHolerites() {
 
   useEffect(() => {
     if (!user) return;
-    void supabase.from("funcionarios").select("id").eq("usuario_id", user.id).maybeSingle()
+    void supabase
+      .from("funcionarios")
+      .select("id")
+      .eq("usuario_id", user.id)
+      .maybeSingle()
       .then(({ data }) => setFuncId(data?.id ?? null));
   }, [user]);
 
   const carregar = async () => {
     if (!funcId) return;
     setLoading(true);
-    let q = supabase.from("holerites")
+    let q = supabase
+      .from("holerites")
       .select("id,mes_referencia,ano_referencia,pdf_url,liberado_em,acessado_em")
-      .eq("funcionario_id", funcId).eq("liberado", true).eq("ano_referencia", ano)
+      .eq("funcionario_id", funcId)
+      .eq("liberado", true)
+      .eq("ano_referencia", ano)
       .order("mes_referencia", { ascending: false });
     if (mes !== "todos") q = q.eq("mes_referencia", mes);
     const { data, error } = await q;
@@ -53,25 +58,46 @@ function MeusHolerites() {
     setLista((data ?? []) as Holerite[]);
     setLoading(false);
   };
-  useEffect(() => { if (funcId) void carregar(); /* eslint-disable-next-line */ }, [funcId, ano, mes]);
+  useEffect(() => {
+    if (funcId) void carregar(); /* eslint-disable-next-line */
+  }, [funcId, ano, mes]);
 
   const abrir = async (h: Holerite) => {
-    const path = h.pdf_url.split(`/holerites/`)[1];
-    if (!path) return toast.error("Caminho inválido");
-    const { data, error } = await supabase.storage.from("holerites").download(path);
-    if (error || !data) return toast.error(error?.message ?? "Erro ao baixar PDF");
-    if (!h.acessado_em) {
-      await supabase.from("holerites").update({ acessado_em: new Date().toISOString() }).eq("id", h.id);
+    if (!h.pdf_url) {
+      toast.error("PDF ainda não foi gerado.");
+      return;
     }
-    const blobUrl = URL.createObjectURL(data);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = `holerite-${h.mes_referencia}-${h.ano_referencia}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-    void carregar();
+
+    try {
+      const url = new URL(h.pdf_url);
+      url.searchParams.set("download", "1");
+      url.searchParams.set("v", String(Date.now()));
+
+      const resp = await fetch(url.toString(), { cache: "no-store" });
+      if (!resp.ok) {
+        window.open(url.toString(), "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const data = await resp.blob();
+
+      if (!h.acessado_em) {
+        await supabase.from("holerites").update({ acessado_em: new Date().toISOString() }).eq("id", h.id);
+      }
+
+      const blobUrl = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `holerite-${h.mes_referencia}-${h.ano_referencia}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+      void carregar();
+    } catch (e) {
+      console.error("[funcionario/holerites] erro ao baixar PDF", e);
+      window.open(h.pdf_url, "_blank", "noopener,noreferrer");
+    }
   };
 
   if (!funcId) return <p className="text-sm text-muted-foreground">Cadastro de funcionário não encontrado.</p>;
@@ -85,42 +111,62 @@ function MeusHolerites() {
 
       <Card>
         <CardContent className="p-4 grid grid-cols-2 gap-3">
-          <div><Label className="text-xs">Ano</Label><Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} /></div>
-          <div><Label className="text-xs">Mês</Label>
+          <div>
+            <Label className="text-xs">Ano</Label>
+            <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} />
+          </div>
+          <div>
+            <Label className="text-xs">Mês</Label>
             <Select value={String(mes)} onValueChange={(v) => setMes(v === "todos" ? "todos" : Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <SelectItem key={m} value={String(m)}>{mesNome(m)}</SelectItem>)}
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {mesNome(m)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {loading ? <p className="text-sm text-muted-foreground">Carregando...</p>
-        : lista.length === 0 ? (
-          <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : lista.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
             Nenhum holerite liberado para esse período.
-          </CardContent></Card>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {lista.map((h) => (
-              <Card key={h.id}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="rounded-md bg-primary/10 text-primary p-2"><FileText className="h-6 w-6" /></div>
-                  <div className="flex-1">
-                    <div className="font-bold">{mesNome(h.mes_referencia)} / {h.ano_referencia}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Liberado em {h.liberado_em ? new Date(h.liberado_em).toLocaleDateString("pt-BR") : "—"}
-                    </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {lista.map((h) => (
+            <Card key={h.id}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="rounded-md bg-primary/10 text-primary p-2">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold">
+                    {mesNome(h.mes_referencia)} / {h.ano_referencia}
                   </div>
-                  <Button size="sm" onClick={() => abrir(h)}><Download className="h-4 w-4 mr-1" />Abrir</Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                  <div className="text-xs text-muted-foreground">
+                    Liberado em {h.liberado_em ? new Date(h.liberado_em).toLocaleDateString("pt-BR") : "—"}
+                  </div>
+                </div>
+                <Button size="sm" onClick={() => abrir(h)}>
+                  <Download className="h-4 w-4 mr-1" />
+                  Abrir
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

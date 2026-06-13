@@ -199,6 +199,23 @@ export const Route = createFileRoute("/app/empresa/holerites")({
   component: HoleritesPage,
 });
 
+const HOLERITE_PDF_BUCKET = "backup";
+
+function extrairCaminhoStorageHolerite(url?: string | null): string | null {
+  if (!url) return null;
+
+  try {
+    const semQuery = url.split("?")[0];
+    const marker = `/storage/v1/object/public/${HOLERITE_PDF_BUCKET}/`;
+    const idx = semQuery.indexOf(marker);
+    if (idx >= 0) return decodeURIComponent(semQuery.slice(idx + marker.length));
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 type Func = {
   id: string;
   nome: string;
@@ -449,10 +466,8 @@ function HoleritesPage() {
 
   const remover = async (h: Holerite) => {
     if (!confirm("Remover este holerite?")) return;
-    if (h.pdf_url) {
-      const path = h.pdf_url.split(`/holerites/`)[1]?.split("?")[0];
-      if (path) await supabase.storage.from("holerites").remove([path]);
-    }
+    const path = extrairCaminhoStorageHolerite(h.pdf_url);
+    if (path) await supabase.storage.from(HOLERITE_PDF_BUCKET).remove([path]);
     const { error } = await supabase.from("holerites").delete().eq("id", h.id);
     if (error) return toast.error(error.message);
     toast.success("Removido");
@@ -2120,14 +2135,14 @@ function EditorDialog({
         .slice(0, 14);
       const path = `${empresaId}/${funcId}/${ano}-${String(mes).padStart(2, "0")}-${folhaTipo}-${pdfVersion}.pdf`;
 
-      const { error: upErr } = await supabase.storage.from("holerites").upload(path, blob, {
+      const { error: upErr } = await supabase.storage.from(HOLERITE_PDF_BUCKET).upload(path, blob, {
         upsert: false,
         contentType: "application/pdf",
         cacheControl: "0",
       });
       if (upErr) throw upErr;
 
-      const { data: pub } = supabase.storage.from("holerites").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from(HOLERITE_PDF_BUCKET).getPublicUrl(path);
       const pdfUrlAtualizado = `${pub.publicUrl}?v=${pdfVersion}`;
 
       const { error: pdfUpdateErr } = await supabase
@@ -2142,11 +2157,11 @@ function EditorDialog({
 
       if (pdfUpdateErr) throw pdfUpdateErr;
 
-      toast.success("Holerite salvo e PDF atualizado");
+      toast.success("Holerite salvo e novo PDF gerado no backup.");
       onSaved();
     } catch (e: unknown) {
       console.error("[holerites] erro ao salvar/gerar PDF", e);
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar e gerar PDF");
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar e gerar PDF no backup");
     } finally {
       setSalvando(false);
     }
