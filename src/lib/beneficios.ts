@@ -36,6 +36,92 @@ export type CalculoBeneficio = {
   valor_estimado: number;
 };
 
+function normalizarTextoBeneficio(valor: string | null | undefined) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function ehJustificativaDesligamentoBeneficio(
+  tipo: { codigo?: string | null; nome?: string | null } | null | undefined,
+): boolean {
+  const texto = `${normalizarTextoBeneficio(tipo?.codigo)} ${normalizarTextoBeneficio(tipo?.nome)}`;
+  return texto.includes("DESLIGAMENTO") || texto.includes("DEMISSAO") || texto.includes("RESCISAO");
+}
+
+function menorDataValidaBeneficio(datas: Array<string | null | undefined>): string | null {
+  const validas = datas.filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)));
+  return validas.length ? validas.sort()[0] : null;
+}
+
+export async function buscarDataDesligamentoBeneficio(
+  funcionarioId: string,
+  ano: number,
+  mes: number,
+  dataDesligamentoCadastro?: string | null,
+): Promise<string | null> {
+  const inicioMes = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  const fimMes = `${ano}-${String(mes).padStart(2, "0")}-${String(new Date(ano, mes, 0).getDate()).padStart(2, "0")}`;
+
+  const { data } = await supabase
+    .from("justificativas_aplicadas")
+    .select("data,status,tipo:justificativas_tipos(codigo,nome)")
+    .eq("funcionario_id", funcionarioId)
+    .gte("data", inicioMes)
+    .lte("data", fimMes);
+
+  const dataLancadaNoCartao =
+    (
+      (data ?? []) as Array<{
+        data: string;
+        status: string | null;
+        tipo: { codigo?: string | null; nome?: string | null } | null;
+      }>
+    )
+      .filter(
+        (j) =>
+          String(j.status || "").toLowerCase() !== "rejeitado" && String(j.status || "").toLowerCase() !== "cancelado",
+      )
+      .filter((j) => ehJustificativaDesligamentoBeneficio(j.tipo))
+      .map((j) => j.data)
+      .sort()[0] ?? null;
+
+  return menorDataValidaBeneficio([dataDesligamentoCadastro, dataLancadaNoCartao]);
+}
+
+export function estaForaDoVinculoBeneficio(params: {
+  ano: number;
+  mes: number;
+  status?: string | null;
+  dataAdmissao?: string | null;
+  dataDesligamento?: string | null;
+}) {
+  const inicioMes = `${params.ano}-${String(params.mes).padStart(2, "0")}-01`;
+  const fimMes = `${params.ano}-${String(params.mes).padStart(2, "0")}-${String(new Date(params.ano, params.mes, 0).getDate()).padStart(2, "0")}`;
+
+  if (params.dataAdmissao && params.dataAdmissao > fimMes) return true;
+
+  // Se existe desligamento dentro do mês ou antes do mês, o benefício do ciclo deve ficar sem direito.
+  if (params.dataDesligamento && params.dataDesligamento <= fimMes) return true;
+
+  const status = String(params.status || "").toLowerCase();
+  if (status === "desligado" || status === "inativo") return true;
+
+  return false;
+}
+
+export function calcBeneficioForaDoVinculo(valorBase = 0) {
+  return {
+    tem_direito: false,
+    status: "nao_tem_direito",
+    motivo: "Fora do vínculo.",
+    valor: 0,
+    proximoLimite: false,
+    valorBase,
+  };
+}
+
 /** Regra: perde direito se débito de horas do mês > 60 min OU qualquer falta injustificada. */
 export function avaliarDireito(
   beneficio: Pick<Beneficio, "limite_atraso_minutos" | "limite_alerta_minutos" | "valor_maximo">,
@@ -86,9 +172,9 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
 
   const { data: funcs, error: e1 } = await supabase
     .from("funcionarios")
-    .select("id,nome,cargo,status")
+    .select("id,nome,cargo,status,data_admissao,data_desligamento")
     .eq("empresa_id", empresaId)
-    .eq("status", "ativo");
+    .in("status", ["ativo", "desligado", "inativo"]);
 
   if (e1) throw e1;
 
@@ -112,24 +198,43 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
     let faltas = 0;
     let debito = 0;
 
-    try {
-      const cartao = await carregarCartao(f.id, ano, mes);
+    const dataDesligamentoEfetiva = await buscarDataDesligamentoBeneficio(
+      f.id,
+      ano,
+      mes,
+      (f as { data_desligamento?: string | null }).data_desligamento ?? null,
+    );
 
-      totalAtraso = cartao.totalAtraso;
-      diasComAtraso = cartao.dias.filter((d) => Number(d.bancoHorasMinutos || 0) < 0).length;
-      faltas = cartao.totalFaltas;
+    const foraDoVinculo = estaForaDoVinculoBeneficio({
+      ano,
+      mes,
+      status: (f as { status?: string | null }).status,
+      dataAdmissao: (f as { data_admissao?: string | null }).data_admissao ?? null,
+      dataDesligamento: dataDesligamentoEfetiva,
+    });
 
-      // Débito real do mês: mesma regra exibida no PDF como
-      // "QTDE HORAS BENEF". Conta TODOS os débitos:
-      // atraso, saída antecipada, falta injustificada e fechamento/débito de BH.
-      // Não compensa com créditos.
-      debito = calcularHorasBenefMinutos(cartao);
-    } catch (err) {
-      // Se falhar, por exemplo sem jornada, assume zero para não bloquear o cálculo.
-      console.warn("[beneficios] falha ao carregar cartão", f.id, err);
+    if (!foraDoVinculo) {
+      try {
+        const cartao = await carregarCartao(f.id, ano, mes);
+
+        totalAtraso = cartao.totalAtraso;
+        diasComAtraso = cartao.dias.filter((d) => Number(d.bancoHorasMinutos || 0) < 0).length;
+        faltas = cartao.totalFaltas;
+
+        // Débito real do mês: mesma regra exibida no PDF como
+        // "QTDE HORAS BENEF". Conta TODOS os débitos:
+        // atraso, saída antecipada, falta injustificada e fechamento/débito de BH.
+        // Não compensa com créditos.
+        debito = calcularHorasBenefMinutos(cartao);
+      } catch (err) {
+        // Se falhar, por exemplo sem jornada, assume zero para não bloquear o cálculo.
+        console.warn("[beneficios] falha ao carregar cartão", f.id, err);
+      }
     }
 
-    const aval = avaliarDireito(beneficio, debito, faltas);
+    const aval = foraDoVinculo
+      ? calcBeneficioForaDoVinculo(beneficio.valor_maximo)
+      : avaliarDireito(beneficio, debito, faltas);
 
     calculos.push({
       funcionario_id: f.id,
@@ -181,11 +286,25 @@ export async function recalcularMes(empresaId: string, beneficio: Beneficio, mes
       faltas_injustificadas: c.faltas_injustificadas,
       horas_extras_minutos: c.horas_extras_minutos,
 
-      // Se o admin reprovou manualmente, o recálculo NÃO pode aprovar sozinho.
-      tem_direito: temReprovacaoManual ? ex!.tem_direito : c.tem_direito,
-      status: temReprovacaoManual ? ex!.status : manterStatusNormal ? ex!.status : c.status,
-      motivo_perda: temReprovacaoManual ? ex!.motivo_perda : c.motivo_perda,
-      valor_estimado: temReprovacaoManual ? ex!.valor_estimado : c.valor_estimado,
+      // Fora do vínculo sempre fica SEM DIREITO, mesmo se existia cálculo antigo como "tem direito".
+      tem_direito:
+        c.motivo_perda === "Fora do vínculo." ? false : temReprovacaoManual ? ex!.tem_direito : c.tem_direito,
+      status:
+        c.motivo_perda === "Fora do vínculo."
+          ? "nao_tem_direito"
+          : temReprovacaoManual
+            ? ex!.status
+            : manterStatusNormal
+              ? ex!.status
+              : c.status,
+      motivo_perda:
+        c.motivo_perda === "Fora do vínculo."
+          ? "Fora do vínculo."
+          : temReprovacaoManual
+            ? ex!.motivo_perda
+            : c.motivo_perda,
+      valor_estimado:
+        c.motivo_perda === "Fora do vínculo." ? 0 : temReprovacaoManual ? ex!.valor_estimado : c.valor_estimado,
 
       calculado_em: new Date().toISOString(),
     };

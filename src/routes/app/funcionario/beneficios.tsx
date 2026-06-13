@@ -6,6 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   STATUS_BENEFICIO,
   avaliarDireito,
+  buscarDataDesligamentoBeneficio,
+  calcBeneficioForaDoVinculo,
+  estaForaDoVinculoBeneficio,
   fmtBRL,
   mesNome,
   proximoMesDisponivel,
@@ -75,10 +78,13 @@ function MeusBeneficios() {
     void (async () => {
       const { data: f } = await supabase
         .from("funcionarios")
-        .select("id,empresa_id")
+        .select("id,empresa_id,status,data_admissao,data_desligamento")
         .eq("usuario_id", user.id)
         .maybeSingle();
-      if (!f) { setLoading(false); return; }
+      if (!f) {
+        setLoading(false);
+        return;
+      }
       setFuncId(f.id);
       setEmpresaId(f.empresa_id);
 
@@ -91,14 +97,20 @@ function MeusBeneficios() {
       const lista = (bens ?? []) as Beneficio[];
       setBeneficios(lista);
 
-      if (lista.length === 0) { setLoading(false); return; }
+      if (lista.length === 0) {
+        setLoading(false);
+        return;
+      }
 
       // Ciclos de todos os benefícios da empresa
       const { data: ciclosData } = await supabase
         .from("beneficios_ciclos")
         .select("*")
         .eq("empresa_id", f.empresa_id)
-        .in("beneficio_id", lista.map((b) => b.id));
+        .in(
+          "beneficio_id",
+          lista.map((b) => b.id),
+        );
       const ciclos = (ciclosData ?? []) as CicloBeneficio[];
 
       // Cartão do mês corrente (referência para cálculo ao vivo)
@@ -108,10 +120,7 @@ function MeusBeneficios() {
       try {
         const cartao = await carregarCartao(f.id, hoje.getFullYear(), hoje.getMonth() + 1);
         faltas = cartao.totalFaltas;
-        debito = cartao.dias.reduce(
-          (s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s),
-          0,
-        );
+        debito = cartao.dias.reduce((s, d) => (d.bancoHorasMinutos < 0 ? s + -d.bancoHorasMinutos : s), 0);
       } catch (err) {
         console.warn("[beneficios] falha ao carregar cartão", err);
       }
@@ -128,9 +137,7 @@ function MeusBeneficios() {
               : b2.mes_referencia - a.mes_referencia,
           );
         const aberto = proximoMesDisponivel(ciclosBen);
-        const cicloAtual = ciclosBen.find(
-          (c) => c.mes_referencia === aberto.mes && c.ano_referencia === aberto.ano,
-        );
+        const cicloAtual = ciclosBen.find((c) => c.mes_referencia === aberto.mes && c.ano_referencia === aberto.ano);
 
         const { data: cs } = await supabase
           .from("beneficios_calculos")
@@ -141,12 +148,42 @@ function MeusBeneficios() {
           .eq("ano_referencia", aberto.ano)
           .maybeSingle();
         const stored = (cs ?? null) as Calc | null;
-        const manter = stored && (
-          ["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status) ||
-          !!stored.motivo_admin
-        );
+        const manter =
+          stored &&
+          (["liberado", "entregue", "bloqueado", "em_analise"].includes(stored.status) || !!stored.motivo_admin);
         let calc: Calc | null = null;
-        if (manter) {
+        const dataDesligamentoEfetiva = await buscarDataDesligamentoBeneficio(
+          f.id,
+          aberto.ano,
+          aberto.mes,
+          (f as { data_desligamento?: string | null }).data_desligamento ?? null,
+        );
+
+        const foraDoVinculo = estaForaDoVinculoBeneficio({
+          ano: aberto.ano,
+          mes: aberto.mes,
+          status: (f as { status?: string | null }).status,
+          dataAdmissao: (f as { data_admissao?: string | null }).data_admissao ?? null,
+          dataDesligamento: dataDesligamentoEfetiva,
+        });
+
+        if (foraDoVinculo) {
+          const aval = calcBeneficioForaDoVinculo(b.valor_maximo);
+          calc = {
+            id: stored?.id ?? "live",
+            beneficio_id: b.id,
+            total_atraso_minutos: 0,
+            dias_com_atraso: 0,
+            faltas_injustificadas: 0,
+            tem_direito: false,
+            status: aval.status,
+            motivo_perda: aval.motivo,
+            motivo_admin: stored?.motivo_admin ?? null,
+            valor_estimado: 0,
+            mes_referencia: aberto.mes,
+            ano_referencia: aberto.ano,
+          };
+        } else if (manter) {
           calc = stored;
         } else {
           const aval = avaliarDireito(b, debito, faltas);
@@ -200,12 +237,15 @@ function MeusBeneficios() {
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_calculos" } as never, reload)
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "beneficios_entregas" } as never, reload)
       .subscribe();
-    return () => { void supabase.removeChannel(ch); };
+    return () => {
+      void supabase.removeChannel(ch);
+    };
   }, [funcId, empresaId]);
 
   if (loading) return <p className="text-sm text-muted-foreground">Carregando...</p>;
   if (!funcId) return <p className="text-sm text-muted-foreground">Cadastro de funcionário não encontrado.</p>;
-  if (beneficios.length === 0) return <p className="text-sm text-muted-foreground">Nenhum benefício cadastrado pela empresa.</p>;
+  if (beneficios.length === 0)
+    return <p className="text-sm text-muted-foreground">Nenhum benefício cadastrado pela empresa.</p>;
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -242,16 +282,22 @@ function MeusBeneficios() {
                   const statusClass = e.entregue
                     ? "bg-emerald-500/20 text-emerald-700"
                     : semDireito
-                    ? "bg-red-500/20 text-red-700"
-                    : "bg-amber-500/20 text-amber-700";
+                      ? "bg-red-500/20 text-red-700"
+                      : "bg-amber-500/20 text-amber-700";
                   return (
                     <tr key={e.id}>
                       <td className="p-2">{ben?.nome ?? "—"}</td>
-                      <td className="p-2">{mesNome(e.mes_referencia)}/{e.ano_referencia}</td>
-                      <td className="p-2">{e.data_entrega ? new Date(e.data_entrega + "T00:00").toLocaleDateString("pt-BR") : "—"}</td>
+                      <td className="p-2">
+                        {mesNome(e.mes_referencia)}/{e.ano_referencia}
+                      </td>
+                      <td className="p-2">
+                        {e.data_entrega ? new Date(e.data_entrega + "T00:00").toLocaleDateString("pt-BR") : "—"}
+                      </td>
                       <td className="p-2 font-mono">{fmtBRL(Number(e.valor_estimado))}</td>
                       <td className="p-2">
-                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${statusClass}`}>{statusLabel}</span>
+                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${statusClass}`}>
+                          {statusLabel}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -280,16 +326,18 @@ function BeneficioCard({ ctx }: { ctx: BeneficioCtx }) {
   const mensagem = !calc
     ? "Aguardando cálculo do mês."
     : reprovadoAdmin
-    ? `Reprovado pela empresa: ${calc?.motivo_admin}`
-    : entregue
-    ? `${beneficio.nome} marcado como entregue.`
-    : liberado
-    ? `${beneficio.nome} liberado pela empresa.`
-    : perdeu
-    ? `Você perdeu o direito a este benefício porque ${calc?.motivo_perda?.toLowerCase() ?? "ultrapassou o limite de atraso"}.`
-    : proximo
-    ? "Atenção: você está próximo do limite de atraso."
-    : "Você ainda tem direito a este benefício este mês.";
+      ? `Reprovado pela empresa: ${calc?.motivo_admin}`
+      : entregue
+        ? `${beneficio.nome} marcado como entregue.`
+        : liberado
+          ? `${beneficio.nome} liberado pela empresa.`
+          : perdeu
+            ? calc?.motivo_perda === "Fora do vínculo."
+              ? "Sem direito: fora do vínculo."
+              : `Você perdeu o direito a este benefício porque ${calc?.motivo_perda?.toLowerCase() ?? "ultrapassou o limite de atraso"}.`
+            : proximo
+              ? "Atenção: você está próximo do limite de atraso."
+              : "Você ainda tem direito a este benefício este mês.";
 
   const dataPrev = dataPrevista
     ? new Date(dataPrevista + "T00:00:00").toLocaleDateString("pt-BR")
@@ -299,15 +347,29 @@ function BeneficioCard({ ctx }: { ctx: BeneficioCtx }) {
     <Card>
       <CardContent className="p-5 space-y-4">
         <div className="flex items-start gap-3">
-          <div className={`rounded-full p-2 ${entregue || liberado ? "bg-green-500/20 text-green-700" : perdeu ? "bg-red-500/20 text-red-700" : proximo ? "bg-amber-500/20 text-amber-700" : "bg-blue-500/20 text-blue-700"}`}>
-            {entregue || liberado ? <CheckCircle2 className="h-5 w-5" /> : perdeu ? <XCircle className="h-5 w-5" /> : proximo ? <AlertTriangle className="h-5 w-5" /> : <Gift className="h-5 w-5" />}
+          <div
+            className={`rounded-full p-2 ${entregue || liberado ? "bg-green-500/20 text-green-700" : perdeu ? "bg-red-500/20 text-red-700" : proximo ? "bg-amber-500/20 text-amber-700" : "bg-blue-500/20 text-blue-700"}`}
+          >
+            {entregue || liberado ? (
+              <CheckCircle2 className="h-5 w-5" />
+            ) : perdeu ? (
+              <XCircle className="h-5 w-5" />
+            ) : proximo ? (
+              <AlertTriangle className="h-5 w-5" />
+            ) : (
+              <Gift className="h-5 w-5" />
+            )}
           </div>
           <div className="flex-1">
-            <div className="text-sm font-bold">{beneficio.nome} — {mesNome(mes)}/{ano}</div>
+            <div className="text-sm font-bold">
+              {beneficio.nome} — {mesNome(mes)}/{ano}
+            </div>
             <p className="text-sm text-muted-foreground">{mensagem}</p>
           </div>
           {calc && (
-            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${STATUS_BENEFICIO[calc.status]?.color ?? "bg-muted"}`}>
+            <span
+              className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${STATUS_BENEFICIO[calc.status]?.color ?? "bg-muted"}`}
+            >
               {STATUS_BENEFICIO[calc.status]?.label ?? calc.status}
             </span>
           )}
@@ -323,7 +385,9 @@ function BeneficioCard({ ctx }: { ctx: BeneficioCtx }) {
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>Uso do limite de atraso</span>
-            <span>{fmtHorasMin(atraso)} / {fmtHorasMin(limite)}</span>
+            <span>
+              {fmtHorasMin(atraso)} / {fmtHorasMin(limite)}
+            </span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
