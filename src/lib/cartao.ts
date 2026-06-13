@@ -57,6 +57,22 @@ export type DiaCartao = {
   jornadaNome: string | null;
 };
 
+function ehJustificativaDesligamento(
+  tipo: { codigo?: string | null; nome?: string | null } | null | undefined,
+): boolean {
+  const texto = `${tipo?.codigo ?? ""} ${tipo?.nome ?? ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  return texto.includes("DESLIGAMENTO") || texto.includes("DEMISSAO") || texto.includes("RESCISAO");
+}
+
+function menorDataValida(datas: Array<string | null | undefined>): string | null {
+  const validas = datas.filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)));
+  return validas.length ? validas.sort()[0] : null;
+}
+
 export type ResumoCartao = {
   dias: DiaCartao[];
   totalAtraso: number;
@@ -141,7 +157,8 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
     .eq("id", funcionarioId)
     .maybeSingle();
   const dataAdmissao = func?.data_admissao ?? null;
-  const dataDeslig = func?.data_desligamento ?? null;
+  const dataDesligCadastro = func?.data_desligamento ?? null;
+  let dataDeslig = dataDesligCadastro;
 
   // Carrega todos os vínculos ativos do funcionário (múltiplas jornadas suportadas:
   // a aplicável a cada dia é escolhida pelo dia da semana / trabalha=true).
@@ -219,6 +236,18 @@ export async function carregarCartao(funcionarioId: string, ano: number, mes: nu
     arr.push(item);
     justPorDia.set(j.data, arr);
   }
+
+  const dataDesligJustificativa =
+    ((justApls ?? []) as Array<{ data: string; tipo_id: string; status: string | null }>)
+      .filter(
+        (j) =>
+          String(j.status || "").toLowerCase() !== "rejeitado" && String(j.status || "").toLowerCase() !== "cancelado",
+      )
+      .filter((j) => ehJustificativaDesligamento(tiposPorId.get(j.tipo_id)))
+      .map((j) => j.data)
+      .sort()[0] ?? null;
+
+  dataDeslig = menorDataValida([dataDesligCadastro, dataDesligJustificativa]);
 
   const porDia = new Map<string, typeof registros>();
   for (const r of registros ?? []) {

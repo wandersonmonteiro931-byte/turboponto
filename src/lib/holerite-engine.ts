@@ -297,6 +297,55 @@ function diasVinculo(adm: string | null, des: string | null, ano: number, mes: n
   return Math.min(v, 30);
 }
 
+function ehJustificativaDesligamentoHolerite(
+  tipo: { codigo?: string | null; nome?: string | null } | null | undefined,
+): boolean {
+  const texto = `${tipo?.codigo ?? ""} ${tipo?.nome ?? ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  return texto.includes("DESLIGAMENTO") || texto.includes("DEMISSAO") || texto.includes("RESCISAO");
+}
+
+function menorDataHolerite(datas: Array<string | null | undefined>): string | null {
+  const validas = datas.filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)));
+  return validas.length ? validas.sort()[0] : null;
+}
+
+async function buscarDesligamentoLancadoNoCartao(
+  ctx: EngineCtx,
+  dataDesligamentoCadastro: string | null,
+): Promise<string | null> {
+  const inicioMes = `${ctx.ano}-${String(ctx.mes).padStart(2, "0")}-01`;
+  const fimMes = `${ctx.ano}-${String(ctx.mes).padStart(2, "0")}-${String(new Date(ctx.ano, ctx.mes, 0).getDate()).padStart(2, "0")}`;
+
+  const { data } = await supabase
+    .from("justificativas_aplicadas")
+    .select("data,status,tipo:justificativas_tipos(codigo,nome)")
+    .eq("funcionario_id", ctx.funcionarioId)
+    .gte("data", inicioMes)
+    .lte("data", fimMes);
+
+  const dataJustificativa =
+    (
+      (data ?? []) as Array<{
+        data: string;
+        status: string | null;
+        tipo: { codigo?: string | null; nome?: string | null } | null;
+      }>
+    )
+      .filter(
+        (j) =>
+          String(j.status || "").toLowerCase() !== "rejeitado" && String(j.status || "").toLowerCase() !== "cancelado",
+      )
+      .filter((j) => ehJustificativaDesligamentoHolerite(j.tipo))
+      .map((j) => j.data)
+      .sort()[0] ?? null;
+
+  return menorDataHolerite([dataDesligamentoCadastro, dataJustificativa]);
+}
+
 function fimCompetenciaHolerite(ano: number, mes: number, dataDesligamento: string | null): string {
   const mesStr = String(mes).padStart(2, "0");
   const inicioMes = `${ano}-${mesStr}-01`;
@@ -496,8 +545,9 @@ export async function recalcular(
   const salario = Number(f?.salario ?? 0);
   const numDepIrrf = Number(f?.num_dep_irrf ?? 0);
   const vtConcedido = Number(f?.vale_transporte_mensal ?? 0);
+  const dataDesligamentoEfetiva = await buscarDesligamentoLancadoNoCartao(ctx, f?.data_desligamento ?? null);
 
-  const dias = diasVinculo(f?.data_admissao ?? null, f?.data_desligamento ?? null, ctx.ano, ctx.mes);
+  const dias = diasVinculo(f?.data_admissao ?? null, dataDesligamentoEfetiva, ctx.ano, ctx.mes);
   const salarioProporcional = round((salario / 30) * dias);
   const valorHora = salario > 0 ? salario / 220 : 0;
   const valorDia = salario > 0 ? salario / 30 : 0;
@@ -515,7 +565,7 @@ export async function recalcular(
   // Ponto do mês: usa o mesmo resumo do cartão de ponto para manter banco de
   // horas e benefício alinhados ao que é exibido no mês de referência.
   const ini = `${ctx.ano}-${String(ctx.mes).padStart(2, "0")}-01`;
-  const fim = fimCompetenciaHolerite(ctx.ano, ctx.mes, f?.data_desligamento ?? null);
+  const fim = fimCompetenciaHolerite(ctx.ano, ctx.mes, dataDesligamentoEfetiva);
   let minHE = 0;
   let minAtraso = 0;
   let numFaltas = 0;
@@ -562,7 +612,7 @@ export async function recalcular(
     const faltasSet = new Set(datasFalta);
     const vinculos = await carregarVinculosAtivos(ctx.funcionarioId);
     const admStr = f?.data_admissao ?? null;
-    const desStr = f?.data_desligamento ?? null;
+    const desStr = dataDesligamentoEfetiva;
     const diasMes = new Date(ctx.ano, ctx.mes, 0).getDate();
     let faltaAcumulada = false;
     for (let d = 1; d <= diasMes; d++) {
@@ -619,12 +669,7 @@ export async function recalcular(
   const valorHorasExtras50 = round(valorHora * 1.5 * horasHE);
   const valorAdicionalNoturno = round(valorHora * (ADICIONAL_NOTURNO_PCT / 100) * horasNoturnasReduzidas);
 
-  const domingosPeriodo = contarDomingosNoPeriodo(
-    ctx.ano,
-    ctx.mes,
-    f?.data_admissao ?? null,
-    f?.data_desligamento ?? null,
-  );
+  const domingosPeriodo = contarDomingosNoPeriodo(ctx.ano, ctx.mes, f?.data_admissao ?? null, dataDesligamentoEfetiva);
 
   // Para reflexo de DSR, usa os dias de repouso/folga do cartão quando existirem.
   // Se o período é muito curto e não aparece folga no cartão, garante ao menos 1 DSR

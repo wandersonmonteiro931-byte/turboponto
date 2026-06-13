@@ -240,6 +240,57 @@ type Holerite = {
 const fimMesIsoHolerite = (ano: number, mes: number) =>
   `${ano}-${String(mes).padStart(2, "0")}-${String(new Date(ano, mes, 0).getDate()).padStart(2, "0")}`;
 
+const ehJustificativaDesligamentoHoleriteTela = (
+  tipo: { codigo?: string | null; nome?: string | null } | null | undefined,
+) => {
+  const texto = `${tipo?.codigo ?? ""} ${tipo?.nome ?? ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+  return texto.includes("DESLIGAMENTO") || texto.includes("DEMISSAO") || texto.includes("RESCISAO");
+};
+
+const menorDataHoleriteTela = (datas: Array<string | null | undefined>) => {
+  const validas = datas.filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)));
+  return validas.length ? validas.sort()[0] : null;
+};
+
+async function buscarDesligamentoLancadoNoCartaoTela(
+  funcionarioId: string,
+  ano: number,
+  mes: number,
+  dataDesligamentoCadastro?: string | null,
+) {
+  const inicioMes = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  const fimMes = fimMesIsoHolerite(ano, mes);
+
+  const { data } = await supabase
+    .from("justificativas_aplicadas")
+    .select("data,status,tipo:justificativas_tipos(codigo,nome)")
+    .eq("funcionario_id", funcionarioId)
+    .gte("data", inicioMes)
+    .lte("data", fimMes);
+
+  const dataJustificativa =
+    (
+      (data ?? []) as Array<{
+        data: string;
+        status: string | null;
+        tipo: { codigo?: string | null; nome?: string | null } | null;
+      }>
+    )
+      .filter(
+        (j) =>
+          String(j.status || "").toLowerCase() !== "rejeitado" && String(j.status || "").toLowerCase() !== "cancelado",
+      )
+      .filter((j) => ehJustificativaDesligamentoHoleriteTela(j.tipo))
+      .map((j) => j.data)
+      .sort()[0] ?? null;
+
+  return menorDataHoleriteTela([dataDesligamentoCadastro, dataJustificativa]);
+}
+
 const fimCompetenciaComDesligamento = (ano: number, mes: number, dataDesligamento?: string | null) => {
   const inicioMes = `${ano}-${String(mes).padStart(2, "0")}-01`;
   const fimMes = fimMesIsoHolerite(ano, mes);
@@ -1122,7 +1173,13 @@ async function adicionarFechamentoBancoHorasHolerite(params: {
     .select("data_desligamento")
     .eq("id", funcionarioId)
     .maybeSingle();
-  const fim = fimCompetenciaComDesligamento(ano, mes, funcionarioPeriodo?.data_desligamento ?? null);
+  const dataDesligamentoEfetiva = await buscarDesligamentoLancadoNoCartaoTela(
+    funcionarioId,
+    ano,
+    mes,
+    funcionarioPeriodo?.data_desligamento ?? null,
+  );
+  const fim = fimCompetenciaComDesligamento(ano, mes, dataDesligamentoEfetiva);
 
   const { data, error } = await supabase
     .from("justificativas_aplicadas")
@@ -1348,7 +1405,13 @@ async function adicionarRubricasNoturnoDsrObrigatorias(params: {
     .select("data_desligamento")
     .eq("id", funcionarioId)
     .maybeSingle();
-  const fim = fimCompetenciaComDesligamento(ano, mes, funcionarioPeriodo?.data_desligamento ?? null);
+  const dataDesligamentoEfetiva = await buscarDesligamentoLancadoNoCartaoTela(
+    funcionarioId,
+    ano,
+    mes,
+    funcionarioPeriodo?.data_desligamento ?? null,
+  );
+  const fim = fimCompetenciaComDesligamento(ano, mes, dataDesligamentoEfetiva);
 
   const { data: registros, error } = await supabase
     .from("registros_ponto")
@@ -1785,6 +1848,27 @@ function EditorDialog({
     }
   }, [mes, ano, funcId, funcs, dataPagamentoTocada]);
 
+  useEffect(() => {
+    if (holeriteId || !funcId) return;
+
+    const funcionarioSelecionado = funcs.find((x) => x.id === funcId);
+    let cancelado = false;
+
+    void buscarDesligamentoLancadoNoCartaoTela(
+      funcId,
+      ano,
+      mes,
+      funcionarioSelecionado?.data_desligamento ?? null,
+    ).then((dataDesligamentoEfetiva) => {
+      if (cancelado) return;
+      setPeriodoFim(fimCompetenciaComDesligamento(ano, mes, dataDesligamentoEfetiva));
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [funcId, ano, mes, funcs, holeriteId]);
+
   const rubricaPorCodigo = useMemo(() => new Map(rubricas.map((r) => [r.codigo, r])), [rubricas]);
 
   useEffect(() => {
@@ -1849,7 +1933,13 @@ function EditorDialog({
       const depIrrfAtual = Number(f.num_dep_irrf ?? numDepIrrf ?? 0);
       const depSalFamAtual = Number(f.num_dep_sal_fam ?? numDepSalFam ?? 0);
       const salarioAtual = Number(f.salario ?? salarioContratual ?? 0);
-      const periodoFimFinal = fimCompetenciaComDesligamento(ano, mes, f.data_desligamento ?? null);
+      const dataDesligamentoEfetiva = await buscarDesligamentoLancadoNoCartaoTela(
+        funcId,
+        ano,
+        mes,
+        f.data_desligamento ?? null,
+      );
+      const periodoFimFinal = fimCompetenciaComDesligamento(ano, mes, dataDesligamentoEfetiva);
 
       setBancoAg(bancoAgAtual);
       setConta(contaAtual);
@@ -2197,9 +2287,13 @@ function EditorDialog({
                       }));
 
                       const funcionarioAtual = funcs.find((f) => f.id === funcId);
-                      setPeriodoFim(
-                        fimCompetenciaComDesligamento(ano, mes, funcionarioAtual?.data_desligamento ?? null),
+                      const dataDesligamentoEfetiva = await buscarDesligamentoLancadoNoCartaoTela(
+                        funcId,
+                        ano,
+                        mes,
+                        funcionarioAtual?.data_desligamento ?? null,
                       );
+                      setPeriodoFim(fimCompetenciaComDesligamento(ano, mes, dataDesligamentoEfetiva));
                       const rubricasObrigatorias = await adicionarRubricasNoturnoDsrObrigatorias({
                         funcionarioId: funcId,
                         ano,
