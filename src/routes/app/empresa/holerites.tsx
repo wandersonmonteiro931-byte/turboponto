@@ -410,182 +410,44 @@ function HoleritesPage() {
 
   const download = async (h: Holerite) => {
     try {
-      toast.info("Atualizando PDF antes de baixar...");
+      if (!h.pdf_url) {
+        toast.error("Este holerite ainda não possui PDF salvo. Abra o holerite e clique em Salvar e gerar PDF.");
+        return;
+      }
 
-      const { data: holeriteAtual, error: holErr } = await supabase
-        .from("holerites")
-        .select("*")
-        .eq("id", h.id)
-        .maybeSingle();
+      toast.info("Baixando PDF salvo...");
 
-      if (holErr) throw holErr;
-      if (!holeriteAtual) throw new Error("Holerite não encontrado.");
+      const url = new URL(h.pdf_url);
+      url.searchParams.set("download", "1");
+      url.searchParams.set("v", String(Date.now()));
 
-      const [
-        { data: emp, error: empErr },
-        { data: func, error: funcErr },
-        { data: lancs, error: lancErr },
-        { data: rubricasAtuais, error: rubErr },
-      ] = await Promise.all([
-        supabase
-          .from("empresas")
-          .select("nome_fantasia,razao_social,cnpj,endereco,logo_url")
-          .eq("id", holeriteAtual.empresa_id)
-          .maybeSingle(),
+      const resp = await fetch(url.toString(), { cache: "no-store" });
+      if (!resp.ok) {
+        window.open(url.toString(), "_blank", "noopener,noreferrer");
+        return;
+      }
 
-        supabase
-          .from("funcionarios")
-          .select(
-            "nome,cpf,rg,endereco,cargo,data_admissao,matricula,banco_agencia,conta,num_dep_irrf,num_dep_sal_fam,salario,lotacao",
-          )
-          .eq("id", holeriteAtual.funcionario_id)
-          .maybeSingle(),
-
-        supabase.from("holerite_lancamentos").select("*").eq("holerite_id", h.id).order("ordem", { ascending: true }),
-
-        supabase
-          .from("holerite_rubricas")
-          .select("codigo,descricao,tipo,entra_liquido")
-          .eq("empresa_id", holeriteAtual.empresa_id),
-      ]);
-
-      if (empErr) throw empErr;
-      if (funcErr) throw funcErr;
-      if (lancErr) throw lancErr;
-      if (rubErr) throw rubErr;
-      if (!func) throw new Error("Funcionário do holerite não encontrado.");
-
-      // Fonte atual do cadastro de rubricas:
-      // se a rubrica foi excluída, ela não entra mais no PDF novo.
-      // se a descrição foi editada, o PDF usa a descrição nova.
-      const rubricasMap = new Map((rubricasAtuais ?? []).map((r) => [r.codigo, r]));
-      let linhasPdf = prepararLancamentosFinaisHolerite(
-        (lancs ?? [])
-          .filter((l) => rubricasMap.has(l.codigo))
-          .map((l) => ({
-            _k: l.id ?? crypto.randomUUID(),
-            id: l.id,
-            codigo: l.codigo,
-            descricao: rubricasMap.get(l.codigo)?.descricao ?? l.descricao,
-            qtde: l.qtde,
-            provento: l.provento ?? 0,
-            desconto: l.desconto ?? 0,
-            resultado: l.resultado ?? 0,
-          })),
-      );
-
-      const entraNoLiquidoPdf = (l: LancEdit) => {
-        if (l.codigo === "09990") return false;
-        if (l.codigo === "09995") return true;
-
-        const r = rubricasMap.get(l.codigo);
-        return !(r && (r.tipo === "informativo" || r.entra_liquido === false));
-      };
-
-      const bhPdfAtualizado = await adicionarFechamentoBancoHorasHolerite({
-        funcionarioId: holeriteAtual.funcionario_id,
-        ano: holeriteAtual.ano_referencia,
-        mes: holeriteAtual.mes_referencia,
-        salario: Number(func?.salario ?? holeriteAtual.salario_contratual ?? 0),
-        linhas: linhasPdf,
-      });
-
-      linhasPdf = prepararLancamentosFinaisHolerite(bhPdfAtualizado.linhas);
-
-      const totalProventosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.provento || 0) : s), 0);
-      const totalDescontosPdf = linhasPdf.reduce((s, l) => (entraNoLiquidoPdf(l) ? s + Number(l.desconto || 0) : s), 0);
-      const totalLiquidoPdf = Math.max(0, totalProventosPdf - totalDescontosPdf);
-
-      const logoDataUrl =
-        (await carregarLogoComoDataUrl(turboLogoHolerite)) ?? (await carregarLogoComoDataUrl(emp?.logo_url ?? null));
-
-      const doc = gerarHoleritePdf(
-        {
-          nome_fantasia: emp?.nome_fantasia ?? "",
-          razao_social: emp?.razao_social,
-          cnpj: emp?.cnpj,
-          endereco: emp?.endereco,
-          logoDataUrl,
-        },
-        {
-          nome: func.nome,
-          cpf: func.cpf,
-          rg: func.rg,
-          endereco: func.endereco,
-          cargo: func.cargo,
-          data_admissao: func.data_admissao,
-          matricula: func.matricula,
-        },
-        {
-          folha_tipo: holeriteAtual.folha_tipo,
-          mes_referencia: holeriteAtual.mes_referencia,
-          ano_referencia: holeriteAtual.ano_referencia,
-          periodo_inicio: holeriteAtual.periodo_inicio,
-          periodo_fim: holeriteAtual.periodo_fim,
-          data_pagamento: holeriteAtual.data_pagamento,
-          banco_agencia: func.banco_agencia ?? holeriteAtual.banco_agencia,
-          conta: func.conta ?? holeriteAtual.conta,
-          num_dep_irrf: func.num_dep_irrf ?? holeriteAtual.num_dep_irrf,
-          num_dep_sal_fam: func.num_dep_sal_fam ?? holeriteAtual.num_dep_sal_fam,
-          salario_contratual: func.salario ?? holeriteAtual.salario_contratual,
-          total_proventos: totalProventosPdf,
-          total_descontos: totalDescontosPdf,
-          total_liquido: totalLiquidoPdf,
-          sal_contrib_inss: holeriteAtual.sal_contrib_inss,
-          base_fgts: holeriteAtual.base_fgts,
-          fgts_mes: holeriteAtual.fgts_mes,
-          base_irpf: holeriteAtual.base_irpf,
-          lotacao: func.lotacao ?? holeriteAtual.lotacao,
-          observacoes: holeriteAtual.observacoes,
-        },
-        linhasPdf,
-      );
-
-      // Atualiza também o arquivo salvo no Storage para funcionário/admin baixarem o mesmo PDF novo.
-      const blob = doc.output("blob");
-      const pdfVersion = new Date()
-        .toISOString()
-        .replace(/[^0-9]/g, "")
-        .slice(0, 14);
-      const storagePath = `${holeriteAtual.empresa_id}/${holeriteAtual.funcionario_id}/${holeriteAtual.ano_referencia}-${String(holeriteAtual.mes_referencia).padStart(2, "0")}-${holeriteAtual.folha_tipo}-${pdfVersion}.pdf`;
-
-      const { error: upErr } = await supabase.storage.from("holerites").upload(storagePath, blob, {
-        upsert: false,
-        contentType: "application/pdf",
-        cacheControl: "0",
-      });
-
-      if (upErr) throw upErr;
-
-      const { data: pub } = supabase.storage.from("holerites").getPublicUrl(storagePath);
-      const pdfUrlAtualizado = `${pub.publicUrl}?v=${pdfVersion}`;
-
-      const { error: updErr } = await supabase
-        .from("holerites")
-        .update({
-          pdf_url: pdfUrlAtualizado,
-          total_proventos: totalProventosPdf,
-          total_descontos: totalDescontosPdf,
-          total_liquido: totalLiquidoPdf,
-        })
-        .eq("id", h.id);
-
-      if (updErr) throw updErr;
-
+      const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `holerite-${func.nome ?? "funcionario"}-${holeriteAtual.mes_referencia}-${holeriteAtual.ano_referencia}-${pdfVersion}.pdf`;
+      a.download = `holerite-${h.funcionarios?.nome ?? "funcionario"}-${h.mes_referencia}-${h.ano_referencia}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
 
-      toast.success("PDF atualizado e baixado");
-      await carregar();
+      toast.success("PDF baixado sem recalcular.");
     } catch (e) {
-      console.error("[holerites] erro ao atualizar/baixar PDF", e);
-      toast.error(e instanceof Error ? e.message : "Erro ao atualizar PDF");
+      console.error("[holerites] erro ao baixar PDF salvo", e);
+
+      if (h.pdf_url) {
+        window.open(h.pdf_url, "_blank", "noopener,noreferrer");
+        toast.info("Abrindo PDF salvo.");
+        return;
+      }
+
+      toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF salvo");
     }
   };
 
@@ -607,7 +469,7 @@ function HoleritesPage() {
         <div>
           <h2 className="text-xl font-bold">Holerites</h2>
           <p className="text-sm text-muted-foreground">
-            Crie holerites detalhados e libere o acesso para o funcionário baixar o PDF.
+            Crie holerites detalhados e libere o acesso para o funcionário baixar o PDF salvo.
           </p>
         </div>
         {podeEditar && (
@@ -772,7 +634,7 @@ function HoleritesPage() {
                         {h.acessado_em ? new Date(h.acessado_em).toLocaleString("pt-BR") : "—"}
                       </td>
                       <td className="p-2 text-right whitespace-nowrap space-x-1">
-                        <Button size="sm" variant="ghost" onClick={() => download(h)} title="Atualizar e baixar PDF">
+                        <Button size="sm" variant="ghost" onClick={() => download(h)} title="Baixar PDF salvo">
                           <Download className="h-3 w-3" />
                         </Button>
                         {podeEditar && (
