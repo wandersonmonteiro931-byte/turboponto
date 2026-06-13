@@ -1781,12 +1781,12 @@ function EditorDialog({
 
       // Dados cadastrais/contratuais devem ser sempre os atuais do cadastro do funcionário.
       // Assim, ao abrir a edição, banco, conta, dependentes, salário e lotação já vêm atualizados.
-      setBancoAg(fAtual?.banco_agencia ?? h.banco_agencia ?? "");
-      setConta(fAtual?.conta ?? h.conta ?? "");
-      setNumDepIrrf(Number(fAtual?.num_dep_irrf ?? h.num_dep_irrf ?? 0));
-      setNumDepSalFam(Number(fAtual?.num_dep_sal_fam ?? h.num_dep_sal_fam ?? 0));
-      setSalarioContratual(Number(fAtual?.salario ?? h.salario_contratual ?? 0));
-      setLotacao(fAtual?.lotacao ?? h.lotacao ?? "");
+      setBancoAg(h.banco_agencia ?? fAtual?.banco_agencia ?? "");
+      setConta(h.conta ?? fAtual?.conta ?? "");
+      setNumDepIrrf(Number(h.num_dep_irrf ?? fAtual?.num_dep_irrf ?? 0));
+      setNumDepSalFam(Number(h.num_dep_sal_fam ?? fAtual?.num_dep_sal_fam ?? 0));
+      setSalarioContratual(Number(h.salario_contratual ?? fAtual?.salario ?? 0));
+      setLotacao(h.lotacao ?? fAtual?.lotacao ?? "");
 
       setSalContribInss(Number(h.sal_contrib_inss ?? 0));
       setBaseFgts(Number(h.base_fgts ?? 0));
@@ -1799,39 +1799,31 @@ function EditorDialog({
         .select("*")
         .eq("holerite_id", holeriteId)
         .order("ordem");
+      const linhasSalvas = (ls ?? []).map((l) => ({
+        _k: l.id ?? crypto.randomUUID(),
+        id: l.id,
+        codigo: l.codigo ?? "",
+        descricao: l.descricao ?? "",
+        qtde: l.qtde != null ? Number(l.qtde) : null,
+        provento: Number(l.provento ?? 0),
+        desconto: Number(l.desconto ?? 0),
+        resultado: Number(l.resultado ?? 0),
+      }));
+
       setLancamentos(
-        prepararLancamentosFinaisHolerite(
-          filtrarRubricasExistentesHolerite(
-            sincronizarDescricoesRubricasHolerite(
-              (ls ?? []).map((l) => {
-                const provento = Number(l.provento ?? 0);
-                const desconto = Number(l.desconto ?? 0);
-                const resultado = Number(l.resultado ?? 0);
-                const qtde = l.qtde != null ? Number(l.qtde) : null;
-                const legadoSaldoEmFerias =
-                  l.codigo === "09000" && provento === 0 && desconto === 0 && Number(resultado || qtde || 0) > 0;
-                const legadoInsufMesAnteriorEmFerias =
-                  l.codigo === "09005" && provento === 0 && (desconto > 0 || resultado < 0);
-                return {
-                  _k: l.id,
-                  id: l.id,
-                  codigo: legadoSaldoEmFerias ? "09990" : legadoInsufMesAnteriorEmFerias ? "09995" : l.codigo,
-                  descricao: legadoSaldoEmFerias
-                    ? "INSUFICIENCIA DE SALDO"
-                    : legadoInsufMesAnteriorEmFerias
-                      ? "INSUF MES ANTERIOR"
-                      : l.descricao,
-                  qtde,
-                  provento,
-                  desconto,
-                  resultado,
-                };
-              }),
-              rubricas,
-            ),
-            rubricas,
-          ),
-        ),
+        linhasSalvas.length > 0
+          ? linhasSalvas
+          : [
+              {
+                _k: crypto.randomUUID(),
+                codigo: "",
+                descricao: "",
+                qtde: null,
+                provento: 0,
+                desconto: 0,
+                resultado: 0,
+              },
+            ],
       );
     })();
     // eslint-disable-next-line
@@ -1941,13 +1933,14 @@ function EditorDialog({
         return;
       }
 
-      // Antes de salvar/PDF, força novamente os dados atuais do cadastro.
-      const bancoAgAtual = f.banco_agencia ?? bancoAg;
-      const contaAtual = f.conta ?? conta;
-      const lotacaoAtual = f.lotacao ?? lotacao;
-      const depIrrfAtual = Number(f.num_dep_irrf ?? numDepIrrf ?? 0);
-      const depSalFamAtual = Number(f.num_dep_sal_fam ?? numDepSalFam ?? 0);
-      const salarioAtual = Number(f.salario ?? salarioContratual ?? 0);
+      // Salvar/PDF deve respeitar exatamente o que está na edição atual.
+      // Não puxa rubricas nem dados do cadastro automaticamente.
+      const bancoAgAtual = bancoAg;
+      const contaAtual = conta;
+      const lotacaoAtual = lotacao;
+      const depIrrfAtual = Number(numDepIrrf ?? 0);
+      const depSalFamAtual = Number(numDepSalFam ?? 0);
+      const salarioAtual = Number(salarioContratual ?? 0);
       const dataDesligamentoEfetiva = await buscarDesligamentoLancadoNoCartaoTela(
         funcId,
         ano,
@@ -1956,12 +1949,6 @@ function EditorDialog({
       );
       const periodoFimFinal = fimCompetenciaComDesligamento(ano, mes, dataDesligamentoEfetiva);
 
-      setBancoAg(bancoAgAtual);
-      setConta(contaAtual);
-      setLotacao(lotacaoAtual);
-      setNumDepIrrf(depIrrfAtual);
-      setNumDepSalFam(depSalFamAtual);
-      setSalarioContratual(salarioAtual);
       setPeriodoFim(periodoFimFinal);
       const { data: emp } = await supabase
         .from("empresas")
@@ -1974,28 +1961,26 @@ function EditorDialog({
       const now = new Date().toISOString();
       const { data: u } = await supabase.auth.getUser();
 
-      // Monta a versão final das linhas ANTES de salvar.
-      // Isso garante que PDF, totais da lista e lançamentos salvos fiquem iguais à tela atual.
-      const linhasComBeneficioAtualizado = await atualizarHorasCestaBasicaPeloBeneficio({
-        empresaId,
-        funcionarioId: funcId,
-        ano,
-        mes,
-        linhas: lancamentos.filter((l) => l.codigo.trim() || l.descricao.trim()),
-        rubricas,
-      });
+      // Monta a versão final SOMENTE com o que está visível/editado na tela.
+      // Nada é recalculado automaticamente ao salvar ou gerar PDF.
+      const linhas = lancamentos
+        .filter((l) => l.codigo.trim() || l.descricao.trim())
+        .map((l) => {
+          const provento = Number(l.provento || 0);
+          const desconto = Number(l.desconto || 0);
+          const resultadoManual = l.resultado != null ? Number(l.resultado || 0) : provento - desconto;
 
-      const linhas = prepararLancamentosFinaisHolerite(
-        sincronizarDescricoesRubricasHolerite(
-          filtrarRubricasExistentesHolerite(
-            aplicarInsuficienciaSaldoHolerite(
-              filtrarRubricasExistentesHolerite(linhasComBeneficioAtualizado.linhas, rubricas),
-            ),
-            rubricas,
-          ),
-          rubricas,
-        ),
-      );
+          return {
+            _k: l._k || crypto.randomUUID(),
+            id: l.id,
+            codigo: l.codigo,
+            descricao: l.descricao,
+            qtde: l.qtde != null && l.qtde !== "" ? Number(l.qtde) : null,
+            provento,
+            desconto,
+            resultado: resultadoManual,
+          };
+        });
 
       const entraNoLiquidoLinhaFinal = (l: LancEdit) => {
         if (l.codigo === "09990") return false;
@@ -2110,10 +2095,10 @@ function EditorDialog({
           periodo_fim: periodoFimFinal,
           data_pagamento: dataPagamento,
           banco_agencia: bancoAgAtual,
-          conta,
-          num_dep_irrf: numDepIrrf,
-          num_dep_sal_fam: numDepSalFam,
-          salario_contratual: salarioContratual,
+          conta: contaAtual,
+          num_dep_irrf: depIrrfAtual,
+          num_dep_sal_fam: depSalFamAtual,
+          salario_contratual: salarioAtual,
           total_proventos: totalProvFinal,
           total_descontos: totalDescFinal,
           total_liquido: totalLiqFinal,
@@ -2157,7 +2142,7 @@ function EditorDialog({
 
       if (pdfUpdateErr) throw pdfUpdateErr;
 
-      toast.success("Holerite salvo e novo PDF gerado no backup.");
+      toast.success("Holerite salvo exatamente como editado e PDF gerado no backup.");
       onSaved();
     } catch (e: unknown) {
       console.error("[holerites] erro ao salvar/gerar PDF", e);
