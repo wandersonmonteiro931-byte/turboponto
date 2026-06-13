@@ -1975,7 +1975,7 @@ function EditorDialog({
             id: l.id,
             codigo: l.codigo,
             descricao: l.descricao,
-            qtde: l.qtde != null && l.qtde !== "" ? Number(l.qtde) : null,
+            qtde: l.qtde != null && (l.qtde as unknown) !== "" ? Number(l.qtde) : null,
             provento,
             desconto,
             resultado: resultadoManual,
