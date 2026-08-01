@@ -27,6 +27,7 @@ type Cartao = {
 
 function CartaoFuncPage() {
   const { user } = useAuth();
+  const { desligado, dataDesligamento } = useFuncionarioStatus();
   const hoje = new Date();
   const [funcionario, setFuncionario] = useState<{
     id: string;
