@@ -35,7 +35,9 @@ type JornadaAtual = {
 
 function FuncionarioHome() {
   const { nome, user } = useAuth();
+  const { desligado } = useFuncionarioStatus();
   const userId = user?.id;
+
   const [now, setNow] = useState(new Date());
   const [jornada, setJornada] = useState<JornadaAtual | null>(null);
   const [dias, setDias] = useState<JornadaDia[]>([]);
