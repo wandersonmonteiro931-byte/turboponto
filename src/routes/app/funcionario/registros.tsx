@@ -31,11 +31,24 @@ type Registro = {
   observacao: string | null;
 };
 
-const hhmm = (t: string | null) => (t ? t.slice(0, 5) : "—");
+/** Aceita "HH:MM:SS" ou timestamp ISO e devolve sempre HH:MM. */
+const hhmm = (t: string | null) => {
+  if (!t) return "—";
+  const iso = t.includes("T") ? t.split("T")[1] : t.includes(" ") ? t.split(" ")[1] : t;
+  return (iso ?? t).slice(0, 5);
+};
+
+const dataLonga = (data: string) =>
+  new Date(`${data}T12:00:00`).toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
 function MeusRegistrosPage() {
   const { user } = useAuth();
-  const { desligado } = useFuncionarioStatus();
+  const { desligado, dataDesligamento } = useFuncionarioStatus();
   const hoje = new Date();
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth() + 1);
@@ -56,22 +69,29 @@ function MeusRegistrosPage() {
   useEffect(() => {
     if (!funcId) return;
     setLoading(true);
-    const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-    const fimDate = new Date(ano, mes, 0);
-    const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
     (async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("registros_ponto")
-        .select("id,data_referencia,horario_registrado,horario_programado,tipo_ponto,status,atraso_minutos,origem,observacao")
-        .eq("funcionario_id", funcId)
-        .gte("data_referencia", inicio)
-        .lte("data_referencia", fim)
+        .select(
+          "id,data_referencia,horario_registrado,horario_programado,tipo_ponto,status,atraso_minutos,origem,observacao",
+        )
+        .eq("funcionario_id", funcId);
+
+      // Desligado: histórico completo, sem seleção de período.
+      if (!desligado) {
+        const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
+        const fimDate = new Date(ano, mes, 0);
+        const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
+        query = query.gte("data_referencia", inicio).lte("data_referencia", fim);
+      }
+
+      const { data } = await query
         .order("data_referencia", { ascending: false })
         .order("horario_registrado", { ascending: true });
       setRegistros((data ?? []) as Registro[]);
       setLoading(false);
     })();
-  }, [funcId, ano, mes]);
+  }, [funcId, ano, mes, desligado]);
 
   const dias = useMemo(() => {
     const map = new Map<string, Registro[]>();
@@ -83,15 +103,125 @@ function MeusRegistrosPage() {
     return Array.from(map.entries());
   }, [registros]);
 
+  // Agrupamento por mês (usado no modo desligado)
+  const meses = useMemo(() => {
+    const map = new Map<string, { ano: number; mes: number; dias: [string, Registro[]][] }>();
+    for (const [data, regs] of dias) {
+      const a = Number(data.slice(0, 4));
+      const m = Number(data.slice(5, 7));
+      const key = `${a}-${m}`;
+      const bucket = map.get(key) ?? { ano: a, mes: m, dias: [] };
+      bucket.dias.push([data, regs]);
+      map.set(key, bucket);
+    }
+    return Array.from(map.values());
+  }, [dias]);
+
   const totalAtraso = registros.reduce((s, r) => s + (r.atraso_minutos || 0), 0);
   const anos = [hoje.getFullYear() + 1, hoje.getFullYear(), hoje.getFullYear() - 1, hoje.getFullYear() - 2];
 
+  const tabelaDia = (regs: Registro[]) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+          <tr>
+            <th className="px-4 py-2 text-left">Marcação</th>
+            <th className="px-4 py-2 text-left">Hora registrada</th>
+            <th className="px-4 py-2 text-left">Hora prevista</th>
+            {!desligado && <th className="px-4 py-2 text-left">Situação</th>}
+            <th className="px-4 py-2 text-left">Registrado por</th>
+          </tr>
+        </thead>
+        <tbody>
+          {regs.map((r) => (
+            <tr key={r.id} className="border-t">
+              <td className="px-4 py-2 font-medium">{tipoLabel(r.tipo_ponto)}</td>
+              <td className="px-4 py-2 font-mono tabular-nums font-semibold">{hhmm(r.horario_registrado)}</td>
+              <td className="px-4 py-2 font-mono tabular-nums text-muted-foreground">{hhmm(r.horario_programado)}</td>
+              {!desligado && (
+                <td className="px-4 py-2">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${statusColor[r.status] ?? "bg-muted"}`}
+                  >
+                    {statusLabel[r.status] ?? r.status}
+                  </span>
+                  {r.atraso_minutos > 0 && <span className="ml-2 text-xs text-orange-600">+{r.atraso_minutos} min</span>}
+                </td>
+              )}
+              <td className="px-4 py-2 text-xs text-muted-foreground">
+                {r.origem === "empresa" ? "Empresa" : "Você"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // ---------- MODO DESLIGADO: histórico completo, sem seletores ----------
+  if (desligado) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <ClipboardList className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Histórico de pontos</h1>
+            <p className="text-sm text-muted-foreground">
+              Todas as marcações registradas durante o seu contrato
+              {dataDesligamento ? `, encerrado em ${dataDesligamento.split("-").reverse().join("/")}` : ""}.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Carregando histórico...</p>
+        ) : meses.length === 0 ? (
+          <Card>
+            <CardContent className="p-10 text-center text-sm text-muted-foreground">
+              Nenhuma marcação registrada no período do seu contrato.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-8">
+            {meses.map((bloco) => {
+              const totalMarcacoes = bloco.dias.reduce((s, [, regs]) => s + regs.length, 0);
+              return (
+                <section key={`${bloco.ano}-${bloco.mes}`} className="space-y-3">
+                  <div className="flex items-baseline justify-between border-b pb-1">
+                    <h2 className="text-lg font-bold">
+                      {NOMES_MES[bloco.mes - 1]} de {bloco.ano}
+                    </h2>
+                    <span className="text-xs uppercase text-muted-foreground">
+                      {bloco.dias.length} dia(s) · {totalMarcacoes} marcações
+                    </span>
+                  </div>
+                  {bloco.dias.map(([data, regs]) => (
+                    <Card key={data}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <CalendarDays className="h-4 w-4 text-primary" />
+                          <span className="capitalize">{dataLonga(data)}</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">{tabelaDia(regs)}</CardContent>
+                    </Card>
+                  ))}
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---------- MODO ATIVO ----------
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <ClipboardList className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold">{desligado ? "Histórico de Pontos" : "Meus Registros"}</h1>
+          <h1 className="text-2xl font-bold">Meus Registros</h1>
           <p className="text-sm text-muted-foreground">Marcações registradas no período selecionado.</p>
         </div>
       </div>
@@ -101,10 +231,14 @@ function MeusRegistrosPage() {
           <div className="space-y-1">
             <Label className="text-xs">Mês</Label>
             <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {NOMES_MES.map((m, i) => (
-                  <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>
+                  <SelectItem key={m} value={String(i + 1)}>
+                    {m}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -112,10 +246,14 @@ function MeusRegistrosPage() {
           <div className="space-y-1">
             <Label className="text-xs">Ano</Label>
             <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {anos.map((a) => (
-                  <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                  <SelectItem key={a} value={String(a)}>
+                    {a}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -124,12 +262,10 @@ function MeusRegistrosPage() {
             <div className="text-xs text-muted-foreground uppercase">Marcações</div>
             <div className="text-xl font-bold tabular-nums">{registros.length}</div>
           </div>
-          {!desligado && (
-            <div className="text-right">
-              <div className="text-xs text-muted-foreground uppercase">Atraso no mês</div>
-              <div className="text-xl font-bold tabular-nums text-orange-600">{formatMinutos(totalAtraso)}</div>
-            </div>
-          )}
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground uppercase">Atraso no mês</div>
+            <div className="text-xl font-bold tabular-nums text-orange-600">{formatMinutos(totalAtraso)}</div>
+          </div>
         </CardContent>
       </Card>
 
@@ -143,58 +279,17 @@ function MeusRegistrosPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {dias.map(([data, regs]) => {
-            const d = new Date(`${data}T12:00:00`);
-            return (
-              <Card key={data}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <CalendarDays className="h-4 w-4 text-primary" />
-                    <span className="capitalize">
-                      {d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                        <tr>
-                          <th className="px-4 py-2 text-left">Marcação</th>
-                          <th className="px-4 py-2 text-left">Registrado</th>
-                          <th className="px-4 py-2 text-left">Previsto</th>
-                          {!desligado && <th className="px-4 py-2 text-left">Situação</th>}
-                          <th className="px-4 py-2 text-left">Origem</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {regs.map((r) => (
-                          <tr key={r.id} className="border-t">
-                            <td className="px-4 py-2 font-medium">{tipoLabel(r.tipo_ponto)}</td>
-                            <td className="px-4 py-2 font-mono tabular-nums">{hhmm(r.horario_registrado)}</td>
-                            <td className="px-4 py-2 font-mono tabular-nums text-muted-foreground">
-                              {hhmm(r.horario_programado)}
-                            </td>
-                            {!desligado && (
-                              <td className="px-4 py-2">
-                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${statusColor[r.status] ?? "bg-muted"}`}>
-                                  {statusLabel[r.status] ?? r.status}
-                                </span>
-                                {r.atraso_minutos > 0 && (
-                                  <span className="ml-2 text-xs text-orange-600">+{r.atraso_minutos} min</span>
-                                )}
-                              </td>
-                            )}
-                            <td className="px-4 py-2 text-xs text-muted-foreground capitalize">{r.origem}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {dias.map(([data, regs]) => (
+            <Card key={data}>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  <span className="capitalize">{dataLonga(data)}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">{tabelaDia(regs)}</CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
