@@ -160,11 +160,13 @@ function FuncionarioHome() {
           <div>
             <div className="text-sm text-white/70 capitalize">{dataStr}</div>
             <div className="text-3xl sm:text-4xl font-bold mt-1">Olá, {nome || "funcionário"}</div>
-            <div className="mt-2">
-              <span className={`text-[11px] uppercase font-bold px-2 py-1 rounded ${toneClass[statusDia.tone]}`}>
-                {statusDia.label}
-              </span>
-            </div>
+            {!desligado && (
+              <div className="mt-2">
+                <span className={`text-[11px] uppercase font-bold px-2 py-1 rounded ${toneClass[statusDia.tone]}`}>
+                  {statusDia.label}
+                </span>
+              </div>
+            )}
           </div>
           <div className="text-right">
             <div className="text-4xl sm:text-5xl font-mono font-bold text-primary tabular-nums">{horaStr}</div>
