@@ -279,7 +279,7 @@ function CartaoFuncPage() {
           <h2 className="text-xl font-bold">Meu cartão de ponto</h2>
           <p className="text-sm text-muted-foreground">Visualize seu cartão de ponto mês a mês.</p>
         </div>
-        <Button variant="outline" onClick={baixarPdf} disabled={!resumo}>
+        <Button variant="outline" onClick={() => baixarPdf()} disabled={!resumo}>
           <Download className="h-4 w-4 mr-1" />
           BAIXAR PDF
         </Button>
