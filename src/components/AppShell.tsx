@@ -16,17 +16,23 @@ export function AppShell({
   items,
   title,
   children,
+  variant = "default",
+  headerBadge,
 }: {
   items: NavItem[];
   title: string;
   children: ReactNode;
+  variant?: "default" | "arquivo";
+  headerBadge?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const { nome, role, signOut } = useAuth();
   const location = useLocation();
+  const arquivo = variant === "arquivo";
 
   return (
-    <div className="flex min-h-screen bg-muted/30">
+    <div className={cn("flex min-h-screen bg-muted/30", arquivo && "bg-slate-100 dark:bg-slate-950 grayscale-[45%]")}>
+
       {/* Sidebar - desktop */}
       <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground">
         <div className="p-5 border-b border-sidebar-border">
