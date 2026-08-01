@@ -203,25 +203,74 @@ function CartaoFuncPage() {
         matriculaPdf: matriculaFinal,
         jornada,
         jornadas: vincs,
-        ano,
-        mes,
+        ano: anoAlvo,
+        mes: mesAlvo,
         resumo: resumoAtual,
         status: "liberado",
       });
 
       salvarPdfArquivo(
         doc,
-        `FUNC-V9-cartao-${funcionarioAtualizado.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`,
+        `cartao-ponto-${funcionarioAtualizado.nome}-${matriculaFinal}-${anoAlvo}-${String(mesAlvo).padStart(2, "0")}.pdf`,
       );
 
-      toast.success(`PDF FUNC V9 gerado com matrícula ${matriculaFinal}.`);
+      toast.success(`PDF de ${NOMES_MES[mesAlvo - 1]}/${anoAlvo} gerado.`);
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBaixando(null);
     }
   };
 
   if (!funcionario) return <p className="text-sm text-muted-foreground">Carregando seus dados...</p>;
+
+  if (desligado) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold">Histórico de cartões de ponto</h2>
+          <p className="text-sm text-muted-foreground">
+            Baixe os cartões de ponto dos meses trabalhados
+            {dataDesligamento ? ` até ${dataDesligamento.split("-").reverse().join("/")}` : ""}.
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">Carregando histórico...</div>
+            ) : periodos.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">Nenhum cartão de ponto disponível.</div>
+            ) : (
+              <ul className="divide-y">
+                {periodos.map((p) => {
+                  const key = `${p.ano}-${p.mes}`;
+                  return (
+                    <li key={key} className="flex items-center justify-between gap-3 p-3">
+                      <span className="text-sm font-semibold">
+                        {NOMES_MES[p.mes - 1]} / {p.ano}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={baixando === key}
+                        onClick={() => baixarPdf(p.ano, p.mes)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        {baixando === key ? "Gerando..." : "Baixar PDF"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-4">
