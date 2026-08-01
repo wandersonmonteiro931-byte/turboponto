@@ -31,11 +31,22 @@ type Registro = {
   observacao: string | null;
 };
 
-/** Aceita "HH:MM:SS" ou timestamp ISO e devolve sempre HH:MM. */
-const hhmm = (t: string | null) => {
+/** Timestamp real (timestamptz) -> HH:MM no fuso de Brasília. */
+const hhmmReal = (t: string | null) => {
   if (!t) return "—";
-  const iso = t.includes("T") ? t.split("T")[1] : t.includes(" ") ? t.split(" ")[1] : t;
-  return (iso ?? t).slice(0, 5);
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+/** Campo "time" do banco ("HH:MM:SS") -> HH:MM, sem conversão de fuso. */
+const hhmmPrevisto = (t: string | null) => {
+  if (!t) return "—";
+  return t.slice(0, 5);
 };
 
 const dataLonga = (data: string) =>
@@ -55,6 +66,7 @@ function MeusRegistrosPage() {
   const [funcId, setFuncId] = useState<string | null>(null);
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
+  const [periodoSel, setPeriodoSel] = useState<string>("todos");
 
   useEffect(() => {
     if (!user) return;
@@ -136,8 +148,8 @@ function MeusRegistrosPage() {
           {regs.map((r) => (
             <tr key={r.id} className="border-t">
               <td className="px-4 py-2 font-medium">{tipoLabel(r.tipo_ponto)}</td>
-              <td className="px-4 py-2 font-mono tabular-nums font-semibold">{hhmm(r.horario_registrado)}</td>
-              <td className="px-4 py-2 font-mono tabular-nums text-muted-foreground">{hhmm(r.horario_programado)}</td>
+              <td className="px-4 py-2 font-mono tabular-nums font-semibold">{hhmmReal(r.horario_registrado)}</td>
+              <td className="px-4 py-2 font-mono tabular-nums text-muted-foreground">{hhmmPrevisto(r.horario_programado)}</td>
               {!desligado && (
                 <td className="px-4 py-2">
                   <span
@@ -158,8 +170,9 @@ function MeusRegistrosPage() {
     </div>
   );
 
-  // ---------- MODO DESLIGADO: histórico completo, sem seletores ----------
+  // ---------- MODO DESLIGADO: histórico com botões de período ----------
   if (desligado) {
+    const visiveis = periodoSel === "todos" ? meses : meses.filter((b) => `${b.ano}-${b.mes}` === periodoSel);
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
@@ -173,9 +186,47 @@ function MeusRegistrosPage() {
           </div>
         </div>
 
+        {meses.length > 0 && (
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <div className="text-xs uppercase text-muted-foreground">Selecione o período</div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPeriodoSel("todos")}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    periodoSel === "todos"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                >
+                  Todos os meses
+                </button>
+                {meses.map((b) => {
+                  const key = `${b.ano}-${b.mes}`;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setPeriodoSel(key)}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                        periodoSel === key
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background hover:bg-muted"
+                      }`}
+                    >
+                      {NOMES_MES[b.mes - 1]}/{b.ano}
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {loading ? (
           <p className="text-sm text-muted-foreground">Carregando histórico...</p>
-        ) : meses.length === 0 ? (
+        ) : visiveis.length === 0 ? (
           <Card>
             <CardContent className="p-10 text-center text-sm text-muted-foreground">
               Nenhuma marcação registrada no período do seu contrato.
@@ -183,7 +234,7 @@ function MeusRegistrosPage() {
           </Card>
         ) : (
           <div className="space-y-8">
-            {meses.map((bloco) => {
+            {visiveis.map((bloco) => {
               const totalMarcacoes = bloco.dias.reduce((s, [, regs]) => s + regs.length, 0);
               return (
                 <section key={`${bloco.ano}-${bloco.mes}`} className="space-y-3">
@@ -214,6 +265,7 @@ function MeusRegistrosPage() {
       </div>
     );
   }
+
 
   // ---------- MODO ATIVO ----------
   return (
