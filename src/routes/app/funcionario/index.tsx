@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { DIAS_SEMANA, JornadaDia } from "@/lib/jornadas";
 import { formatMinutos, mesNome } from "@/lib/format";
 import { statusJornadaHoje, TipoPonto, hojeISO } from "@/lib/ponto";
+import { useFuncionarioStatus } from "@/lib/funcionario-status";
+
 
 const toneClass: Record<string, string> = {
   ok: "bg-green-500/20 text-green-700",
