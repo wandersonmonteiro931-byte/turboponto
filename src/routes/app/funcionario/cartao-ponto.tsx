@@ -149,8 +149,8 @@ function CartaoFuncPage() {
         empresa_id: funcionarioBanco?.empresa_id ?? funcionario.empresa_id,
       };
 
-      const resumoAtual = await carregarCartao(funcionarioAtualizado.id, ano, mes);
-      setResumo(resumoAtual);
+      const resumoAtual = await carregarCartao(funcionarioAtualizado.id, anoAlvo, mesAlvo);
+      if (!desligado) setResumo(resumoAtual);
 
       const { data: vinc } = await supabase
         .from("funcionarios_jornadas")
