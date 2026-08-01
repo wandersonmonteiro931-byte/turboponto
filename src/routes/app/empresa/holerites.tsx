@@ -507,13 +507,6 @@ function HoleritesPage() {
       toast.success("PDF baixado sem recalcular.");
     } catch (e) {
       console.error("[holerites] erro ao baixar PDF salvo", e);
-
-      if (h.pdf_url) {
-        window.open(h.pdf_url, "_blank", "noopener,noreferrer");
-        toast.info("Abrindo PDF salvo.");
-        return;
-      }
-
       toast.error(e instanceof Error ? e.message : "Erro ao baixar PDF salvo");
     }
   };
