@@ -72,6 +72,8 @@ function CartaoFuncPage() {
 
   useEffect(() => {
     if (!funcionario) return;
+  useEffect(() => {
+    if (!funcionario || desligado) return;
     setLoading(true);
     (async () => {
       const r = await carregarCartao(funcionario.id, ano, mes);
@@ -88,9 +90,31 @@ function CartaoFuncPage() {
       setVinculos(v);
       setLoading(false);
     })();
-  }, [funcionario, ano, mes]);
+  }, [funcionario, ano, mes, desligado]);
+
+  // Desligado: lista apenas os meses que possuem histórico de ponto
+  useEffect(() => {
+    if (!funcionario || !desligado) return;
+    setLoading(true);
+    (async () => {
+      const { data } = await supabase
+        .from("registros_ponto")
+        .select("data_referencia")
+        .eq("funcionario_id", funcionario.id)
+        .order("data_referencia", { ascending: false });
+      const set = new Map<string, { ano: number; mes: number }>();
+      for (const r of (data ?? []) as { data_referencia: string }[]) {
+        const a = Number(r.data_referencia.slice(0, 4));
+        const m = Number(r.data_referencia.slice(5, 7));
+        set.set(`${a}-${m}`, { ano: a, mes: m });
+      }
+      setPeriodos([...set.values()].sort((x, y) => y.ano - x.ano || y.mes - x.mes));
+      setLoading(false);
+    })();
+  }, [funcionario, desligado]);
 
   const liberado = cartao?.status === "liberado";
+
 
   const baixarPdf = async () => {
     if (!funcionario || !resumo || !empresa) return;
