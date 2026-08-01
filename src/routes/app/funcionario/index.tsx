@@ -238,6 +238,8 @@ function FuncionarioHome() {
           )}
         </CardContent>
       </Card>
+      )}
+
 
       {desligado ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
