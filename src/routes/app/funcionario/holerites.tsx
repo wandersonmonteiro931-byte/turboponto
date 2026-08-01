@@ -97,7 +97,7 @@ function MeusHolerites() {
       void carregar();
     } catch (e) {
       console.error("[funcionario/holerites] erro ao baixar PDF", e);
-      window.open(h.pdf_url, "_blank", "noopener,noreferrer");
+      toast.error("Erro ao baixar o PDF do holerite.");
     }
   };
 
