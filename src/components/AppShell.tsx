@@ -120,10 +120,14 @@ export function AppShell({
             <Logo size={32} withText={false} />
           </div>
           <h1 className="text-lg font-semibold">{title}</h1>
+          {headerBadge}
           <div className="ml-auto hidden sm:flex items-center gap-3 text-sm text-muted-foreground">
             <span className="hidden md:inline">{nome}</span>
-            <span className="px-2 py-0.5 rounded-full bg-primary/20 text-foreground text-xs font-semibold capitalize">{role}</span>
+            <span className="px-2 py-0.5 rounded-full bg-primary/20 text-foreground text-xs font-semibold capitalize">
+              {arquivo ? "Desligado" : role}
+            </span>
           </div>
+
         </header>
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
