@@ -31,11 +31,22 @@ type Registro = {
   observacao: string | null;
 };
 
-/** Aceita "HH:MM:SS" ou timestamp ISO e devolve sempre HH:MM. */
-const hhmm = (t: string | null) => {
+/** Timestamp real (timestamptz) -> HH:MM no fuso de Brasília. */
+const hhmmReal = (t: string | null) => {
   if (!t) return "—";
-  const iso = t.includes("T") ? t.split("T")[1] : t.includes(" ") ? t.split(" ")[1] : t;
-  return (iso ?? t).slice(0, 5);
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+/** Campo "time" do banco ("HH:MM:SS") -> HH:MM, sem conversão de fuso. */
+const hhmmPrevisto = (t: string | null) => {
+  if (!t) return "—";
+  return t.slice(0, 5);
 };
 
 const dataLonga = (data: string) =>
