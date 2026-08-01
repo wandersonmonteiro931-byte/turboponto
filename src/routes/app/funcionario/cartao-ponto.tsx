@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { carregarCartao, DIAS_SEMANA_CURTO, formatMin, NOMES_MES, type ResumoCartao } from "@/lib/cartao";
 import { gerarPdfCartao, salvarPdfArquivo } from "@/lib/cartao-pdf";
 import { carregarVinculosAtivos, DIAS_SEMANA, resumirDiasJornada, type VinculoAtivoComDias } from "@/lib/jornadas";
+import { useFuncionarioStatus } from "@/lib/funcionario-status";
 
 export const Route = createFileRoute("/app/funcionario/cartao-ponto")({
   component: CartaoFuncPage,
@@ -26,6 +27,7 @@ type Cartao = {
 
 function CartaoFuncPage() {
   const { user } = useAuth();
+  const { desligado, dataDesligamento } = useFuncionarioStatus();
   const hoje = new Date();
   const [funcionario, setFuncionario] = useState<{
     id: string;
@@ -46,6 +48,8 @@ function CartaoFuncPage() {
   const [cartao, setCartao] = useState<Cartao | null>(null);
   const [vinculos, setVinculos] = useState<VinculoAtivoComDias[]>([]);
   const [loading, setLoading] = useState(false);
+  const [periodos, setPeriodos] = useState<{ ano: number; mes: number }[]>([]);
+  const [baixando, setBaixando] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -67,7 +71,7 @@ function CartaoFuncPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!funcionario) return;
+    if (!funcionario || desligado) return;
     setLoading(true);
     (async () => {
       const r = await carregarCartao(funcionario.id, ano, mes);
@@ -84,12 +88,36 @@ function CartaoFuncPage() {
       setVinculos(v);
       setLoading(false);
     })();
-  }, [funcionario, ano, mes]);
+  }, [funcionario, ano, mes, desligado]);
+
+  // Desligado: lista apenas os meses que possuem histórico de ponto
+  useEffect(() => {
+    if (!funcionario || !desligado) return;
+    setLoading(true);
+    (async () => {
+      const { data } = await supabase
+        .from("registros_ponto")
+        .select("data_referencia")
+        .eq("funcionario_id", funcionario.id)
+        .order("data_referencia", { ascending: false });
+      const set = new Map<string, { ano: number; mes: number }>();
+      for (const r of (data ?? []) as { data_referencia: string }[]) {
+        const a = Number(r.data_referencia.slice(0, 4));
+        const m = Number(r.data_referencia.slice(5, 7));
+        set.set(`${a}-${m}`, { ano: a, mes: m });
+      }
+      setPeriodos([...set.values()].sort((x, y) => y.ano - x.ano || y.mes - x.mes));
+      setLoading(false);
+    })();
+  }, [funcionario, desligado]);
 
   const liberado = cartao?.status === "liberado";
 
-  const baixarPdf = async () => {
-    if (!funcionario || !resumo || !empresa) return;
+
+  const baixarPdf = async (anoAlvo: number = ano, mesAlvo: number = mes) => {
+    if (!funcionario || !empresa) return;
+    if (!desligado && !resumo) return;
+    setBaixando(`${anoAlvo}-${mesAlvo}`);
 
     try {
       const { data: funcionarioBanco, error: funcPdfError } = await supabase
@@ -121,8 +149,8 @@ function CartaoFuncPage() {
         empresa_id: funcionarioBanco?.empresa_id ?? funcionario.empresa_id,
       };
 
-      const resumoAtual = await carregarCartao(funcionarioAtualizado.id, ano, mes);
-      setResumo(resumoAtual);
+      const resumoAtual = await carregarCartao(funcionarioAtualizado.id, anoAlvo, mesAlvo);
+      if (!desligado) setResumo(resumoAtual);
 
       const { data: vinc } = await supabase
         .from("funcionarios_jornadas")
@@ -175,25 +203,74 @@ function CartaoFuncPage() {
         matriculaPdf: matriculaFinal,
         jornada,
         jornadas: vincs,
-        ano,
-        mes,
+        ano: anoAlvo,
+        mes: mesAlvo,
         resumo: resumoAtual,
         status: "liberado",
       });
 
       salvarPdfArquivo(
         doc,
-        `FUNC-V9-cartao-${funcionarioAtualizado.nome}-${matriculaFinal}-${ano}-${String(mes).padStart(2, "0")}.pdf`,
+        `cartao-ponto-${funcionarioAtualizado.nome}-${matriculaFinal}-${anoAlvo}-${String(mesAlvo).padStart(2, "0")}.pdf`,
       );
 
-      toast.success(`PDF FUNC V9 gerado com matrícula ${matriculaFinal}.`);
+      toast.success(`PDF de ${NOMES_MES[mesAlvo - 1]}/${anoAlvo} gerado.`);
     } catch (e) {
       console.error("Erro ao gerar PDF", e);
       toast.error("Erro ao gerar PDF: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBaixando(null);
     }
   };
 
   if (!funcionario) return <p className="text-sm text-muted-foreground">Carregando seus dados...</p>;
+
+  if (desligado) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold">Histórico de cartões de ponto</h2>
+          <p className="text-sm text-muted-foreground">
+            Baixe os cartões de ponto dos meses trabalhados
+            {dataDesligamento ? ` até ${dataDesligamento.split("-").reverse().join("/")}` : ""}.
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">Carregando histórico...</div>
+            ) : periodos.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">Nenhum cartão de ponto disponível.</div>
+            ) : (
+              <ul className="divide-y">
+                {periodos.map((p) => {
+                  const key = `${p.ano}-${p.mes}`;
+                  return (
+                    <li key={key} className="flex items-center justify-between gap-3 p-3">
+                      <span className="text-sm font-semibold">
+                        {NOMES_MES[p.mes - 1]} / {p.ano}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={baixando === key}
+                        onClick={() => baixarPdf(p.ano, p.mes)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        {baixando === key ? "Gerando..." : "Baixar PDF"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-4">
@@ -202,7 +279,7 @@ function CartaoFuncPage() {
           <h2 className="text-xl font-bold">Meu cartão de ponto</h2>
           <p className="text-sm text-muted-foreground">Visualize seu cartão de ponto mês a mês.</p>
         </div>
-        <Button variant="outline" onClick={baixarPdf} disabled={!resumo}>
+        <Button variant="outline" onClick={() => baixarPdf()} disabled={!resumo}>
           <Download className="h-4 w-4 mr-1" />
           BAIXAR PDF
         </Button>
