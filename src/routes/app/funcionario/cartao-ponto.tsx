@@ -48,6 +48,8 @@ function CartaoFuncPage() {
   const [cartao, setCartao] = useState<Cartao | null>(null);
   const [vinculos, setVinculos] = useState<VinculoAtivoComDias[]>([]);
   const [loading, setLoading] = useState(false);
+  const [periodos, setPeriodos] = useState<{ ano: number; mes: number }[]>([]);
+  const [baixando, setBaixando] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
