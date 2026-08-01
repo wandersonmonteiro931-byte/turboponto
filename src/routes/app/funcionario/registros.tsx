@@ -66,6 +66,7 @@ function MeusRegistrosPage() {
   const [funcId, setFuncId] = useState<string | null>(null);
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
+  const [periodoSel, setPeriodoSel] = useState<string>("todos");
 
   useEffect(() => {
     if (!user) return;
