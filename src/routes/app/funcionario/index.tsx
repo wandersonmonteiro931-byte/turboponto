@@ -160,11 +160,13 @@ function FuncionarioHome() {
           <div>
             <div className="text-sm text-white/70 capitalize">{dataStr}</div>
             <div className="text-3xl sm:text-4xl font-bold mt-1">Olá, {nome || "funcionário"}</div>
-            <div className="mt-2">
-              <span className={`text-[11px] uppercase font-bold px-2 py-1 rounded ${toneClass[statusDia.tone]}`}>
-                {statusDia.label}
-              </span>
-            </div>
+            {!desligado && (
+              <div className="mt-2">
+                <span className={`text-[11px] uppercase font-bold px-2 py-1 rounded ${toneClass[statusDia.tone]}`}>
+                  {statusDia.label}
+                </span>
+              </div>
+            )}
           </div>
           <div className="text-right">
             <div className="text-4xl sm:text-5xl font-mono font-bold text-primary tabular-nums">{horaStr}</div>
@@ -186,6 +188,7 @@ function FuncionarioHome() {
       )}
 
 
+      {!desligado && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -235,16 +238,30 @@ function FuncionarioHome() {
           )}
         </CardContent>
       </Card>
+      )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <InfoCard icon={TrendingDown} label="Atraso no mês" value={formatMinutos(resumo.atrasoMes)} accent="text-orange-600" />
-        <InfoCard icon={Gift} label="Cesta básica" value={resumo.cestaStatus}
-          accent={resumo.cestaStatus === "Perdida" ? "text-red-600" : resumo.cestaStatus === "Em risco" ? "text-orange-600" : "text-green-600"} />
-        <InfoCard icon={FileText} label="Último holerite"
-          value={resumo.ultimoHolerite ? `${mesNome(resumo.ultimoHolerite.mes)}/${resumo.ultimoHolerite.ano}` : "—"}
-          accent="text-foreground" />
-        <InfoCard icon={Bell} label="Avisos novos" value={resumo.avisosNaoLidos} accent="text-primary" />
-      </div>
+
+      {desligado ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <InfoCard
+            icon={FileText}
+            label="Último holerite"
+            value={resumo.ultimoHolerite ? `${mesNome(resumo.ultimoHolerite.mes)}/${resumo.ultimoHolerite.ano}` : "—"}
+            accent="text-foreground"
+          />
+          <InfoCard icon={Gift} label="Benefícios" value="Histórico disponível" accent="text-foreground" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <InfoCard icon={TrendingDown} label="Atraso no mês" value={formatMinutos(resumo.atrasoMes)} accent="text-orange-600" />
+          <InfoCard icon={Gift} label="Cesta básica" value={resumo.cestaStatus}
+            accent={resumo.cestaStatus === "Perdida" ? "text-red-600" : resumo.cestaStatus === "Em risco" ? "text-orange-600" : "text-green-600"} />
+          <InfoCard icon={FileText} label="Último holerite"
+            value={resumo.ultimoHolerite ? `${mesNome(resumo.ultimoHolerite.mes)}/${resumo.ultimoHolerite.ano}` : "—"}
+            accent="text-foreground" />
+          <InfoCard icon={Bell} label="Avisos novos" value={resumo.avisosNaoLidos} accent="text-primary" />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Shortcut to="/app/funcionario/cartao-ponto" icon={CreditCard} label="Cartão de Ponto" />

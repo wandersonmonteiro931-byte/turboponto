@@ -69,13 +69,14 @@ function MeusHolerites() {
     }
 
     try {
-      const url = new URL(h.pdf_url);
+      const { resolverUrlHoleritePdf } = await import("@/lib/holerite-storage");
+      const url = new URL(await resolverUrlHoleritePdf(h.pdf_url));
       url.searchParams.set("download", "1");
       url.searchParams.set("v", String(Date.now()));
 
       const resp = await fetch(url.toString(), { cache: "no-store" });
       if (!resp.ok) {
-        window.open(url.toString(), "_blank", "noopener,noreferrer");
+        toast.error("Não foi possível baixar o PDF deste holerite.");
         return;
       }
 
@@ -96,7 +97,7 @@ function MeusHolerites() {
       void carregar();
     } catch (e) {
       console.error("[funcionario/holerites] erro ao baixar PDF", e);
-      window.open(h.pdf_url, "_blank", "noopener,noreferrer");
+      toast.error("Erro ao baixar o PDF do holerite.");
     }
   };
 
