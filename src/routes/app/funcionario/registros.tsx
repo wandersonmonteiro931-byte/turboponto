@@ -147,8 +147,8 @@ function MeusRegistrosPage() {
           {regs.map((r) => (
             <tr key={r.id} className="border-t">
               <td className="px-4 py-2 font-medium">{tipoLabel(r.tipo_ponto)}</td>
-              <td className="px-4 py-2 font-mono tabular-nums font-semibold">{hhmm(r.horario_registrado)}</td>
-              <td className="px-4 py-2 font-mono tabular-nums text-muted-foreground">{hhmm(r.horario_programado)}</td>
+              <td className="px-4 py-2 font-mono tabular-nums font-semibold">{hhmmReal(r.horario_registrado)}</td>
+              <td className="px-4 py-2 font-mono tabular-nums text-muted-foreground">{hhmmPrevisto(r.horario_programado)}</td>
               {!desligado && (
                 <td className="px-4 py-2">
                   <span
