@@ -71,8 +71,6 @@ function CartaoFuncPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!funcionario) return;
-  useEffect(() => {
     if (!funcionario || desligado) return;
     setLoading(true);
     (async () => {
