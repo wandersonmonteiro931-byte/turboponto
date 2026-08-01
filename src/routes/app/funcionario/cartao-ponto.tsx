@@ -114,8 +114,10 @@ function CartaoFuncPage() {
   const liberado = cartao?.status === "liberado";
 
 
-  const baixarPdf = async () => {
-    if (!funcionario || !resumo || !empresa) return;
+  const baixarPdf = async (anoAlvo: number = ano, mesAlvo: number = mes) => {
+    if (!funcionario || !empresa) return;
+    if (!desligado && !resumo) return;
+    setBaixando(`${anoAlvo}-${mesAlvo}`);
 
     try {
       const { data: funcionarioBanco, error: funcPdfError } = await supabase
