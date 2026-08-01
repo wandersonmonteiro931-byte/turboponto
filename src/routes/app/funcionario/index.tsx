@@ -168,17 +168,19 @@ function FuncionarioHome() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-6 flex flex-col items-center text-center">
-          <Clock className="h-12 w-12 text-primary mb-3" />
-          <h3 className="text-lg font-semibold mb-1">Registrar ponto</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            {jornada ? "Toque no botão abaixo para registrar sua marcação" : "Você não pode bater ponto sem uma jornada ativa"}
-          </p>
-          <BaterPontoButton />
+      {!desligado && (
+        <Card>
+          <CardContent className="p-6 flex flex-col items-center text-center">
+            <Clock className="h-12 w-12 text-primary mb-3" />
+            <h3 className="text-lg font-semibold mb-1">Registrar ponto</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              {jornada ? "Toque no botão abaixo para registrar sua marcação" : "Você não pode bater ponto sem uma jornada ativa"}
+            </p>
+            <BaterPontoButton />
+          </CardContent>
+        </Card>
+      )}
 
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
